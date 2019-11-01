@@ -1,0 +1,34 @@
+# Evaluation template
+
+# REQUIRES:
+# problem
+# pipeline
+# model_fn
+# optimizer_fn
+# model_dir
+# is_meta_model (defaults to False)
+
+import kblocks.cli
+import kblocks.framework.trainers
+import kblocks.framework.pipelines
+import kblocks.utils
+
+kb.main.fn = @kb.framework.evaluate
+
+kb.framework.Trainer.problem = %problem
+kb.framework.Trainer.pipeline = %pipeline
+kb.framework.Trainer.model_fn = %model_fn
+kb.framework.Trainer.optimizer_fn = %optimizer_fn
+kb.framework.get_configured_trainer.is_meta_model = %is_meta_model
+trainer = @kb.framework.get_configured_trainer()
+is_meta_model = False
+
+kb.framework.evaluate.trainer = %trainer
+kb.framework.evaluate.model_dir = %model_dir
+
+kb.logging_config.to_file = True
+kb.logging_config.log_dir = %model_dir
+kb.logging_config.program_name = %proc_name
+kb.utils.proc.title = %proc_name
+
+proc_name = 'mk-eval'

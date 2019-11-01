@@ -1,0 +1,18 @@
+# Default configuration for anything using Trainables
+
+import kblocks.framework.trainable
+import kblocks.framework.pipelines
+
+trainable = @kb.framework.Trainable()
+
+kb.framework.Trainable.problem = %problem
+kb.framework.Trainable.pipeline_fn = %pipeline_fn
+kb.framework.Trainable.optimizer_fn = %optimizer_fn
+kb.framework.Trainable.model_dir = %model_dir
+
+pipeline_fn = @kb.framework.ModelPipeline
+kb.framework.ModelPipeline.model_fn = %model_fn
+model_fn = None
+
+kb.logging_config.log_dir = @kb.log_dir()
+kb.log_dir.root_dir = %model_dir

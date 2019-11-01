@@ -1,0 +1,21 @@
+# Training config template for basic supervised learning
+# may set `is_meta_model = True` for models using `kblocks.meta_models`.
+
+# REQUIRES:
+# problem
+# pipeline_fn
+# optimizer
+# epochs
+# model_dir
+# is_meta_model (defaults to False)
+
+import kblocks.cli
+include 'trainable.gin'
+
+kb.main.fn = @kb.framework.run_dataset
+kb.framework.run_dataset.trainable = %trainable  # default defined in trainable.gin
+
+kb.framework.run_dataset.batch_size = %batch_size
+kb.framework.run_dataset.shuffle_buffer = %shuffle_buffer
+
+shuffle_buffer = None
