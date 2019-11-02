@@ -11,7 +11,7 @@ from typing import Callable
 from kblocks.framework.problems import Problem
 from kblocks.framework.pipelines import Pipeline
 from kblocks import callbacks as cb
-from kblocks.typing import NestedTensorLikeSpec
+from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
 from typing import Sequence, Mapping, Any, Optional
 

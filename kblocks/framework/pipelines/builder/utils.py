@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 import collections
-from kblocks.typing import T, TensorLike
+from kblocks.tf_typing import T, TensorLike
 from typing import MutableMapping
 
 

@@ -32,6 +32,22 @@ class SchedulesTest(tf.test.TestCase):
             schedules.exponential_decay_towards(100, 2, 1, 0.5, asymptote=1.1),
             1.1)
 
+    def test_cosine_annealing(self):
+        max_value = 10.
+        min_value = 1.
+        steps_per_restart = 100.
+        kwargs = dict(max_value=max_value,
+                      min_value=min_value,
+                      steps_per_restart=steps_per_restart)
+        for step, expected in (
+            (0, max_value),
+            (steps_per_restart, max_value),
+            (steps_per_restart - 1, min_value),
+        ):
+            self.assertAllClose(
+                self.evaluate(schedules.cosine_annealing(step, **kwargs)),
+                expected)
+
 
 if __name__ == '__main__':
     tf.test.main()

@@ -10,12 +10,12 @@ from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
 from kblocks.framework.pipelines.builder.utils import TensorDict
 from kblocks.framework.pipelines.core import Pipeline
 
-from kblocks.typing import NestedTensorLike
-from kblocks.typing import NestedTensorLikeSpec
-# from kblocks.typing import TensorLikeSpec
-from kblocks.typing import TensorLike
+from kblocks.tf_typing import NestedTensorLike
+from kblocks.tf_typing import NestedTensorLikeSpec
+# from kblocks.tf_typing import TensorLikeSpec
+from kblocks.tf_typing import TensorLike
 from kblocks.layers import Lambda, Input
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 Model = tf.keras.Model
 
@@ -77,16 +77,6 @@ class PipelineModels(object):
                 PipelineModels.TRAINED)
 
 
-def _rebuild(inp):
-    components = Lambda(lambda i: [i.flat_values, *i.nested_row_splits])(inp)
-    rebuilt = Lambda(lambda c: tf.RaggedTensor.from_nested_row_splits(
-        c[0], c[1:]))(components)
-    return rebuilt
-
-
-# _temp_count = 0
-
-
 class PipelineBuilder(object):
 
     def __init__(self):
@@ -99,6 +89,23 @@ class PipelineBuilder(object):
             PipelineModels.TRAINED: self._trained_builder,
         }
         self._marks = Marks()
+
+    _stack: List['PipelineBuilder'] = []
+
+    @classmethod
+    def get_default(cls) -> 'PipelineBuilder':
+        if len(cls._stack) == 0:
+            raise RuntimeError('Cannot get_default - no open instance context. '
+                               'Use `with {}():`'.format(cls.__name__))
+        return cls._stack[-1]
+
+    def __enter__(self):
+        PipelineBuilder._stack.append(self)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        top = PipelineBuilder._stack.pop()
+        assert (top is self)
 
     def propagate_marks(self, end: TensorLike) -> Optional[str]:
         return self._marks.propagate(end)
@@ -122,7 +129,7 @@ class PipelineBuilder(object):
         self._marks[inp] = PipelineModels.PRE_BATCH
         return tf.squeeze(inp, axis=0)
 
-    def batch(self, tensor: TensorLike, ragged: bool = None) -> TensorLike:
+    def batch(self, tensor: TensorLike, ragged: Optional[bool] = None) -> TensorLike:
         self._marks[tensor] = PipelineModels.PRE_BATCH
         if ragged is None:
             if isinstance(tensor, tf.RaggedTensor):
@@ -154,25 +161,13 @@ class PipelineBuilder(object):
                 return rebuilt
 
             elif isinstance(tensor, tf.Tensor):
-                name = None
-                # global _temp_count
-                # name = 'blah{}'.format(_temp_count)
-                # if _temp_count == 1:
-                #     print(tensor)
-                #     print(tensor.shape)
-                #     raise Exception()
-                # _temp_count += 1
-                output = Lambda(tf.RaggedTensor.from_tensor,
-                                name=name)(tf.expand_dims(tensor, axis=0))
+                output = Lambda(tf.RaggedTensor.from_tensor)(tf.expand_dims(
+                    tensor, axis=0))
                 self._pre_batch_builder.add_output(output)
                 inp = Input(output.shape, dtype=output.dtype, ragged=True)
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
-                # out = Lambda(
-                #     lambda x: tf.RaggedTensor.from_nested_row_splits(
-                #         x.flat_values, x.nested_row_splits[1:]))(inp)
-                # return out
                 components = Lambda(
                     lambda i: [i.flat_values, *i.nested_row_splits[1:]])(inp)
                 rebuilt = Lambda(
@@ -235,6 +230,39 @@ class PipelineBuilder(object):
         return BuiltPipeline(self._pre_batch_builder.build(),
                              self._post_batch_builder.build(),
                              self._trained_builder.build())
+
+
+get_default = PipelineBuilder.get_default
+
+
+def pre_batch_input(tensor_spec: tf.TensorSpec):
+    return get_default().pre_batch_input(tensor_spec)
+
+
+def trained_input(tensor: TensorLike):
+    return get_default().trained_input(tensor)
+
+
+def trained_output(tensor: TensorLike):
+    return get_default().trained_output(tensor)
+
+
+def build():
+    return get_default().build()
+
+
+def batch(tensor: TensorLike, ragged: Optional[bool] = None):
+    return get_default().batch(tensor, ragged=ragged)
+
+
+def propagate_marks(tensor: TensorLike):
+    return get_default().propagate_marks(tensor)
+
+
+def py_func_builder(pipeline_model: str = PipelineModels.PRE_BATCH,
+                    name: Optional[str] = None):
+    return get_default().py_func_builder(pipeline_model, name)
+
 
 
 def _inputs(x: TensorLike) -> Tuple[tf.Tensor, ...]:

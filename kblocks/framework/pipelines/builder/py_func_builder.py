@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
-from kblocks.typing import NestedTensors
+from kblocks.tf_typing import NestedTensors
 from kblocks.layers import Lambda, Input
 from typing import NamedTuple, Optional, Callable, List, Any, Tuple, Iterable
 

@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 # from typing import Union
-from kblocks.typing import TensorLike, TensorLikeSpec, NestedTensorSpec
+from kblocks.tf_typing import TensorLike, TensorLikeSpec, NestedTensorSpec
 from typing import Callable
 
 

@@ -6,8 +6,8 @@ import gin
 import tensorflow as tf
 from kblocks.spec import to_spec, specs_are_consistent
 from kblocks.layers import Input
-from kblocks.typing import NestedTensorLike
-from kblocks.typing import NestedTensorLikeSpec
+from kblocks.tf_typing import NestedTensorLike
+from kblocks.tf_typing import NestedTensorLikeSpec
 from typing import Callable, List
 
 

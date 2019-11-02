@@ -269,9 +269,10 @@ class NdPolynomialBuilder(object):
                  is_total_order: bool = True,
                  base_builder: Optional[PolynomialBuilder] = None):
         if base_builder is None:
-            base_builder = GeometricPolynomialBuilder()
-        assert (callable(base_builder))
-        self._base_builder: PolynomialBuilder = base_builder
+            self._base_builder = GeometricPolynomialBuilder()
+        else:
+            assert (callable(base_builder))
+            self._base_builder: PolynomialBuilder = base_builder
         self._max_order = max_order
         self._is_total_order = is_total_order
 

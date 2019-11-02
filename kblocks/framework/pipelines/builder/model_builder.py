@@ -6,7 +6,7 @@ from typing import List, Optional, Callable
 
 import tensorflow as tf
 from kblocks.framework.pipelines.builder.py_func_builder import PyFuncBuilder
-from kblocks.typing import TensorLike
+from kblocks.tf_typing import TensorLike
 from kblocks.layers import Lambda
 
 
@@ -24,6 +24,8 @@ class ModelBuilder(object):
             output_callback: Optional[Callable[[tf.Tensor], None]] = None
     ) -> PyFuncBuilder:
         if self._py_func_builder is not None:
+            if self._py_func_builder.name == name:
+                return self._py_func_builder
             raise NotImplementedError('Only single py_func_builder supported')
         self._py_func_builder = PyFuncBuilder(name=name,
                                               input_callback=input_callback,

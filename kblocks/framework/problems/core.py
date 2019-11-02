@@ -16,8 +16,8 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import six
 
-from kblocks.typing import NestedTensorLikeSpec
-from kblocks.typing import NestedTensorLike
+from kblocks.tf_typing import NestedTensorLikeSpec
+from kblocks.tf_typing import NestedTensorLike
 
 Metric = tf.keras.metrics.Metric
 Loss = tf.keras.losses.Loss

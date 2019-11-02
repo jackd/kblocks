@@ -48,4 +48,6 @@ NestedTensorSpec = Union[Sequence['NestedTensorSpec'],
 
 TensorOrVariable = Union[tf.Tensor, tf.Variable]
 
+DenseShape = Tuple[tf.Tensor, tf.Tensor]
+
 T = TypeVar('T')

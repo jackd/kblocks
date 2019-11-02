@@ -8,29 +8,51 @@ import gin
 from typing import Union
 
 
-def cosine_annealing(step, min_value, max_value, steps_per_restart):
+def cosine_annealing(step,
+                     max_value,
+                     min_value,
+                     steps_per_restart,
+                     dtype=tf.float32):
+    step = tf.convert_to_tensor(step, dtype)
+    max_value = tf.convert_to_tensor(max_value, dtype)
+    min_value = tf.convert_to_tensor(min_value, dtype)
+    steps_per_restart = tf.convert_to_tensor(steps_per_restart, dtype)
     return min_value + (max_value - min_value) / 2 * (1 + tf.cos(np.pi * (
-        (step % steps_per_restart) / steps_per_restart)))
+        (tf.math.mod(step, steps_per_restart)) / (steps_per_restart - 1))))
 
 
 @gin.configurable(module='kb.schedules')
 class CosineAnnealing(tf.keras.optimizers.schedules.ExponentialDecay):
 
-    def __init__(self, min_learning_rate: float, max_learning_rate: float,
-                 steps_per_restart: Union[int, float]):
-        self.min_learning_rate = min_learning_rate
+    def __init__(self,
+                 max_learning_rate: float,
+                 min_learning_rate: float,
+                 steps_per_restart: Union[int, float],
+                 dtype: tf.DType = tf.float32):
         self.max_learning_rate = max_learning_rate
+        self.min_learning_rate = min_learning_rate
         self.steps_per_restart = steps_per_restart
+        self.dtype = dtype
+        self._max_learning_rate_t = tf.convert_to_tensor(
+            max_learning_rate, dtype)
+        self._min_learning_rate_t = tf.convert_to_tensor(
+            min_learning_rate, dtype)
+        self._steps_per_restart_t = tf.convert_to_tensor(
+            steps_per_restart, dtype)
 
     def __call__(self, step):
-        return cosine_annealing(step, self.min_learning_rate,
-                                self.max_learning_rate, self.steps_per_restart)
+        return cosine_annealing(tf.convert_to_tensor(step, self.dtype),
+                                self._min_learning_rate_t,
+                                self._max_learning_rate_t,
+                                self._steps_per_restart_t,
+                                dtype=self.dtype)
 
     def get_config(self):
         return dict(
             min_learning_rate=self.min_learning_rate,
             max_learning_rate=self.max_learning_rate,
             steps_per_restart=self.steps_per_restart,
+            dtype=self.dtype,
         )
 
 
