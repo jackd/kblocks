@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import functools
 import tensorflow as tf
 from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
 from kblocks.tf_typing import NestedTensors
@@ -12,6 +13,10 @@ from typing import NamedTuple, Optional, Callable, List, Any, Tuple, Iterable
 class PyFuncNode(NamedTuple):
     builder: 'PyFuncBuilder'
     index: int
+
+
+def _get(x, i):
+    return x[i]
 
 
 class PyFuncBuilder(object):
@@ -65,7 +70,10 @@ class PyFuncBuilder(object):
         return node
 
     def unstack(self, node, num_outputs) -> List[PyFuncNode]:
-        return [self.node(lambda x: x[i], node) for i in range(num_outputs)]
+        return [
+            self.node(functools.partial(_get, i=i), node)
+            for i in range(num_outputs)
+        ]
 
     def node(self, fn, *args: PyFuncNode, **kwargs: PyFuncNode) -> PyFuncNode:
         for i, arg in enumerate(args):
