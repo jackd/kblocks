@@ -4,10 +4,9 @@
 # REQUIRES:
 # problem
 # pipeline_fn
-# optimizer
-# epochs
+# optimizer_fn
+# epochs or total_train_steps
 # model_dir
-# is_meta_model (defaults to False)
 
 import kblocks.framework.steps
 import kblocks.cli
@@ -21,6 +20,10 @@ kb.framework.get_epochs.epochs = %epochs
 
 kb.framework.fit.batch_size = %batch_size
 kb.framework.fit.epochs = %epochs
+kb.framework.fit.total_train_steps = %total_train_steps
 kb.framework.fit.shuffle_buffer = %shuffle_buffer
+
+epochs = None
+total_train_steps = None
 
 shuffle_buffer = None

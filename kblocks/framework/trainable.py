@@ -13,6 +13,7 @@ from kblocks.framework.pipelines import Pipeline
 from kblocks import callbacks as cb
 from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
+from kblocks.optimizers.scope import OptimizerScope
 from typing import Sequence, Mapping, Any, Optional
 
 
@@ -26,9 +27,10 @@ class Trainable(object):
         self._model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._problem = problem
         with problem:
-            self._pipeline = pipeline_fn(problem.features_spec,
-                                         problem.outputs_spec)
             optimizer = optimizer_fn()
+            with OptimizerScope(optimizer):
+                self._pipeline = pipeline_fn(problem.features_spec,
+                                             problem.outputs_spec)
             if self._pipeline.model is not None:
                 self._pipeline.model.compile(
                     loss=self._problem.loss,
@@ -85,7 +87,8 @@ class Trainable(object):
 
     def fit(self,
             batch_size: int,
-            epochs: int,
+            epochs: Optional[int] = None,
+            total_train_steps: Optional[int] = None,
             shuffle_buffer: Optional[int] = None,
             verbose: bool = True,
             callbacks: Sequence[tf.keras.callbacks.Callback] = [],
@@ -93,6 +96,9 @@ class Trainable(object):
         problem = self.problem
         pipeline = self.pipeline
         model_dir = self.model_dir
+
+        if (epochs is None) == (total_train_steps is None):
+            raise ValueError('At least one of epoch or steps must be supplied')
 
         splits = ('train', 'validation')
         train_ds, val_ds = self._get_datasets(splits, batch_size,
@@ -125,6 +131,9 @@ class Trainable(object):
         logging.info('Training starting with operative config: \n{}'.format(
             gin.operative_config_str()))
         model.summary(print_fn=logging.info)
+
+        if epochs is None:
+            epochs = total_train_steps // train_steps
 
         return model.fit(
             train_ds,
@@ -168,13 +177,15 @@ class Trainable(object):
 @gin.configurable(module='kb.framework')
 def fit(trainable: Trainable,
         batch_size: int,
-        epochs: int,
+        epochs: Optional[int] = None,
+        total_train_steps: Optional[int] = None,
         shuffle_buffer: Optional[int] = None,
         verbose: bool = True,
         callbacks: Sequence[tf.keras.callbacks.Callback] = [],
         chkpt_kwargs: Mapping[str, Any] = {}):
     return trainable.fit(batch_size=batch_size,
                          epochs=epochs,
+                         total_train_steps=total_train_steps,
                          shuffle_buffer=shuffle_buffer,
                          verbose=verbose,
                          callbacks=callbacks,

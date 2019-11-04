@@ -53,3 +53,11 @@ def steps_in_epochs(epochs: int,
                     batch_size: Optional[int] = None,
                     examples_per_epoch: Optional[int] = None) -> int:
     return steps_per_epoch(batch_size, examples_per_epoch) * epochs
+
+
+@gin.configurable(module='kb.framework')
+def epochs_in_steps(steps: int,
+                    batch_size: Optional[int] = None,
+                    examples_per_epoch: Optional[int] = None) -> int:
+    return steps * get_batch_size(batch_size) // get_examples_per_epoch(
+        examples_per_epoch)
