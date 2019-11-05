@@ -35,3 +35,15 @@ Input = tf.keras.layers.Input
 #     # if out._keras_history.layer.name == 'input_51':
 #     #     raise Exception()
 #     return out
+
+__all__ = [
+    'BatchNormalization',
+    'Convolution1D',
+    'Convolution2D',
+    'Convolution3D',
+    'Dense',
+    'Dropout',
+    'Lambda',
+    'Input',
+    'ZeroInit',
+]
