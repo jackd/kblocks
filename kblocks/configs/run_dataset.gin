@@ -17,5 +17,7 @@ kb.framework.run_dataset.trainable = %trainable  # default defined in trainable.
 
 kb.framework.run_dataset.batch_size = %batch_size
 kb.framework.run_dataset.shuffle_buffer = %shuffle_buffer
+kb.framework.run_dataset.callback = %callback
 
 shuffle_buffer = None
+callback = None

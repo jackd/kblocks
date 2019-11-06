@@ -58,16 +58,20 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
     def epoch(self, chkpt: str) -> Optional[int]:
         return int(chkpt.split('-')[-1])
 
-    def restore(self, epoch: Optional[Union[int]] = None) -> Optional[int]:
+    def restore(self, epoch_or_chkpt: Optional[Union[int, str]] = None):
         self._restored = True
-        chkpt = self.checkpoint(epoch)
+        if isinstance(epoch_or_chkpt, int):
+            chkpt = self.checkpoint(epoch_or_chkpt)
+        elif epoch_or_chkpt is None:
+            chkpt = self.checkpoint(epoch_or_chkpt)
+        else:
+            chkpt = epoch_or_chkpt
         if chkpt is None:
             logging.info('No previous checkpoints found. Skipping restoration')
             return None
         epoch = self.epoch(chkpt)
         logging.info('Restoring model at epoch {} from {}'.format(epoch, chkpt))
-        self._checkpoint.restore(chkpt)
-        return epoch
+        return self._checkpoint.restore(chkpt)
 
     def on_epoch_end(self, epoch: int, logs=None):
         if epoch % self._save_freq == 0:

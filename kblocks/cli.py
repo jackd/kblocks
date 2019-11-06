@@ -59,4 +59,6 @@ def get_gin_summary(argv):
 def main(fn: Optional[Callable] = None):
     if fn is None:
         logging.error('`main.fn` is not configured.')
+    if not callable(fn):
+        raise ValueError('`main.fn` is not callable.')
     fn()

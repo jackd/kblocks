@@ -76,9 +76,13 @@ class PolynomialBuilderTest(tf.test.TestCase):
         builder = p.NdPolynomialBuilder(max_order=3, is_total_order=True)
         polys = builder(tf.random.normal(shape=(3,)))
         self.assertEqual(polys.shape.as_list(), [19])
-        polys = builder(tf.random.normal(shape=(10, 3)), axis=-1)
+        polys = builder(tf.random.normal(shape=(10, 3)),
+                        unstack_axis=-1,
+                        stack_axis=-1)
         self.assertEqual(polys.shape.as_list(), [10, 19])
-        polys = builder(tf.random.normal(shape=(3, 10)), axis=0)
+        polys = builder(tf.random.normal(shape=(3, 10)),
+                        unstack_axis=0,
+                        stack_axis=0)
         self.assertEqual(polys.shape.as_list(), [19, 10])
 
 

@@ -3,7 +3,6 @@ import kblocks.keras_configurables
 import kblocks.framework.pipelines
 
 problem = @cifar100_problem()
-pipeline_fn = @kb.framework.ModelPipeline
 optimizer_fn = @tf.keras.optimizers.Adam
 ModelPipeline.model_fn = @simple_cnn
 model_dir = '/tmp/kblocks/examples/cifar100'

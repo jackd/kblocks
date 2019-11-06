@@ -1,0 +1,14 @@
+# Requires macro:
+#  - problem
+#  - callback
+
+import kblocks.framework.problems.core
+
+kb.main.fn = @kb.framework.run_problem
+kb.framework.run_problem.problem = %problem
+kb.framework.run_problem.split = %split
+kb.framework.run_problem.shuffle = %shuffle
+kb.framework.run_problem.callback = %callback
+
+shuffle = True
+split = 'train'

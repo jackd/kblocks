@@ -288,12 +288,12 @@ class NdPolynomialBuilder(object):
         s[axis] = self.num_out(s[axis])
         return tuple(s)
 
-    def __call__(self, coords: tf.Tensor, axis: int = -1) -> tf.Tensor:
-        if (self._max_order == 1 and self._is_total_order and
-                isinstance(self._base_builder, GeometricPolynomialBuilder)):
-            return coords
+    def __call__(self,
+                 coords: tf.Tensor,
+                 unstack_axis: int = -1,
+                 stack_axis: Optional[int] = -1) -> tf.Tensor:
         single_polys = []
-        coords = tf.unstack(coords, axis=axis)
+        coords = tf.unstack(coords, axis=unstack_axis)
         for x in coords:
             polys = self._base_builder(x, self._max_order + 1)
             single_polys.append(enumerate(polys))
@@ -307,9 +307,11 @@ class NdPolynomialBuilder(object):
                                     total_order > self._max_order):
                 continue
             outputs.append(tf.reduce_prod(tf.stack(polys, axis=-1), axis=-1))
-        outputs = tf.stack(outputs, axis=axis)
-        assert (outputs.shape[axis] == self.num_out(len(coords)))
-        return outputs
+        assert (len(outputs) == self.num_out(len(coords)))
+        if stack_axis is None:
+            return outputs
+        else:
+            return tf.stack(outputs, axis=stack_axis)
 
 
 _builder_factories = {
@@ -346,10 +348,11 @@ def get_nd_polynomials(
         max_order: int = 3,
         is_total_order: bool = True,
         base_builder: Optional[Union[PolynomialBuilder, str]] = None,
-        axis: int = -1) -> tf.Tensor:
+        unstack_axis: int = -1,
+        stack_axis: Optional[int] = -1) -> tf.Tensor:
     builder = deserialize_builder(base_builder)
-    return NdPolynomialBuilder(max_order, is_total_order, builder)(coords,
-                                                                   axis=axis)
+    return NdPolynomialBuilder(max_order, is_total_order, builder)(
+        coords, unstack_axis=unstack_axis, stack_axis=stack_axis)
 
 
 if __name__ == '__main__':

@@ -8,7 +8,8 @@ from typing import Sequence
 from typing import List
 from typing import Tuple
 from typing import Dict
-from typing import Sequence
+from typing import Any
+from typing import Callable
 
 import abc
 import gin
@@ -220,3 +221,15 @@ class Problem(abc.ABC):
                        weights: Optional[NestedTensorLike] = None
                       ) -> NestedTensorLike:
         return labels if weights is None else (labels, weights)
+
+
+@gin.configurable(module='kb.framework')
+def run_problem(problem: Problem,
+                callback: Callable[[NestedTensorLike, NestedTensorLike], None],
+                split: Split = 'train',
+                shuffle: bool = True):
+    dataset = problem.get_base_dataset(split=split)
+    if shuffle:
+        dataset = dataset.shuffle(problem.shuffle_buffer)
+    for example, label in dataset:
+        callback(example, label)

@@ -6,7 +6,7 @@ from absl import logging
 import os
 import tensorflow as tf
 import gin
-from typing import Callable
+from typing import Sequence, Mapping, Any, Optional, Callable
 
 from kblocks.framework.problems import Problem
 from kblocks.framework.pipelines import Pipeline
@@ -14,7 +14,6 @@ from kblocks import callbacks as cb
 from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
 from kblocks.optimizers.scope import OptimizerScope
-from typing import Sequence, Mapping, Any, Optional
 
 
 @gin.configurable(module='kb.framework')
@@ -114,9 +113,12 @@ class Trainable(object):
                                                **chkpt_kwargs)
 
         chkpt_callback.set_model(model)
-        initial_epoch = chkpt_callback.restore()
-        if initial_epoch is None:
+        chkpt = chkpt_callback.checkpoint()
+        if chkpt is None:
             initial_epoch = 0
+        else:
+            initial_epoch = chkpt_callback.epoch(chkpt)
+            chkpt_callback.restore(initial_epoch)
 
         callbacks = [
             cb.AbslLogger(),
@@ -151,7 +153,8 @@ class Trainable(object):
                     num_examples: int = 10,
                     shuffle_buffer: Optional[int] = None,
                     split: Split = 'train',
-                    num_parallel_calls: int = 1):
+                    num_parallel_calls: int = 1,
+                    callback: Optional[Callable[[Any, Any], None]] = None):
         from tqdm import tqdm
         logging.info('Running dataset')
         dataset = self._get_datasets(
@@ -160,17 +163,17 @@ class Trainable(object):
             shuffle_buffer,
             num_parallel_calls=num_parallel_calls).take(num_examples)
         if tf.executing_eagerly():
-            for _ in tqdm(dataset, total=num_examples):
-                pass
-            # HACK
-            # for example in tqdm(dataset, total=num_examples):
-            #     print([x.numpy() for x in self._pipeline.model(example)])
+            for example, label in tqdm(dataset, total=num_examples):
+                if callback is not None:
+                    callback(example, label)
         else:
-            example = tf.compat.v1.data.make_one_shot_iterator(
+            example, label = tf.compat.v1.data.make_one_shot_iterator(
                 dataset).get_next()
             with tf.compat.v1.Session() as sess:
                 for _ in tqdm(range(num_examples), total=num_examples):
-                    sess.run(example)
+                    out = sess.run((example, label))
+                    if callback is not None:
+                        callback(*out)
         logging.info('Finished running dataset')
 
 
@@ -197,8 +200,10 @@ def run_dataset(trainable: Trainable,
                 batch_size: int,
                 num_examples: int = 10,
                 shuffle_buffer: Optional[int] = None,
-                split: Split = 'train'):
+                split: Split = 'train',
+                callback: Optional[Callable[[Any, Any], None]] = None):
     trainable.run_dataset(batch_size,
                           num_examples,
                           shuffle_buffer=shuffle_buffer,
-                          split=split)
+                          split=split,
+                          callback=callback)
