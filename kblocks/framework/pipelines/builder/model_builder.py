@@ -7,7 +7,7 @@ from typing import List, Optional, Callable
 import tensorflow as tf
 from kblocks.framework.pipelines.builder.py_func_builder import PyFuncBuilder
 from kblocks.tf_typing import TensorLike
-from kblocks.layers import Lambda
+layers = tf.keras.layers
 
 
 class ModelBuilder(object):
@@ -50,7 +50,7 @@ class ModelBuilder(object):
                                          self._outputs,
                                          name='simple_model')
 
-        py_func_outputs = Lambda(self._py_func_builder.run)(
+        py_func_outputs = layers.Lambda(self._py_func_builder.run)(
             self._py_func_builder.input_tensors)
         # Add dummy batch dimension to make keras models play nicely
         py_func_outputs = tf.nest.map_structure(

@@ -5,10 +5,11 @@ import abc
 import gin
 import tensorflow as tf
 from kblocks.spec import to_spec, specs_are_consistent
-from kblocks.layers import Input
 from kblocks.tf_typing import NestedTensorLike
 from kblocks.tf_typing import NestedTensorLikeSpec
 from typing import Callable, List
+
+layers = tf.keras.layers
 
 
 class Pipeline(abc.ABC):
@@ -60,9 +61,9 @@ class ModelPipeline(Pipeline):
             raise ValueError('`model_fn` cannot be `None`')
         self._features_spec = features_spec
         inputs = tf.nest.map_structure(
-            lambda s: Input(shape=s.shape,
-                            dtype=s.dtype,
-                            ragged=isinstance(s, tf.RaggedTensorSpec)),
+            lambda s: layers.Input(shape=s.shape,
+                                   dtype=s.dtype,
+                                   ragged=isinstance(s, tf.RaggedTensorSpec)),
             features_spec)
 
         self._model = model_fn(inputs, outputs_spec)

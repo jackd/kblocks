@@ -6,8 +6,9 @@ import functools
 import tensorflow as tf
 from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
 from kblocks.tf_typing import NestedTensors
-from kblocks.layers import Lambda, Input
 from typing import NamedTuple, Optional, Callable, List, Any, Tuple, Iterable
+Lambda = tf.keras.layers.Lambda
+Input = tf.keras.layers.Input
 
 
 class PyFuncNode(NamedTuple):

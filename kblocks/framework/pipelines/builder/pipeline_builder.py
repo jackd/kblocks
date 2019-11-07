@@ -14,8 +14,9 @@ from kblocks.tf_typing import NestedTensorLike
 from kblocks.tf_typing import NestedTensorLikeSpec
 # from kblocks.tf_typing import TensorLikeSpec
 from kblocks.tf_typing import TensorLike
-from kblocks.layers import Lambda, Input
 from typing import Optional, Tuple, List
+Lambda = tf.keras.layers.Lambda
+Input = tf.keras.layers.Input
 
 Model = tf.keras.Model
 
