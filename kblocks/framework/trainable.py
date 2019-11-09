@@ -145,7 +145,7 @@ class Trainable(object):
 
         used_callbacks.extend(callbacks)
         if model_dir is not None:
-            callbacks.extend([
+            used_callbacks.extend([
                 cb.HPCallback(log_dir=model_dir),
                 tf.keras.callbacks.TensorBoard(log_dir=model_dir,
                                                profile_batch=train_steps // 2),
