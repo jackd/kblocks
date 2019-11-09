@@ -5,6 +5,7 @@ from __future__ import print_function
 from absl import logging
 import tensorflow as tf
 import gin
+K = tf.keras.backend
 
 
 @gin.configurable(module='kb.callbacks')

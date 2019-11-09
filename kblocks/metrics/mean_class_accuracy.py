@@ -27,7 +27,7 @@ class MeanClassAccuracy(tf.keras.metrics.Metric):
     def get_config(self):
         config = super(MeanClassAccuracy, self).get_config()
         config['num_classes'] = self.num_classes
-        return self.num_classes
+        return config
 
     def reset_states(self):
         K.batch_set_value([(v, np.zeros(v.shape, dtype=v.dtype.as_numpy_dtype))

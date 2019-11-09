@@ -250,14 +250,14 @@ class GegenbauerPolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
         return 'GegenbauerPolyBuilder(%s)' % str(self.lam).rstrip('0')
 
 
-def _total_order_num_out(num_dims: int, max_order: int) -> int:
+def total_order_num_out(num_dims: int, max_order: int) -> int:
     from scipy.special import comb
     return int(comb(num_dims + max_order, max_order))
     # if num_dims == 0 or max_order == 0:
     #     return 1
     # else:
     #     return sum(
-    #         _total_order_num_out(num_dims - 1, max_order - i)
+    #         total_order_num_out(num_dims - 1, max_order - i)
     #         for i in range(max_order + 1))
 
 
@@ -278,9 +278,9 @@ class NdPolynomialBuilder(object):
 
     def num_out(self, num_dims: int):
         if self._is_total_order:
-            return _total_order_num_out(num_dims, self._max_order) - 1
+            return total_order_num_out(num_dims, self._max_order)
         else:
-            return num_dims * self._max_order - 1
+            return num_dims * self._max_order
 
     def output_shape(self, input_shape: Sequence[int],
                      axis=-1) -> Tuple[int, ...]:
@@ -303,10 +303,14 @@ class NdPolynomialBuilder(object):
             orders, polys = zip(*ordered_polys)
             total_order = sum(orders)
 
-            if total_order == 0 or (self._is_total_order and
-                                    total_order > self._max_order):
-                continue
-            outputs.append(tf.reduce_prod(tf.stack(polys, axis=-1), axis=-1))
+            if total_order == 0:
+                outputs.append(tf.ones_like(polys[0]))
+            elif self._is_total_order and total_order > self._max_order:
+                # too big
+                pass
+            else:
+                outputs.append(
+                    tf.reduce_prod(tf.stack(polys, axis=-1), axis=-1))
         assert (len(outputs) == self.num_out(len(coords)))
         if stack_axis is None:
             return outputs

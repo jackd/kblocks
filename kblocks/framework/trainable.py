@@ -6,7 +6,7 @@ from absl import logging
 import os
 import tensorflow as tf
 import gin
-from typing import Sequence, Mapping, Any, Optional, Callable
+from typing import Sequence, Mapping, Any, Optional, Callable, List
 
 from kblocks.framework.problems import Problem
 from kblocks.framework.pipelines import Pipeline
@@ -14,19 +14,28 @@ from kblocks import callbacks as cb
 from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
 from kblocks.optimizers.scope import OptimizerScope
+# from kblocks.callbacks.log_updater import LogUpdater
 
 
 @gin.configurable(module='kb.framework')
 class Trainable(object):
 
-    def __init__(self, problem: Problem, pipeline_fn: Callable[
-        [NestedTensorLikeSpec, NestedTensorLikeSpec], Pipeline],
-                 optimizer_fn: Callable[[], tf.keras.optimizers.Optimizer],
-                 model_dir: str):
-        self._model_dir = os.path.expanduser(os.path.expandvars(model_dir))
+    def __init__(
+            self,
+            problem: Problem,
+            pipeline_fn: Callable[[NestedTensorLikeSpec, NestedTensorLikeSpec],
+                                  Pipeline],
+            optimizer_fn: Optional[
+                Callable[[], tf.keras.optimizers.Optimizer]] = None,
+            model_dir: Optional[str] = None):
+        # self._log_updater = LogUpdater()
+        if model_dir is not None:
+            model_dir = os.path.expanduser(os.path.expandvars(model_dir))
+        self._model_dir = model_dir
         self._problem = problem
+        # with self._log_updater:
         with problem:
-            optimizer = optimizer_fn()
+            optimizer = None if optimizer_fn is None else optimizer_fn()
             with OptimizerScope(optimizer):
                 self._pipeline = pipeline_fn(problem.features_spec,
                                              problem.outputs_spec)
@@ -37,8 +46,11 @@ class Trainable(object):
                     optimizer=optimizer,
                 )
 
+    def model_summary(self):
+        self._pipeline.model.summary()
+
     @property
-    def model_dir(self) -> str:
+    def model_dir(self) -> Optional[str]:
         return self._model_dir
 
     @property
@@ -90,7 +102,7 @@ class Trainable(object):
             total_train_steps: Optional[int] = None,
             shuffle_buffer: Optional[int] = None,
             verbose: bool = True,
-            callbacks: Sequence[tf.keras.callbacks.Callback] = [],
+            callbacks: List[tf.keras.callbacks.Callback] = [],
             chkpt_kwargs: Mapping[str, Any] = {}):
         problem = self.problem
         pipeline = self.pipeline
@@ -105,30 +117,41 @@ class Trainable(object):
         train_steps, val_steps = (
             problem.examples_per_epoch(split, batch_size) for split in splits)
 
-        model = pipeline.model
-        if not os.path.isdir(model_dir):
-            os.makedirs(model_dir)
-        chkpt_dir = os.path.join(model_dir, 'chkpts')
-        chkpt_callback = cb.CheckpointCallback(directory=chkpt_dir,
-                                               **chkpt_kwargs)
-
-        chkpt_callback.set_model(model)
-        chkpt = chkpt_callback.checkpoint()
-        if chkpt is None:
-            initial_epoch = 0
-        else:
-            initial_epoch = chkpt_callback.epoch(chkpt)
-            chkpt_callback.restore(initial_epoch)
-
-        callbacks = [
+        used_callbacks = [
+            # self._log_updater,
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
-            chkpt_callback,
-        ] + list(callbacks) + [
-            cb.HPCallback(log_dir=model_dir),
-            tf.keras.callbacks.TensorBoard(log_dir=model_dir,
-                                           profile_batch=train_steps // 2),
         ]
+
+        model = pipeline.model
+        if model_dir is not None:
+            if not os.path.isdir(model_dir):
+                os.makedirs(model_dir)
+            chkpt_dir = os.path.join(model_dir, 'chkpts')
+            chkpt_callback = cb.CheckpointCallback(directory=chkpt_dir,
+                                                   **chkpt_kwargs)
+
+            chkpt_callback.set_model(model)
+            chkpt = chkpt_callback.checkpoint()
+            if chkpt is None:
+                initial_epoch = 0
+            else:
+                initial_epoch = chkpt_callback.epoch(chkpt)
+                chkpt_callback.restore(initial_epoch)
+
+            used_callbacks.append(chkpt_callback)
+        else:
+            initial_epoch = 0
+
+        used_callbacks.extend(callbacks)
+        if model_dir is not None:
+            callbacks.extend([
+                cb.HPCallback(log_dir=model_dir),
+                tf.keras.callbacks.TensorBoard(log_dir=model_dir,
+                                               profile_batch=train_steps // 2),
+            ])
+        # if verbose:
+        #     callbacks.append(tf.keras.callbacks.ProgbarLogger())
 
         logging.info('Training starting with operative config: \n{}'.format(
             gin.operative_config_str()))
@@ -144,7 +167,7 @@ class Trainable(object):
             steps_per_epoch=train_steps,
             validation_data=val_ds,
             validation_steps=val_steps,
-            callbacks=callbacks,
+            callbacks=used_callbacks,
             initial_epoch=initial_epoch,
         )
 
@@ -184,7 +207,7 @@ def fit(trainable: Trainable,
         total_train_steps: Optional[int] = None,
         shuffle_buffer: Optional[int] = None,
         verbose: bool = True,
-        callbacks: Sequence[tf.keras.callbacks.Callback] = [],
+        callbacks: List[tf.keras.callbacks.Callback] = [],
         chkpt_kwargs: Mapping[str, Any] = {}):
     return trainable.fit(batch_size=batch_size,
                          epochs=epochs,
@@ -207,3 +230,8 @@ def run_dataset(trainable: Trainable,
                           shuffle_buffer=shuffle_buffer,
                           split=split,
                           callback=callback)
+
+
+@gin.configurable(module='kb.framework')
+def model_summary(trainable: Trainable):
+    trainable.model_summary()
