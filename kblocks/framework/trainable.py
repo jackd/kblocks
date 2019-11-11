@@ -15,6 +15,26 @@ from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
 from kblocks.optimizers.scope import OptimizerScope
 # from kblocks.callbacks.log_updater import LogUpdater
+from kblocks.callbacks.step import StepFnCallback
+
+
+def _get_epochs(epochs: Optional[int], total_train_steps: Optional[int],
+                train_steps: int):
+    msg = 'Exactly one of epochs or total_train_steps must be supplied'
+    if epochs is None:
+        if total_train_steps is None:
+            raise ValueError(msg)
+        epochs = total_train_steps // train_steps
+    elif total_train_steps is not None:
+        raise ValueError(msg)
+    return epochs
+
+
+def _learning_rate(optimizer, step):
+    lr = optimizer.learning_rate
+    if callable(lr):
+        lr = lr(step)
+    return lr
 
 
 @gin.configurable(module='kb.framework')
@@ -27,24 +47,38 @@ class Trainable(object):
                                   Pipeline],
             optimizer_fn: Optional[
                 Callable[[], tf.keras.optimizers.Optimizer]] = None,
-            model_dir: Optional[str] = None):
+            model_dir: Optional[str] = None,
+            add_learning_rate_summary: bool = False):
         # self._log_updater = LogUpdater()
+        self._step_fn_callback = StepFnCallback()
         if model_dir is not None:
             model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._model_dir = model_dir
         self._problem = problem
         # with self._log_updater:
-        with problem:
-            optimizer = None if optimizer_fn is None else optimizer_fn()
-            with OptimizerScope(optimizer):
-                self._pipeline = pipeline_fn(problem.features_spec,
-                                             problem.outputs_spec)
-            if self._pipeline.model is not None:
-                self._pipeline.model.compile(
-                    loss=self._problem.loss,
-                    metrics=self._problem.metrics,
-                    optimizer=optimizer,
-                )
+        with self._step_fn_callback:
+            with problem:
+                optimizer = None if optimizer_fn is None else optimizer_fn()
+                if add_learning_rate_summary and optimizer is not None:
+                    self._step_fn_callback.register_step_fn(
+                        lambda step: tf.summary.scalar(
+                            'learning_rate', _learning_rate(optimizer, step),
+                            step))
+                with OptimizerScope(optimizer):
+                    self._pipeline = pipeline_fn(problem.features_spec,
+                                                 problem.outputs_spec)
+                if self._pipeline.model is not None:
+                    self._pipeline.model.compile(
+                        loss=self._problem.loss,
+                        metrics=self._problem.metrics,
+                        optimizer=optimizer,
+                    )
+
+    def operative_config(self):
+        return gin.operative_config_str()
+
+    def model_config(self):
+        return self._pipeline.model.get_config()
 
     def model_summary(self):
         self._pipeline.model.summary()
@@ -96,6 +130,67 @@ class Trainable(object):
 
         return tf.nest.map_structure(prep_dataset, splits)
 
+    def custom_fit(self,
+                   batch_size: int,
+                   epochs: Optional[int] = None,
+                   total_train_steps: Optional[int] = None,
+                   shuffle_buffer: Optional[int] = None,
+                   verbose: bool = True,
+                   callbacks: List[tf.keras.callbacks.Callback] = [],
+                   chkpt_kwargs: Mapping[str, Any] = {}):
+        from tqdm import tqdm
+        # TODO: support callbacks
+        problem = self.problem
+        pipeline = self.pipeline
+        # model_dir = self.model_dir
+        model = pipeline.model
+        metrics: List[tf.keras.metrics.Metric] = problem.metrics
+        loss: tf.keras.losses.Loss = problem.loss
+        optimizer: tf.keras.optimizers.Optimizer = model.optimizer
+
+        splits = ('train', 'validation')
+        train_ds, val_ds = self._get_datasets(splits, batch_size,
+                                              shuffle_buffer)
+        train_steps, val_steps = (
+            problem.examples_per_epoch(split, batch_size) for split in splits)
+
+        epochs = _get_epochs(epochs, total_train_steps, train_steps)
+        for epoch in range(epochs):
+            # train loop
+            for metric in metrics:
+                metric.reset_states()
+
+            for example, labels in tqdm(train_ds.take(train_steps),
+                                        desc='Training epoch {} / {}'.format(
+                                            epoch, epochs),
+                                        total=train_steps):
+                with tf.GradientTape() as tape:
+                    preds = model(example)
+                    loss = loss(labels, preds)
+                    # if model.losses:
+                    #     loss = tf.add_n(model.losses) + loss
+                grads = tape.gradient(loss, model.trainable_weights)
+                optimizer.apply_gradients(zip(grads, model.trainable_weights))
+                for m in metrics:
+                    m.update_state(labels, preds)
+            logging.info('Finished training epoch {} / {}')
+            for m in metrics:
+                logging.info('{}: {}'.format(m.name, m.result()))
+
+            for m in metrics:
+                m.reset_states()
+
+            for example, labels in tqdm(val_ds.take(val_steps),
+                                        desc='Evaluating epoch {} / {}'.format(
+                                            epoch, epochs),
+                                        total=val_steps):
+                preds = model(example)
+                for m in metrics:
+                    m.update_state(labels, preds)
+            logging.info('Finished evaluating epoch {} / {}')
+            for m in metrics:
+                logging.info('{}: {}'.format(m.name, m.result()))
+
     def fit(self,
             batch_size: int,
             epochs: Optional[int] = None,
@@ -108,17 +203,17 @@ class Trainable(object):
         pipeline = self.pipeline
         model_dir = self.model_dir
 
-        if (epochs is None) == (total_train_steps is None):
-            raise ValueError('At least one of epoch or steps must be supplied')
-
         splits = ('train', 'validation')
         train_ds, val_ds = self._get_datasets(splits, batch_size,
                                               shuffle_buffer)
         train_steps, val_steps = (
             problem.examples_per_epoch(split, batch_size) for split in splits)
 
-        used_callbacks = [
+        epochs = _get_epochs(epochs, total_train_steps, train_steps)
+
+        used_callbacks: List[tf.keras.callbacks.Callback] = [
             # self._log_updater,
+            self._step_fn_callback,
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
         ]
@@ -156,9 +251,6 @@ class Trainable(object):
         logging.info('Training starting with operative config: \n{}'.format(
             gin.operative_config_str()))
         model.summary(print_fn=logging.info)
-
-        if epochs is None:
-            epochs = total_train_steps // train_steps
 
         return model.fit(
             train_ds,
@@ -219,6 +311,24 @@ def fit(trainable: Trainable,
 
 
 @gin.configurable(module='kb.framework')
+def custom_fit(trainable: Trainable,
+               batch_size: int,
+               epochs: Optional[int] = None,
+               total_train_steps: Optional[int] = None,
+               shuffle_buffer: Optional[int] = None,
+               verbose: bool = True,
+               callbacks: List[tf.keras.callbacks.Callback] = [],
+               chkpt_kwargs: Mapping[str, Any] = {}):
+    return trainable.custom_fit(batch_size=batch_size,
+                                epochs=epochs,
+                                total_train_steps=total_train_steps,
+                                shuffle_buffer=shuffle_buffer,
+                                verbose=verbose,
+                                callbacks=callbacks,
+                                chkpt_kwargs=chkpt_kwargs)
+
+
+@gin.configurable(module='kb.framework')
 def run_dataset(trainable: Trainable,
                 batch_size: int,
                 num_examples: int = 10,
@@ -235,3 +345,13 @@ def run_dataset(trainable: Trainable,
 @gin.configurable(module='kb.framework')
 def model_summary(trainable: Trainable):
     trainable.model_summary()
+
+
+@gin.configurable(module='kb.framework')
+def operative_config(trainable: Trainable):
+    print(trainable.operative_config())
+
+
+@gin.configurable(module='kb.framework')
+def model_config(trainable: Trainable):
+    print(trainable.model_config())

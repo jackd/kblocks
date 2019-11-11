@@ -49,7 +49,9 @@ class GinSummary(object):
 
     def pretty_format(self):
         config = self.get_config()
-        config['config_files'] = '\n'.join(config['config_files'])
+        files = config['config_files']
+        assert (isinstance(files, list))
+        config['config_files'] = '\n'.join(files)
         return _GIN_SUMMARY.format(**config)
 
     def enable_path_options(self):

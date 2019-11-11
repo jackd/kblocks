@@ -72,18 +72,86 @@ class PolynomialBuilderTest(tf.test.TestCase):
         for lam in (0.0, 0.75, 0.85):
             self._test_orthogonal(p.GegenbauerPolynomialBuilder(lam=lam))
 
+
+    def test_geom(self):
+        builder = p.GeometricPolynomialBuilder()
+        x = tf.random.normal((1000,), dtype=tf.float32)
+        actual = builder(x, 4)
+        expected = tf.expand_dims(x, axis=0)**tf.expand_dims(tf.range(
+            4, dtype=tf.float32),
+                                                             axis=1)
+        actual, expected = self.evaluate((actual, expected))
+        np.testing.assert_allclose(actual, expected)
+
+
     def test_nd(self):
         builder = p.NdPolynomialBuilder(max_order=3, is_total_order=True)
         polys = builder(tf.random.normal(shape=(3,)))
-        self.assertEqual(polys.shape.as_list(), [19])
+        self.assertEqual(polys.shape.as_list(), [20])
         polys = builder(tf.random.normal(shape=(10, 3)),
                         unstack_axis=-1,
                         stack_axis=-1)
-        self.assertEqual(polys.shape.as_list(), [10, 19])
-        polys = builder(tf.random.normal(shape=(3, 10)),
-                        unstack_axis=0,
-                        stack_axis=0)
-        self.assertEqual(polys.shape.as_list(), [19, 10])
+        self.assertEqual(polys.shape.as_list(), [10, 20])
+        xyz = tf.random.normal(shape=(3, 10))
+        actual = builder(xyz, unstack_axis=0, stack_axis=0)
+        x, y, z = tf.unstack(xyz, axis=0)
+        expected = [
+            x ** 0 * y ** 0 * z ** 0,
+            x ** 0 * y ** 0 * z ** 1,
+            x ** 0 * y ** 0 * z ** 2,
+            x ** 0 * y ** 0 * z ** 3,
+
+            x ** 0 * y ** 1 * z ** 0,
+            x ** 0 * y ** 1 * z ** 1,
+            x ** 0 * y ** 1 * z ** 2,
+            # x ** 0 * y ** 1 * z ** 3,
+
+            x ** 0 * y ** 2 * z ** 0,
+            x ** 0 * y ** 2 * z ** 1,
+            # x ** 0 * y ** 2 * z ** 2,
+            # x ** 0 * y ** 2 * z ** 3,
+
+            y ** 3,
+
+            x ** 1 * y ** 0 * z ** 0,
+            x ** 1 * y ** 0 * z ** 1,
+            x ** 1 * y ** 0 * z ** 2,
+            # x ** 1 * y ** 0 * z ** 3,
+
+            x ** 1 * y ** 1 * z ** 0,
+            x ** 1 * y ** 1 * z ** 1,
+            # x ** 1 * y ** 1 * z ** 2,
+            # x ** 1 * y ** 1 * z ** 3,
+
+            x ** 1 * y ** 2 * z ** 0,
+            # x ** 1 * y ** 2 * z ** 1,
+            # x ** 1 * y ** 2 * z ** 2,
+            # x ** 1 * y ** 2 * z ** 3,
+
+            x ** 2 * y ** 0 * z ** 0,
+            x ** 2 * y ** 0 * z ** 1,
+            # x ** 2 * y ** 0 * z ** 2,
+            # x ** 2 * y ** 0 * z ** 3,
+
+            x ** 2 * y ** 1 * z ** 0,
+            # x ** 2 * y ** 1 * z ** 1,
+            # x ** 2 * y ** 1 * z ** 2,
+            # x ** 2 * y ** 1 * z ** 3,
+
+            # x ** 2 * y ** 2 * z ** 0,
+            # x ** 2 * y ** 2 * z ** 1,
+            # x ** 2 * y ** 2 * z ** 2,
+            # x ** 2 * y ** 2 * z ** 3,
+
+            x ** 3,
+
+        ]
+
+        self.assertEqual(actual.shape.as_list(), [20, 10])
+        expected = tf.stack(expected, axis=0)
+        actual, expected = self.evaluate((actual, expected))
+        np.testing.assert_allclose(actual, expected)
+
 
 
 if __name__ == '__main__':
