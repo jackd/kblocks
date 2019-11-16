@@ -1,0 +1,23 @@
+# Training config template for basic supervised learning
+# may set `is_meta_model = True` for models using `kblocks.meta_models`.
+
+# REQUIRES:
+# problem
+# pipeline_fn
+# optimizer_fn
+# epochs or total_train_steps
+# model_dir
+
+import kblocks.framework.steps
+import kblocks.cli
+include 'trainable.gin'
+
+kb.main.fn = @kb.framework.benchmark_wrapper
+kb.framework.benchmark.trainable = %trainable  # default defined in trainable.gin
+
+kb.framework.benchmark.batch_size = %batch_size
+kb.framework.benchmark.burn_iters = %burn_iters
+kb.framework.benchmark.min_iters = %min_iters
+
+burn_iters = 50
+min_iters = 100

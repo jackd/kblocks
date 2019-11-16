@@ -16,6 +16,7 @@ from kblocks.framework.problems.core import Split
 from kblocks.optimizers.scope import OptimizerScope
 # from kblocks.callbacks.log_updater import LogUpdater
 from kblocks.callbacks.step import StepFnCallback
+from kblocks.benchmark_utils import summarize
 
 
 def _get_epochs(epochs: Optional[int], total_train_steps: Optional[int],
@@ -119,7 +120,7 @@ class Trainable(object):
 
         def prep_dataset(split):
             dataset = problem.get_base_dataset(split=split)
-            if split == 'train':
+            if split == 'train' and shuffle_buffer != -1:
                 dataset = dataset.shuffle(shuffle_buffer or
                                           problem.shuffle_buffer)
             dataset = dataset.repeat()
@@ -129,6 +130,43 @@ class Trainable(object):
             return dataset
 
         return tf.nest.map_structure(prep_dataset, splits)
+
+    def benchmark(self, batch_size: int, burn_iters: int, min_iters: int):
+        # with tf.Graph().as_default():
+        model = self._pipeline.model
+        problem = self.problem
+        optimizer = model.optimizer
+        dataset = self._get_datasets('train', batch_size, -1)
+        inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
+            dataset).get_next()
+        out = model(inputs)
+        loss_: tf.keras.losses.Loss = problem.loss
+        loss = loss_(labels, out)
+        weights = model.trainable_weights
+        grads = optimizer.get_gradients(loss, weights)
+        grads_and_vars = tuple(
+            (g, v) for g, v in zip(grads, weights) if g is not None)
+        train_op = optimizer.apply_gradients(grads_and_vars)
+
+        bm = tf.test.Benchmark()
+        with tf.compat.v1.Session() as sess:
+            logging.info('Starting benchmarking...')
+
+            variables = model.weights + optimizer.weights
+            # HACK
+            variables.extend([
+                optimizer.beta_1,
+                optimizer.beta_2,
+            ])
+            lr = optimizer.learning_rate
+            if isinstance(lr, tf.Variable):
+                variables.append(lr)
+            sess.run([v.initializer for v in variables])
+            bm = bm.run_op_benchmark(sess,
+                                     train_op,
+                                     burn_iters=burn_iters,
+                                     min_iters=min_iters)
+            summarize(bm)
 
     def custom_fit(self,
                    batch_size: int,
@@ -144,6 +182,7 @@ class Trainable(object):
         pipeline = self.pipeline
         # model_dir = self.model_dir
         model = pipeline.model
+        trainable_weights = model.trainable_weights
         metrics: List[tf.keras.metrics.Metric] = problem.metrics
         loss: tf.keras.losses.Loss = problem.loss
         optimizer: tf.keras.optimizers.Optimizer = model.optimizer
@@ -157,6 +196,7 @@ class Trainable(object):
         epochs = _get_epochs(epochs, total_train_steps, train_steps)
         for epoch in range(epochs):
             # train loop
+            tf.keras.backend.set_learning_phase(True)
             for metric in metrics:
                 metric.reset_states()
 
@@ -164,19 +204,24 @@ class Trainable(object):
                                         desc='Training epoch {} / {}'.format(
                                             epoch, epochs),
                                         total=train_steps):
-                with tf.GradientTape() as tape:
+                with tf.GradientTape(watch_accessed_variables=False) as tape:
+                    tape.watch(trainable_weights)
                     preds = model(example)
-                    loss = loss(labels, preds)
-                    # if model.losses:
-                    #     loss = tf.add_n(model.losses) + loss
-                grads = tape.gradient(loss, model.trainable_weights)
-                optimizer.apply_gradients(zip(grads, model.trainable_weights))
+                    loss_val = loss(labels, preds)
+                    if model.losses:
+                        loss_val = tf.add_n(model.losses) + loss_val
+                    grads = tape.gradient(loss_val,
+                                          trainable_weights,
+                                          unconnected_gradients='zero')
+                optimizer.apply_gradients(zip(grads, trainable_weights))
                 for m in metrics:
                     m.update_state(labels, preds)
             logging.info('Finished training epoch {} / {}')
             for m in metrics:
                 logging.info('{}: {}'.format(m.name, m.result()))
 
+            # val loop
+            tf.keras.backend.set_learning_phase(False)
             for m in metrics:
                 m.reset_states()
 
@@ -355,3 +400,14 @@ def operative_config(trainable: Trainable):
 @gin.configurable(module='kb.framework')
 def model_config(trainable: Trainable):
     print(trainable.model_config())
+
+
+@gin.configurable(module='kb.framework')
+def benchmark(trainable=None, batch_size=None, burn_iters=None, min_iters=None):
+    print(trainable.benchmark(batch_size, burn_iters, min_iters))
+
+
+@gin.configurable(module='kb.framework')
+def benchmark_wrapper():
+    with tf.Graph().as_default():
+        benchmark()

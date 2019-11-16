@@ -56,11 +56,11 @@ class ModelBuilder(object):
         py_func_outputs = tf.nest.map_structure(
             lambda x: tf.expand_dims(x, axis=0), py_func_outputs)
 
-        final_model = tf.keras.models.Model(
+        tail_model = tf.keras.models.Model(
             self._inputs + list(self._py_func_builder.output_tensors),
             self._outputs,
-            name='final_model')
-        final_out = final_model(self._inputs + list(py_func_outputs))
+            name='tail_model')
+        final_out = tail_model(self._inputs + list(py_func_outputs))
         return tf.keras.models.Model(self._inputs,
                                      final_out,
                                      name='combined_model')

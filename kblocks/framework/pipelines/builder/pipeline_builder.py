@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from absl import logging
 import tensorflow as tf
 
 from kblocks.spec import to_spec
@@ -130,7 +131,8 @@ class PipelineBuilder(object):
         self._marks[inp] = PipelineModels.PRE_BATCH
         return tf.squeeze(inp, axis=0)
 
-    def batch(self, tensor: TensorLike, ragged: Optional[bool] = None) -> TensorLike:
+    def batch(self, tensor: TensorLike,
+              ragged: Optional[bool] = None) -> TensorLike:
         self._marks[tensor] = PipelineModels.PRE_BATCH
         if ragged is None:
             if isinstance(tensor, tf.RaggedTensor):
@@ -265,10 +267,19 @@ def py_func_builder(pipeline_model: str = PipelineModels.PRE_BATCH,
     return get_default().py_func_builder(pipeline_model, name)
 
 
-
 def _inputs(x: TensorLike) -> Tuple[tf.Tensor, ...]:
     if isinstance(x, tf.Tensor):
-        return tuple(x.op.inputs)
+        # if tf.executing_eagerly():
+        #     logging.info('Cannot get inputs in eager mode')
+        #     return ()
+        try:
+            return tuple(x.op.inputs)
+        except AttributeError:
+            if tf.executing_eagerly():
+                logging.info('Failed to get inputs in eager mode')
+                return ()
+            raise
+
     elif isinstance(x, tf.RaggedTensor):
         return (x.flat_values,) + x.nested_row_splits
     elif isinstance(x, tf.SparseTensor):

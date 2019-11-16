@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from absl import logging
 import tensorflow as tf
 import gin
 from typing import Sequence, Optional
@@ -23,8 +24,13 @@ class SessionOptions(object):
             devices = [devices[str(d)] for d in self.visible_devices]
             tf.config.experimental.set_visible_devices(devices,
                                                        device_type='GPU')
-        for device in tf.config.experimental.get_visible_devices('GPU'):
-            tf.config.experimental.set_memory_growth(device, self.allow_growth)
+        try:
+            for device in tf.config.experimental.get_visible_devices('GPU'):
+                tf.config.experimental.set_memory_growth(
+                    device, self.allow_growth)
+        except Exception:
+            logging.info('Failed to set memory growth to {}'.format(
+                self.allow_growth))
 
     def get_config(self):
         return dict(allow_growth=self.allow_growth,

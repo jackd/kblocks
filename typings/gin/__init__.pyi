@@ -1,4 +1,5 @@
 from typing import Any, Callable, TypeVar, Optional, List, Union
+from gin.config import bind_parameter
 from gin.config import parse_config_files_and_bindings
 from gin.config import operative_config_str
 from gin.config import query_parameter
