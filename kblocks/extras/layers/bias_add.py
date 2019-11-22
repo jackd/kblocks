@@ -6,7 +6,7 @@ import tensorflow as tf
 import gin
 
 
-@gin.configurable(module='kb.layers')
+@gin.configurable(module='kb.extras.layers')
 class BiasAdd(tf.keras.layers.Layer):
 
     def __init__(self,

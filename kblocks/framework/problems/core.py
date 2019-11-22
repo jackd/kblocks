@@ -228,8 +228,9 @@ def run_problem(problem: Problem,
                 callback: Callable[[NestedTensorLike, NestedTensorLike], None],
                 split: Split = 'train',
                 shuffle: bool = True):
-    dataset = problem.get_base_dataset(split=split)
-    if shuffle:
-        dataset = dataset.shuffle(problem.shuffle_buffer)
-    for example, label in dataset:
-        callback(example, label)
+    with problem:
+        dataset = problem.get_base_dataset(split=split)
+        if shuffle:
+            dataset = dataset.shuffle(problem.shuffle_buffer)
+        for example, label in dataset:
+            callback(example, label)

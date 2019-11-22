@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
 from typing import Optional
 import gin
 
@@ -61,3 +62,8 @@ def epochs_in_steps(steps: int,
                     examples_per_epoch: Optional[int] = None) -> int:
     return steps * get_batch_size(batch_size) // get_examples_per_epoch(
         examples_per_epoch)
+
+
+get_step = gin.external_configurable(tf.summary.experimental.get_step,
+                                     module='kb.framework')
+set_step = tf.summary.experimental.set_step

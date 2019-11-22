@@ -8,11 +8,17 @@ from typing import Union, Iterable, List
 
 KB_CONFIG_DIR = os.path.realpath(
     os.path.join(os.path.dirname(__file__), '..', 'configs'))
-if 'KB_CONFIG' in os.environ:
-    logging.warning('KB_CONFIG environment variable defined. '
-                    '`kblocks.gin_utils.parse_kb_config` may act surprisingly')
-else:
-    os.environ['KB_CONFIG'] = KB_CONFIG_DIR
+
+
+def try_register_config_dir(key, path):
+    if key in os.environ:
+        logging.warning('{} environment variable defined. '
+                        'Config parsing may act surprisingly')
+    else:
+        os.environ[key] = path
+
+
+try_register_config_dir('KB_CONFIG', KB_CONFIG_DIR)
 
 
 @contextlib.contextmanager

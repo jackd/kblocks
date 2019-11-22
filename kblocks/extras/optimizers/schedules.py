@@ -5,9 +5,10 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 import gin
-from typing import Union
+from typing import Union, Optional
 
 
+@gin.configurable(module='kb.extras.optimizers.schedules')
 def cosine_annealing(step,
                      max_value,
                      min_value,
@@ -21,7 +22,7 @@ def cosine_annealing(step,
         (tf.math.mod(step, steps_per_restart)) / (steps_per_restart - 1))))
 
 
-@gin.configurable(module='kb.schedules')
+@gin.configurable(module='kb.extras.optimizers.schedules')
 class CosineAnnealing(tf.keras.optimizers.schedules.ExponentialDecay):
 
     def __init__(self,
@@ -56,7 +57,7 @@ class CosineAnnealing(tf.keras.optimizers.schedules.ExponentialDecay):
         )
 
 
-@gin.configurable(module='kb.schedules')
+@gin.configurable(module='kb.extras.optimizers.schedules')
 class ExponentialDecayTowards(tf.keras.optimizers.schedules.ExponentialDecay):
     """Exponential decay scheduler with lower bound."""
 
@@ -66,8 +67,8 @@ class ExponentialDecayTowards(tf.keras.optimizers.schedules.ExponentialDecay):
                  decay_rate,
                  asymptote=0,
                  clip_value=None,
-                 staircase=False,
-                 name=None):
+                 staircase: bool = False,
+                 name: Optional[str] = None):
         super(ExponentialDecayTowards, self).__init__(
             initial_learning_rate=initial_learning_rate,
             decay_steps=decay_steps,
@@ -97,7 +98,7 @@ class ExponentialDecayTowards(tf.keras.optimizers.schedules.ExponentialDecay):
         return config
 
 
-@gin.configurable(module='kb.schedules')
+@gin.configurable(module='kb.extras.optimizers.schedules')
 def exponential_decay(step,
                       initial_value,
                       decay_steps,
@@ -120,16 +121,21 @@ def exponential_decay(step,
     Returns:
         possibly clipped exponentially decayed value.
     """
+    step = tf.cast(step, tf.float32)
+    initial_value = tf.cast(initial_value, tf.float32)
+    decay_steps = tf.cast(decay_steps, tf.float32)
+    decay_rate = tf.cast(decay_rate, tf.float32)
     exponent = step / decay_steps
     if staircase:
         exponent = impl.floor(exponent)
     value = initial_value * decay_rate**exponent
     if min_value is not None:
+        min_value = tf.convert_to_tensor(min_value, tf.float32)
         value = impl.maximum(value, min_value)
     return value
 
 
-@gin.configurable(module='kb.schedules')
+@gin.configurable(module='kb.extras.optimizers.schedules')
 def exponential_decay_towards(step,
                               initial_value,
                               decay_steps,

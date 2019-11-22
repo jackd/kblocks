@@ -156,8 +156,10 @@ class PipelineBuilder(object):
                 # return inp
 
                 # we rebuild to make keras play nicely.
-                components = Lambda(
-                    lambda i: [i.flat_values, *i.nested_row_splits])(inp)
+                components = Lambda(lambda i: [
+                    tf.identity(i.flat_values), *(
+                        tf.identity(rs) for rs in i.nested_row_splits)
+                ])(inp)
                 rebuilt = Lambda(
                     lambda c: tf.RaggedTensor.from_nested_row_splits(
                         c[0], c[1:]))(components)
@@ -171,8 +173,10 @@ class PipelineBuilder(object):
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
-                components = Lambda(
-                    lambda i: [i.flat_values, *i.nested_row_splits[1:]])(inp)
+                components = Lambda(lambda i: [
+                    tf.identity(i.flat_values), *(
+                        tf.identity(rs) for rs in i.nested_row_splits[1:])
+                ])(inp)
                 rebuilt = Lambda(
                     lambda c: tf.RaggedTensor.from_nested_row_splits(
                         c[0], c[1:]))(components)
@@ -207,7 +211,8 @@ class PipelineBuilder(object):
         if isinstance(tensor, tf.RaggedTensor):
             # components = (tensor.flat_values,) + tensor.nested_row_splits
             components = Lambda(
-                lambda x: [x.flat_values] + list(x.nested_row_splits))(tensor)
+                lambda x: [tf.identity(x.flat_values)] +
+                [tf.identity(rs) for rs in x.nested_row_splits])(tensor)
             components = [self._trained_input(c) for c in components]
             # return components
             rt = Lambda(lambda args: tf.RaggedTensor.from_nested_row_splits(

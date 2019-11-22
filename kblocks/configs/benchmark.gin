@@ -10,7 +10,7 @@
 
 import kblocks.framework.steps
 import kblocks.cli
-include 'trainable.gin'
+include 'utils/trainable.gin'
 
 kb.main.fn = @kb.framework.benchmark_wrapper
 kb.framework.benchmark.trainable = %trainable  # default defined in trainable.gin
@@ -18,6 +18,8 @@ kb.framework.benchmark.trainable = %trainable  # default defined in trainable.gi
 kb.framework.benchmark.batch_size = %batch_size
 kb.framework.benchmark.burn_iters = %burn_iters
 kb.framework.benchmark.min_iters = %min_iters
+kb.framework.benchmark.prefetch_buffer = %prefetch_buffer
 
+prefetch_buffer = None
 burn_iters = 50
 min_iters = 100

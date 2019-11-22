@@ -154,5 +154,6 @@ class PyFuncBuilder(object):
             for i in self._input_tensors
         ]
         inps = [tf.squeeze(i, axis=0) for i in inputs]
+        assert (len(inps) > 0)
         out = Lambda(self.run)(inps)
         return tf.keras.models.Model(inputs=inputs, outputs=out)

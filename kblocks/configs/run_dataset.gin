@@ -10,7 +10,7 @@
 # is_meta_model (defaults to False)
 
 import kblocks.cli
-include 'trainable.gin'
+include 'utils/trainable.gin'
 
 kb.main.fn = @kb.framework.run_dataset
 kb.framework.run_dataset.trainable = %trainable  # default defined in trainable.gin

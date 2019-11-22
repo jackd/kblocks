@@ -12,8 +12,8 @@ undefined macros (which are expected to be defined in other config files).
 
 Usage:
 ```python
-python -m kblocks '$KB_CONFIG/train.gin' rel/path/to/config \\
-    --bindings='f.x = 3' --binding='
+python -m kblocks '$KB_CONFIG/fit.gin' rel/path/to/config \\
+    --bindings='f.x = 3' --bindings='
         y = @g()
         g.param = 5
     ' \\

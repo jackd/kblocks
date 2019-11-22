@@ -1,6 +1,6 @@
 import kblocks.framework.steps
 import kblocks.cli
-include 'trainable.gin'
+include 'utils/trainable.gin'
 
 kb.main.fn = @kb.framework.custom_fit
 kb.framework.custom_fit.trainable = %trainable

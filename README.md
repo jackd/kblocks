@@ -289,13 +289,13 @@ Now we can also do things like modify the batch normalization momentum.
 BatchNormalization.momentum = 0.9
 ```
 
-The above is so common most of these `external_configurables` are available in [kblocks.layers](kblocks/layers/__init__.py).
+The above is so common most of these `external_configurables` are available in [kblocks.keras.layers](kblocks/layers/__init__.py).
 
 ```python
-from kblocks.layers import Dense, Convolution2D, BatchNormalization
+from kblocks.keras.layers import Dense, Convolution2D, BatchNormalization
 ```
 
-Note that using the objects output by `external_cofigurable` from code is different to using the argument passed in. Base implementations called from code (e.g. `tf.keras.layers.Dense`) will not have their default parameters changed by `gin` bindings (though `kblocks.layers.Dense` will).
+Note that using the objects output by `external_cofigurable` from code is different to using the argument passed in. Base implementations called from code (e.g. `tf.keras.layers.Dense`) will not have their default parameters changed by `gin` bindings (though `kblocks.keras.layers.Dense` will).
 
 ## Further Reading
 

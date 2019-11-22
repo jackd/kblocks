@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from kblocks import metrics
+from kblocks.extras import metrics
 import numpy as np
 
 

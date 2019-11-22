@@ -10,12 +10,12 @@ from typing import Sequence, Mapping, Any, Optional, Callable, List
 
 from kblocks.framework.problems import Problem
 from kblocks.framework.pipelines import Pipeline
-from kblocks import callbacks as cb
+from kblocks.extras import callbacks as cb
 from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
-from kblocks.optimizers.scope import OptimizerScope
-# from kblocks.callbacks.log_updater import LogUpdater
-from kblocks.callbacks.step import StepFnCallback
+from kblocks.framework import steps
+from kblocks.extras.callbacks.log_updater import LogUpdater
+from kblocks.extras.callbacks.step import StepFnCallback
 from kblocks.benchmark_utils import summarize
 
 
@@ -50,24 +50,26 @@ class Trainable(object):
                 Callable[[], tf.keras.optimizers.Optimizer]] = None,
             model_dir: Optional[str] = None,
             add_learning_rate_summary: bool = False):
-        # self._log_updater = LogUpdater()
+        self._log_updater = LogUpdater()
         self._step_fn_callback = StepFnCallback()
         if model_dir is not None:
             model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._model_dir = model_dir
         self._problem = problem
-        # with self._log_updater:
-        with self._step_fn_callback:
+        with self._log_updater:
+            # with self._step_fn_callback:
             with problem:
                 optimizer = None if optimizer_fn is None else optimizer_fn()
+                steps.set_step(optimizer.iterations)
                 if add_learning_rate_summary and optimizer is not None:
-                    self._step_fn_callback.register_step_fn(
-                        lambda step: tf.summary.scalar(
-                            'learning_rate', _learning_rate(optimizer, step),
-                            step))
-                with OptimizerScope(optimizer):
-                    self._pipeline = pipeline_fn(problem.features_spec,
-                                                 problem.outputs_spec)
+                    self._log_updater.log_each_epoch(
+                        'learning_rate', optimizer._decayed_lr(tf.float32))
+                #     self._step_fn_callback.register_step_fn(
+                #         lambda step: tf.summary.scalar(
+                #             'learning_rate', _learning_rate(optimizer, step),
+                #             step))
+                self._pipeline = pipeline_fn(problem.features_spec,
+                                             problem.outputs_spec)
                 if self._pipeline.model is not None:
                     self._pipeline.model.compile(
                         loss=self._problem.loss,
@@ -100,7 +102,12 @@ class Trainable(object):
                       splits,
                       batch_size,
                       shuffle_buffer=None,
-                      num_parallel_calls=tf.data.experimental.AUTOTUNE):
+                      num_parallel_calls: Optional[int] = None,
+                      prefetch_buffer: Optional[int] = None):
+        if num_parallel_calls is None:
+            num_parallel_calls = tf.data.experimental.AUTOTUNE
+        if prefetch_buffer is None:
+            prefetch_buffer = tf.data.experimental.AUTOTUNE
         problem = self.problem
         pipeline = self.pipeline
 
@@ -125,18 +132,25 @@ class Trainable(object):
                                           problem.shuffle_buffer)
             dataset = dataset.repeat()
             dataset = dataset.map(pre_batch_map, num_parallel_calls)
-            dataset = dataset.batch(batch_size)
+            dataset = dataset.batch(batch_size, drop_remainder=True)
             dataset = dataset.map(post_batch_map, num_parallel_calls)
+            dataset = dataset.prefetch(prefetch_buffer)
             return dataset
 
         return tf.nest.map_structure(prep_dataset, splits)
 
-    def benchmark(self, batch_size: int, burn_iters: int, min_iters: int):
-        # with tf.Graph().as_default():
+    def benchmark(self,
+                  batch_size: int,
+                  burn_iters: int,
+                  min_iters: int,
+                  prefetch_buffer: Optional[int] = None):
         model = self._pipeline.model
         problem = self.problem
         optimizer = model.optimizer
-        dataset = self._get_datasets('train', batch_size, -1)
+        dataset = self._get_datasets('train',
+                                     batch_size,
+                                     -1,
+                                     prefetch_buffer=prefetch_buffer)
         inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
             dataset).get_next()
         out = model(inputs)
@@ -153,20 +167,25 @@ class Trainable(object):
             logging.info('Starting benchmarking...')
 
             variables = model.weights + optimizer.weights
-            # HACK
-            variables.extend([
-                optimizer.beta_1,
-                optimizer.beta_2,
-            ])
-            lr = optimizer.learning_rate
-            if isinstance(lr, tf.Variable):
-                variables.append(lr)
+            # TODO: how do you get optimizer hyperparameter variables?
+            for name in ('beta_1', 'beta_2', 'learning_rate', 'momentum'):
+                a = getattr(optimizer, name, None)
+                if isinstance(a, tf.Variable):
+                    variables.append(a)
+            # variables.extend([
+            #     optimizer.beta_1,
+            #     optimizer.beta_2,
+            # ])
+            # lr = optimizer.learning_rate
+            # if isinstance(lr, tf.Variable):
+            #     variables.append(lr)
             sess.run([v.initializer for v in variables])
             bm = bm.run_op_benchmark(sess,
                                      train_op,
                                      burn_iters=burn_iters,
                                      min_iters=min_iters)
             summarize(bm)
+        return bm
 
     def custom_fit(self,
                    batch_size: int,
@@ -257,8 +276,8 @@ class Trainable(object):
         epochs = _get_epochs(epochs, total_train_steps, train_steps)
 
         used_callbacks: List[tf.keras.callbacks.Callback] = [
-            # self._log_updater,
-            self._step_fn_callback,
+            self._log_updater,
+            # self._step_fn_callback,
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
         ]
@@ -296,7 +315,6 @@ class Trainable(object):
         logging.info('Training starting with operative config: \n{}'.format(
             gin.operative_config_str()))
         model.summary(print_fn=logging.info)
-
         return model.fit(
             train_ds,
             epochs=epochs,
@@ -403,8 +421,12 @@ def model_config(trainable: Trainable):
 
 
 @gin.configurable(module='kb.framework')
-def benchmark(trainable=None, batch_size=None, burn_iters=None, min_iters=None):
-    print(trainable.benchmark(batch_size, burn_iters, min_iters))
+def benchmark(trainable=gin.REQUIRED,
+              batch_size=gin.REQUIRED,
+              burn_iters=gin.REQUIRED,
+              min_iters=gin.REQUIRED,
+              prefetch_buffer=None):
+    trainable.benchmark(batch_size, burn_iters, min_iters, prefetch_buffer)
 
 
 @gin.configurable(module='kb.framework')

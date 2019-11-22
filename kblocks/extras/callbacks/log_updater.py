@@ -4,10 +4,11 @@ from __future__ import print_function
 
 import tensorflow as tf
 import gin
+from kblocks.tf_typing import TensorOrVariable
 K = tf.keras.backend
 
 
-@gin.configurable(module='kb.callbacks')
+@gin.configurable(module='kb.extras.callbacks')
 class LogUpdater(tf.keras.callbacks.Callback):
 
     def __init__(self):
@@ -56,6 +57,18 @@ class LogUpdater(tf.keras.callbacks.Callback):
 
 def get_default():
     return LogUpdater.get_default()
+
+
+@gin.configurable(module='kb.extras.callbacks')
+def logged_value(key: str, value: TensorOrVariable, freq: str = 'epoch'):
+    if freq == 'epoch':
+        log_each_epoch(key, value)
+    elif freq == 'batch':
+        log_each_batch(key, value)
+    else:
+        raise ValueError(
+            'Invalid freq {} - must be one of "epoch" or "batch"'.format(freq))
+    return value
 
 
 def log_each_batch(key, value):

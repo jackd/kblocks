@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import gin
 import tensorflow as tf
-from kblocks.losses.lovasz import original as _orig
+from kblocks.extras.losses.lovasz import original as _orig
 
 
 @gin.configurable(module='kb.losses')
