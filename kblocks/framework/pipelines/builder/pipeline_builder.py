@@ -6,6 +6,7 @@ from absl import logging
 import tensorflow as tf
 
 from kblocks.spec import to_spec
+from kblocks.scope import Scope
 from kblocks.framework.pipelines.builder.model_builder import ModelBuilder
 from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
 from kblocks.framework.pipelines.builder.utils import TensorDict
@@ -13,9 +14,8 @@ from kblocks.framework.pipelines.core import Pipeline
 
 from kblocks.tf_typing import NestedTensorLike
 from kblocks.tf_typing import NestedTensorLikeSpec
-# from kblocks.tf_typing import TensorLikeSpec
 from kblocks.tf_typing import TensorLike
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple
 Lambda = tf.keras.layers.Lambda
 Input = tf.keras.layers.Input
 
@@ -35,6 +35,8 @@ class BuiltPipeline(Pipeline):
         self._pre_batch_model = pre_batch_model
         self._post_batch_model = post_batch_model
         self._trained_model = trained_model
+        # from kblocks.model_utils import wrap_model  # HACK
+        # self._trained_model = wrap_model(trained_model)
 
     def pre_batch_map(self, *args: NestedTensorLike) -> NestedTensorLike:
         """Mapping applied to dataset features before batching."""
@@ -91,23 +93,6 @@ class PipelineBuilder(object):
             PipelineModels.TRAINED: self._trained_builder,
         }
         self._marks = Marks()
-
-    _stack: List['PipelineBuilder'] = []
-
-    @classmethod
-    def get_default(cls) -> 'PipelineBuilder':
-        if len(cls._stack) == 0:
-            raise RuntimeError('Cannot get_default - no open instance context. '
-                               'Use `with {}():`'.format(cls.__name__))
-        return cls._stack[-1]
-
-    def __enter__(self):
-        PipelineBuilder._stack.append(self)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        top = PipelineBuilder._stack.pop()
-        assert (top is self)
 
     def propagate_marks(self, end: TensorLike) -> Optional[str]:
         return self._marks.propagate(end)
@@ -240,7 +225,8 @@ class PipelineBuilder(object):
                              self._trained_builder.build())
 
 
-get_default = PipelineBuilder.get_default
+scope = Scope[PipelineBuilder](name='pipeline_builder')
+get_default = scope.get_default
 
 
 def pre_batch_input(tensor_spec: tf.TensorSpec):
@@ -274,9 +260,6 @@ def py_func_builder(pipeline_model: str = PipelineModels.PRE_BATCH,
 
 def _inputs(x: TensorLike) -> Tuple[tf.Tensor, ...]:
     if isinstance(x, tf.Tensor):
-        # if tf.executing_eagerly():
-        #     logging.info('Cannot get inputs in eager mode')
-        #     return ()
         try:
             return tuple(x.op.inputs)
         except AttributeError:

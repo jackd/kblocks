@@ -3,14 +3,12 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-# from typing import Union
-from kblocks.tf_typing import TensorLike, TensorLikeSpec, NestedTensorSpec
+from kblocks.tf_typing import TensorLike, TensorLikeSpec, NestedTensorSpec, NestedTensorLike
 from typing import Callable
 
 
-# def to_spec(tensor: Union[tf.Tensor, tf.RaggedTensor, tf.SparseTensor]
-#            ) -> Union[tf.TensorSpec, tf.RaggedTensorSpec, tf.SparseTensorSpec]:
 def to_spec(tensor: TensorLike) -> TensorLikeSpec:
+    """Convert a (Ragged/Sparse)Tensor to the corresponding TensorSpec."""
     if isinstance(tensor, tf.RaggedTensor):
         return tf.RaggedTensorSpec.from_value(tensor)
     elif isinstance(tensor, tf.Tensor):
@@ -21,7 +19,19 @@ def to_spec(tensor: TensorLike) -> TensorLikeSpec:
         raise TypeError('Expected TensorLikeSpec, got {}'.format(tensor))
 
 
-def map_spec(map_fn: Callable, spec: NestedTensorSpec) -> NestedTensorSpec:
+def map_spec(map_fn: Callable[[NestedTensorLike], NestedTensorLike],
+             spec: NestedTensorSpec) -> NestedTensorSpec:
+    """
+    Get the specification corresponding to a spec transformation.
+
+    Args:
+        map_fn: function applied.
+        spec: possibly nested input spec structure.
+
+    Returns:
+        possibly nested output spec structure corresponding to the spec of
+        map_fn applied to tensors corresponding to input spec.
+    """
 
     def gen():
         raise NotImplementedError()
@@ -31,14 +41,3 @@ def map_spec(map_fn: Callable, spec: NestedTensorSpec) -> NestedTensorSpec:
         tf.nest.map_structure(lambda spec: spec.shape))
     dataset = dataset.map(map_fn)
     return dataset.spec
-
-
-def specs_are_consistent(a: tf.TensorSpec, b: tf.TensorSpec):
-    if a.dtype != b.dtype:
-        return False
-    if len(a.shape) != len(b.shape):
-        return False
-    for sa, sb in zip(a.shape, b.shape):
-        if sa is not None and sb is not None and sa != sb:
-            return False
-    return True

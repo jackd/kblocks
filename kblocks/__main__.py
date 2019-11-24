@@ -35,20 +35,20 @@ from __future__ import print_function
 from absl import app
 from absl import logging
 from kblocks import cli
-from kblocks import session
+from kblocks import tf_config
 from kblocks import utils
 
 
-def main(argv):
+def cli_main(argv):
     gin_summary = cli.get_gin_summary(argv)
     gin_summary.enable_path_options()
     gin_summary.parse(finalize=True)
     cli.logging_config()
     logging.info(gin_summary.pretty_format())
     utils.proc()
-    session.SessionOptions().configure_session()
+    tf_config.TfConfig().configure()
     cli.main()
 
 
 if __name__ == '__main__':
-    app.run(main)
+    app.run(cli_main)

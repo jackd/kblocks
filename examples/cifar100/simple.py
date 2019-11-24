@@ -46,7 +46,7 @@ def cifar100_problem():
     return TfdsProblem(
         'cifar100',
         tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        [tf.keras.metrics.SparseCategoricalAccuracy()],
+        (tf.keras.metrics.SparseCategoricalAccuracy(),),
         split_map={'validation': 'test'},
         pre_batch_map={
             split: functools.partial(pre_batch_map, split=split)

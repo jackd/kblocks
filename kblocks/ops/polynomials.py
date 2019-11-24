@@ -309,8 +309,8 @@ class NdPolynomialBuilder(object):
                 # too big
                 pass
             else:
-                outputs.append(
-                    tf.reduce_prod(tf.stack(polys, axis=-1), axis=-1))
+                outputs.append(tf.reduce_prod(tf.stack(polys, axis=-1),
+                                              axis=-1))
         assert (len(outputs) == self.num_out(len(coords)))
         if stack_axis is None:
             return outputs
@@ -328,6 +328,8 @@ _builder_factories = {
     'geg': GegenbauerPolynomialBuilder,
     'leg': LegendrePolynomialBuilder,
 }
+
+builder_keys = tuple(sorted(_builder_factories))
 
 
 def _builder_from_dict(name: str, **kwargs):
@@ -355,28 +357,7 @@ def get_nd_polynomials(
         unstack_axis: int = -1,
         stack_axis: Optional[int] = -1) -> tf.Tensor:
     builder = deserialize_builder(base_builder)
-    return NdPolynomialBuilder(max_order, is_total_order, builder)(
-        coords, unstack_axis=unstack_axis, stack_axis=stack_axis)
-
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    keys = sorted(_builder_factories)
-    keys = [k for k in keys if k not in ('her', 'cheb')]
-    builders = [_builder_factories[k]() for k in keys]
-    x = tf.linspace(-1.0, 1.0, 101)
-    xnp = x.numpy()
-    min_order = 1
-    max_order = 4
-    polys = [b(x, max_order)[min_order:] for b in builders]
-    # polys = [[pi * (1 - tf.abs(x)) for pi in p] for p in polys]
-
-    for i in range(max_order - min_order):
-        plt.figure()
-        lines = [
-            plt.plot(xnp, p[i].numpy(), label=l) for p, l in zip(polys, keys)
-        ]
-        plt.legend()
-        plt.title('order = {}'.format(i + min_order))
-
-    plt.show()
+    return NdPolynomialBuilder(max_order, is_total_order,
+                               builder)(coords,
+                                        unstack_axis=unstack_axis,
+                                        stack_axis=stack_axis)

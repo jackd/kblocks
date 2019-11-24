@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import gin
 import tensorflow as tf
-from tensorflow.python.keras.metrics import squeeze_or_expand_dimensions  # pylint: disable=import-error
+from tensorflow.python.keras.metrics import squeeze_or_expand_dimensions  # pylint: disable=no-name-in-module,import-error
 
 
 @gin.configurable(module='kb.metrics')
@@ -54,11 +54,6 @@ class IntersectionOverUnion(tf.keras.metrics.Metric):
 
     def result(self):
         return self.intersection / self.union
-
-    # def reset_states(self):
-    #     return tf.group([
-    #         self.intersection.assign(0.),
-    #         self.union.assign(0.)])
 
 
 class IndividualIntersectionOverUnion(IntersectionOverUnion):

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from typing import Union
 import tensorflow as tf
 import tensorflow_datasets as tfds
 from kblocks.framework.problems.core import Problem, Split
@@ -13,7 +14,7 @@ from typing import Optional, Callable, Union, Mapping
 class TfdsProblem(Problem):
 
     def __init__(self,
-                 builder,
+                 builder: Union[str, tfds.core.DatasetBuilder],
                  loss,
                  metrics=(),
                  objective=None,
@@ -27,12 +28,12 @@ class TfdsProblem(Problem):
                  shuffle_buffer: int = 512):
         if isinstance(builder, six.string_types):
             builder = tfds.builder(builder)
+        assert (isinstance(builder, tfds.core.DatasetBuilder))
+        self.builder: tfds.core.DatasetBuilder = builder
         if download_and_prepare:
-            builder.download_and_prepare()
-        self.builder = builder
+            self.builder.download_and_prepare()
         self.as_supervised = as_supervised
 
-        # if not provided
         if split_map is None:
             split_map = {}
         self._split_map = split_map
@@ -50,22 +51,6 @@ class TfdsProblem(Problem):
     def _examples_per_epoch(self, split):
         split = self._split(split)
         return self.builder.info.splits[split].num_examples
-
-        # split = self._split(split)
-
-        # def get(split):
-        #     return self.builder.info.splits[split].num_examples
-
-        # if isinstance(split, (tfds.core.splits.NamedSplit,) + six.string_types):
-        #     return get(split)
-        # else:
-        #     # fractional split?
-        #     # https://github.com/tensorflow/datasets/tree/master/docs/splits.md
-        #     acc = 0
-        #     for k, (start, end) in split.items():
-        #         percent = round((end - start) * 100) / 100
-        #         acc += round(get(k) * percent)
-        #     return acc
 
     def _get_base_dataset(self, split):
         split = self._split(split)

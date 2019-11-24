@@ -8,7 +8,6 @@ from typing import Sequence
 from typing import List
 from typing import Tuple
 from typing import Dict
-from typing import Any
 from typing import Callable
 
 import abc
@@ -19,6 +18,7 @@ import six
 
 from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.tf_typing import NestedTensorLike
+from kblocks.scope import Scope
 
 Metric = tf.keras.metrics.Metric
 Loss = tf.keras.losses.Loss
@@ -138,25 +138,6 @@ class Problem(abc.ABC):
         self._outputs_spec = outputs_spec
         self._shuffle_buffer = shuffle_buffer
 
-    _stack = []
-
-    def __enter__(self):
-        Problem._stack.append(self)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        out = Problem._stack.pop()
-        if out != self:
-            raise RuntimeError('Should be popping self off stack...')
-
-    @staticmethod
-    def default():
-        if len(Problem._stack) == 0:
-            raise RuntimeError(
-                'Cannot get default problem: at least one must be open in a '
-                'context first.')
-        return Problem._stack[-1]
-
     @property
     def shuffle_buffer(self):
         return self._shuffle_buffer
@@ -223,12 +204,16 @@ class Problem(abc.ABC):
         return labels if weights is None else (labels, weights)
 
 
+scope = Scope[Problem](name='problem')
+get_default = scope.get_default
+
+
 @gin.configurable(module='kb.framework')
 def run_problem(problem: Problem,
                 callback: Callable[[NestedTensorLike, NestedTensorLike], None],
                 split: Split = 'train',
                 shuffle: bool = True):
-    with problem:
+    with scope(problem):
         dataset = problem.get_base_dataset(split=split)
         if shuffle:
             dataset = dataset.shuffle(problem.shuffle_buffer)

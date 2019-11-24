@@ -1,3 +1,17 @@
+"""
+Basic command line interface utilities for working with gin and abs.logging.
+
+Importing this adds 4 command line args.
+
+- config_files: gin files to include
+- bindings: additional configurations applied after files are parsed
+- incl_rel (default True): enable relative paths in includes if True
+- expand_vars (default True): enable environment variables in paths if True
+
+`get_gin_summary` gets a GinSummary object from the command line (interpretting)
+unused positional arguments as additional config files).
+"""
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

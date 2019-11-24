@@ -71,7 +71,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
             return None
         epoch = self.epoch(chkpt)
         logging.info('Restoring model at epoch {} from {}'.format(epoch, chkpt))
-        return self._checkpoint.restore(chkpt)
+        return self._checkpoint.restore(chkpt).assert_consumed()
 
     def on_epoch_end(self, epoch: int, logs=None):
         if epoch % self._save_freq == 0:

@@ -1,0 +1,8 @@
+import kblocks.framework.trainable
+include 'utils/trainable.gin'
+
+kb.main.fn = @kb.framework.check_weight_updates
+kb.framework.check_weight_updates.trainable = %trainable  # default defined in trainable.gin
+kb.framework.check_weight_updates.batch_size = %batch_size
+kb.framework.check_weight_updates.total_steps = %total_steps
+total_steps = 10

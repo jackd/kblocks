@@ -1,5 +1,5 @@
 import simple
-import kblocks.keras_configurables
+import kblocks.keras.optimizers
 import kblocks.framework.pipelines
 
 problem = @cifar100_problem()

@@ -37,8 +37,8 @@ def get_epochs(epochs: Optional[int] = None) -> int:
 @gin.configurable(module='kb.framework')
 def get_examples_per_epoch(examples_per_epoch: Optional[int] = None) -> int:
     if examples_per_epoch is None:
-        from kblocks.framework.problems.core import Problem
-        return Problem.default().examples_per_epoch('train')
+        from kblocks.framework.problems.core import get_default
+        return get_default().examples_per_epoch('train')
     return examples_per_epoch
 
 

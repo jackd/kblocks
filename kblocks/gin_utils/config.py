@@ -11,24 +11,28 @@ KB_CONFIG_DIR = os.path.realpath(
 
 
 def try_register_config_dir(key, path):
+    """
+    Attempt to regiester a configuration directory or warn if failed.
+
+    For example, this file calls
+    `try_register_config_dir('KB_CONFIG', KB_CONFIG_DIR)`
+
+    This means after importing this directory, '$KB_CONFIG/fit.gin' can be
+    used from the command line or in `include` statements in gin file (assuming
+    `enable_variable_expansion` has been called at some point).
+
+    Args:
+        key: environment variable key.
+        path: path to configuration dir.
+    """
     if key in os.environ:
-        logging.warning('{} environment variable defined. '
+        logging.warning('{} environment variable already defined. '
                         'Config parsing may act surprisingly')
     else:
         os.environ[key] = path
 
 
 try_register_config_dir('KB_CONFIG', KB_CONFIG_DIR)
-
-
-@contextlib.contextmanager
-def change_dir_context(path: str):
-    orig_path = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(orig_path)
 
 
 def fix_paths(config_files: Union[str, Iterable[str]]) -> List[str]:

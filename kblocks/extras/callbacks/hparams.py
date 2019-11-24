@@ -3,18 +3,10 @@ from __future__ import division
 from __future__ import print_function
 import gin
 from tensorboard.plugins.hparams import api as hp
+from kblocks.scope import Scope
 
 
-class HParamsScope(object):
-    _stack = []
-
-    def __enter__(self):
-        HParamsScope._stack.append(self)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        x = HParamsScope._stack.pop()
-        assert (x is self)
+class HParamsBuilder(object):
 
     def __init__(self):
         self._hparams = {}
@@ -30,25 +22,21 @@ class HParamsScope(object):
         return hp.KerasCallback(log_dir, self.hparams)
 
 
-def get_default_scope():
-    return HParamsScope._stack[-1]
-
-
-# add default scope
-HParamsScope._stack.append(HParamsScope())
+scope = Scope[HParamsBuilder](HParamsBuilder(), name='hparams')
+get_default = scope.get_default
 
 
 def register(key, domain, value):
-    return get_default_scope().register(key, domain, value)
+    return get_default().register(key, domain, value)
 
 
 def get_hparams():
-    return get_default_scope().hparams
+    return get_default().hparams
 
 
 @gin.configurable(module='kb.callbacks')
 def hp_callback(log_dir, hparams=None):
-    return get_default_scope().keras_callback(log_dir)
+    return get_default().keras_callback(log_dir)
 
 
 HPCallback = hp_callback

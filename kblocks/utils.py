@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from functools import wraps
+
 import os
 import gin
 from absl import logging
-from typing import Optional, Callable, Any, TypeVar, Generic
+from typing import Optional, Any
 
 DEFAULT = '__default__'
 
@@ -33,7 +33,10 @@ def ray_init(redis_address: Optional[str] = DEFAULT,
              num_gpus: Optional[int] = None,
              local_mode: bool = False,
              **kwargs):
-    import ray
+    try:
+        import ray
+    except ImportError:
+        raise ImportError('Failed to import optional dependency ray')
     if redis_address == DEFAULT:
         redis_address = os.environ.get('REDIS_ADDRESS')
     return ray.init(redis_address,
@@ -47,31 +50,11 @@ def ray_init(redis_address: Optional[str] = DEFAULT,
 def proc(title: str = 'kblocks'):
     if title is not None:
         try:
-            # dirty hack to make pyright shut up
-            import importlib
-            getattr(importlib.import_module('setproctitle'),
-                    'setproctitle')(title)
-            # import setproctitle  # pyright: disable
-            # setproctitle.setproctitle(title)
+            import setproctitle
+            setproctitle.setproctitle(title)
         except ImportError:
             logging.warning(
-                'Failed to import setproctitle - cannot change title.')
-
-
-# S = TypeVar('S')
-# T = TypeVar('T')
-
-# def memoize(fn: Callable[[S], T]) -> Callable[[S], T]:
-#     attr = '__cached_{}'.format(fn.__name__)
-
-#     def wrapped(s: S):
-#         out = getattr(s, attr, None)
-#         if out is None:
-#             out = fn(s)
-#             setattr(s, attr, out)
-#         return out
-
-#     return wrapped
+                'Failed to import `setproctitle` - cannot change title.')
 
 
 class memoized_property(property):  # pylint: disable=invalid-name

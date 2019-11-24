@@ -14,6 +14,7 @@ from kblocks.framework.pipelines.builder.pipeline_builder import trained_input
 from kblocks.framework.pipelines.builder.pipeline_builder import trained_output
 from kblocks.framework.pipelines.builder.pipeline_builder import py_func_builder
 from kblocks.framework.pipelines.builder.pipeline_builder import propagate_marks
+from kblocks.framework.pipelines.builder.pipeline_builder import scope
 from kblocks.framework.pipelines.builder.py_func_builder import PyFuncBuilder
 from kblocks.framework.pipelines.builder.py_func_builder import PyFuncNode
 
@@ -32,4 +33,5 @@ __all__ = [
     'trained_output',
     'py_func_builder',
     'propagate_marks',
+    'scope',
 ]

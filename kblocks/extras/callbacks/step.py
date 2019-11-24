@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+from collections import OrderedDict
 from typing import Any, Callable, List
 import tensorflow as tf
-from collections import OrderedDict
+from kblocks.scope import Scope
 
 StepFn = Callable[[tf.Tensor], Any]
 
@@ -13,23 +14,6 @@ class StepFnCallback(tf.keras.callbacks.Callback):
     def __init__(self):
         self._summary_fns = OrderedDict()
         super(StepFnCallback, self).__init__()
-
-    _stack: List['StepFnCallback'] = []
-
-    def __enter__(self):
-        StepFnCallback._stack.append(self)
-        return self
-
-    def __exit__(self, type, value, traceback):
-        top = StepFnCallback._stack.pop()
-        assert (top is self)
-
-    @classmethod
-    def get_default(cls):
-        if len(cls._stack) == 0:
-            raise ValueError('No scope entered for class {}'.format(
-                cls.__name__))
-        return cls._stack[-1]
 
     def register_step_fn(self, fn: StepFn):
         n = len(self._summary_fns)
@@ -45,8 +29,8 @@ class StepFnCallback(tf.keras.callbacks.Callback):
             fn(step)
 
 
-def get_default() -> StepFnCallback:
-    return StepFnCallback.get_default()
+scope = Scope[StepFnCallback](name='step_fn_callback')
+get_default = scope.get_default
 
 
 def register_step_fn(fn: StepFn):

@@ -12,7 +12,7 @@ import kblocks.framework.steps
 import kblocks.cli
 include 'utils/trainable.gin'
 
-kb.main.fn = @kb.framework.benchmark_wrapper
+kb.main.fn = @kb.framework.benchmark_wrapped
 kb.framework.benchmark.trainable = %trainable  # default defined in trainable.gin
 
 kb.framework.benchmark.batch_size = %batch_size

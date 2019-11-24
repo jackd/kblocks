@@ -5,6 +5,7 @@ from __future__ import print_function
 import tensorflow as tf
 import gin
 from kblocks.tf_typing import TensorOrVariable
+from kblocks.scope import Scope
 K = tf.keras.backend
 
 
@@ -14,22 +15,6 @@ class LogUpdater(tf.keras.callbacks.Callback):
     def __init__(self):
         self._batch_logs = {}
         self._epoch_logs = {}
-
-    _stack = []
-
-    def __enter__(self):
-        LogUpdater._stack.append(self)
-
-    def __exit__(self, type, value, traceback):
-        out = LogUpdater._stack.pop()
-        assert (out is self)
-
-    @classmethod
-    def get_default(cls):
-        if len(cls._stack) == 0:
-            raise ValueError(
-                'No `LogUpdater` scopes active - must be used in `with` block')
-        return cls._stack[-1]
 
     def on_batch_end(self, batch, logs=None):
         if logs is not None:
@@ -55,8 +40,9 @@ class LogUpdater(tf.keras.callbacks.Callback):
         self._epoch_logs[key] = value
 
 
-def get_default():
-    return LogUpdater.get_default()
+scope = Scope[LogUpdater](name='log_updater')
+
+get_default = scope.get_default
 
 
 @gin.configurable(module='kb.extras.callbacks')

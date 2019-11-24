@@ -28,7 +28,7 @@ def get_linear_coords_and_factors(coords: tf.Tensor,
     with tf.name_scope(name):
         coords = tf.convert_to_tensor(coords, tf.float32)
 
-        shape = coords.shape.as_list()  # TF-COMPAT
+        shape = coords.shape
         batched = len(shape) == 3
         n_dims = shape[-1]
         shape = tf.shape(coords)
@@ -39,7 +39,6 @@ def get_linear_coords_and_factors(coords: tf.Tensor,
         else:
             n_points = shape[0]
             batch_size = None
-        n_dims = coords.shape.as_list()[-1]
 
         di = tf.stack(tf.meshgrid(*([tf.range(2)] * n_dims), indexing='ij'),
                       axis=-1)
@@ -75,7 +74,7 @@ def get_linear_coords_and_factors(coords: tf.Tensor,
 def fix_batched_indices_for_gather(coords):
     batch_size = tf.shape(coords)[0]
     batch_index = tf.range(batch_size, dtype=tf.int32)
-    other_dims = coords.shape.as_list()[1:-1]
+    other_dims = coords.shape[1:-1]
     for _ in range(len(other_dims) + 1):
         batch_index = tf.expand_dims(batch_index, axis=-1)
     batch_index = tf.tile(batch_index, [1] + other_dims + [1])

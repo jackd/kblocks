@@ -4,7 +4,7 @@ from __future__ import print_function
 import abc
 import gin
 import tensorflow as tf
-from kblocks.spec import to_spec, specs_are_consistent
+from kblocks.spec import to_spec
 from kblocks.tf_typing import NestedTensorLike
 from kblocks.tf_typing import NestedTensorLikeSpec
 from typing import Callable, List
@@ -73,9 +73,9 @@ class ModelPipeline(Pipeline):
         expected_specs: List[tf.TensorSpec] = tf.nest.flatten(outputs_spec)
         actual_specs: List[tf.TensorSpec] = tf.nest.flatten(actual_outputs_spec)
         for actual, expected in zip(actual_specs, expected_specs):
-            if not specs_are_consistent(actual, expected):
+            if not actual.is_compatible_with(expected):
                 raise ValueError(
-                    'model_fn returned a model with outputs inconsistent with '
+                    'model_fn returned a model with outputs incompatible with '
                     'outputs_spec. Requires {}, got {}'.format(
                         outputs_spec, actual_outputs_spec))
 

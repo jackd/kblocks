@@ -300,3 +300,7 @@ Note that using the objects output by `external_cofigurable` from code is differ
 ## Further Reading
 
 Go check out the [gin user guide](https://github.com/google/gin-config/blob/master/docs/index.md) for more examples of how best to use this powerful framework. Happy configuring!
+
+## TODO
+
+- XLA compilation: `tf.config.optimizer.set_jit`
