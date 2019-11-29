@@ -21,6 +21,8 @@ from absl import flags
 from absl import logging
 import gin
 from typing import Optional, Callable
+from kblocks import utils
+from kblocks import tf_config
 
 flags.DEFINE_multi_string('config_files', [],
                           'config files appended to positional args.')
@@ -89,4 +91,14 @@ def main(fn: Optional[Callable] = None):
         logging.error('`main.fn` is not configured.')
     if not callable(fn):
         raise ValueError('`main.fn` is not callable.')
-    fn()
+    return fn()
+
+
+def summary_main(gin_summary):
+    gin_summary.enable_path_options()
+    gin_summary.parse(finalize=True)
+    logging_config()
+    logging.info(gin_summary.pretty_format())
+    utils.proc()
+    tf_config.TfConfig().configure()
+    return main()

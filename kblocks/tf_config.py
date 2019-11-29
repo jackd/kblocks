@@ -9,12 +9,51 @@ from typing import Sequence, Optional
 
 
 @gin.configurable(module='kb')
+def get_optimizer_options(layout_optimizer=True,
+                          constant_folder=True,
+                          shape_optimization=True,
+                          remapping=True,
+                          arithmetic_optimization=True,
+                          dependency_optimization=True,
+                          loop_optimization=True,
+                          function_optimization=True,
+                          debug_stripper=True,
+                          disable_model_pruning=False,
+                          scoped_allocator_optimization=True,
+                          pin_to_host_optimization=True,
+                          implementaion_selector=True,
+                          auto_mixed_precision=False,
+                          disable_meta_optimizer=False,
+                          min_graph_nodes=0):
+    return dict(
+        layout_optimizer=layout_optimizer,
+        constant_folder=constant_folder,
+        shape_optimization=shape_optimization,
+        remapping=remapping,
+        arithmetic_optimization=arithmetic_optimization,
+        dependency_optimization=dependency_optimization,
+        loop_optimization=loop_optimization,
+        function_optimization=function_optimization,
+        debug_stripper=debug_stripper,
+        disable_model_pruning=disable_model_pruning,
+        scoped_allocator_optimization=scoped_allocator_optimization,
+        pin_to_host_optimization=pin_to_host_optimization,
+        implementaion_selector=implementaion_selector,
+        auto_mixed_precision=auto_mixed_precision,
+        disable_meta_optimizer=disable_meta_optimizer,
+        min_graph_nodes=min_graph_nodes,
+    )
+
+
+@gin.configurable(module='kb')
 class TfConfig(object):
 
     def __init__(self,
                  allow_growth: bool = True,
                  visible_devices: Optional[Sequence[int]] = None,
-                 jit: Optional[bool] = None):
+                 jit: Optional[bool] = None,
+                 optimizer_options: Optional[dict] = None):
+        self.optimizer_options = optimizer_options
         self.allow_growth = allow_growth
         self.visible_devices = visible_devices
         self.jit = jit
@@ -33,13 +72,16 @@ class TfConfig(object):
         except Exception:
             logging.info('Failed to set memory growth to {}'.format(
                 self.allow_growth))
+        if self.optimizer_options is not None:
+            tf.config.optimizer.set_experimental_options(self.optimizer_options)
         if self.jit is not None:
             tf.config.optimizer.set_jit(self.jit)
 
     def get_config(self):
         return dict(allow_growth=self.allow_growth,
                     visible_devices=self.visible_devices,
-                    jit=self.jit)
+                    jit=self.jit,
+                    optimizer_options=self.optimizer_options)
 
     @classmethod
     def from_config(cls, config):

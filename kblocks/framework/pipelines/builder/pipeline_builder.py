@@ -94,8 +94,15 @@ class PipelineBuilder(object):
         }
         self._marks = Marks()
 
-    def propagate_marks(self, end: TensorLike) -> Optional[str]:
-        return self._marks.propagate(end)
+    def propagate_marks(self, x: TensorLike) -> Optional[str]:
+        return self._marks.propagate(x)
+
+    def check_mark(self, x: TensorLike, mark: str, name: str = 'x') -> None:
+        actual = self.propagate_marks(x)
+        if actual != mark:
+            raise RuntimeError(
+                'Expected {} to have mark {}, but {} has mark {}'.format(
+                    name, mark, x, actual))
 
     def py_func_builder(self,
                         pipeline_model: str = PipelineModels.PRE_BATCH,
@@ -107,17 +114,22 @@ class PipelineBuilder(object):
         return self._builders[pipeline_model].py_func_builder(
             name, input_callback=callback, output_callback=callback)
 
-    def pre_batch_input(self, tensor_spec: tf.TensorSpec) -> tf.TensorSpec:
+    def pre_batch_input(self,
+                        tensor_spec: tf.TensorSpec,
+                        name: Optional[str] = None) -> tf.TensorSpec:
         assert_is_tensor_spec(tensor_spec)
         inp = Input(shape=tensor_spec.shape,
                     dtype=tensor_spec.dtype,
-                    batch_size=1)
+                    batch_size=1,
+                    name=name)
         self._pre_batch_builder.add_input(inp)
         self._marks[inp] = PipelineModels.PRE_BATCH
         return tf.squeeze(inp, axis=0)
 
-    def batch(self, tensor: TensorLike,
-              ragged: Optional[bool] = None) -> TensorLike:
+    def batch(self,
+              tensor: TensorLike,
+              ragged: Optional[bool] = None,
+              name: Optional[str] = None) -> TensorLike:
         self._marks[tensor] = PipelineModels.PRE_BATCH
         if ragged is None:
             if isinstance(tensor, tf.RaggedTensor):
@@ -135,10 +147,12 @@ class PipelineBuilder(object):
         if ragged:
             if isinstance(tensor, tf.RaggedTensor):
                 self._pre_batch_builder.add_output(tensor)
-                inp = Input(shape=tensor.shape, ragged=True, dtype=tensor.dtype)
+                inp = Input(shape=tensor.shape,
+                            ragged=True,
+                            dtype=tensor.dtype,
+                            name=name)
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
-                # return inp
 
                 # we rebuild to make keras play nicely.
                 components = Lambda(lambda i: [
@@ -148,13 +162,17 @@ class PipelineBuilder(object):
                 rebuilt = Lambda(
                     lambda c: tf.RaggedTensor.from_nested_row_splits(
                         c[0], c[1:]))(components)
+                self._marks[rebuilt] = PipelineModels.POST_BATCH
                 return rebuilt
 
             elif isinstance(tensor, tf.Tensor):
                 output = Lambda(tf.RaggedTensor.from_tensor)(tf.expand_dims(
                     tensor, axis=0))
                 self._pre_batch_builder.add_output(output)
-                inp = Input(output.shape, dtype=output.dtype, ragged=True)
+                inp = Input(output.shape,
+                            dtype=output.dtype,
+                            ragged=True,
+                            name=name)
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
@@ -165,6 +183,7 @@ class PipelineBuilder(object):
                 rebuilt = Lambda(
                     lambda c: tf.RaggedTensor.from_nested_row_splits(
                         c[0], c[1:]))(components)
+                self._marks[rebuilt] = PipelineModels.POST_BATCH
                 return rebuilt
             else:
                 raise ValueError(
@@ -176,8 +195,9 @@ class PipelineBuilder(object):
                     'tensor must be a tensor if Ragged is False, got {}'.format(
                         tensor))
             self._pre_batch_builder.add_output(tensor)
-            out = Input(shape=tensor.shape, dtype=tensor.dtype)
+            out = Input(shape=tensor.shape, dtype=tensor.dtype, name=name)
             self._post_batch_builder.add_input(out)
+            self._marks[out] = PipelineModels.POST_BATCH
             return out
 
     def _trained_input(self, tensor: tf.Tensor) -> tf.Tensor:
@@ -220,9 +240,10 @@ class PipelineBuilder(object):
         return tensor
 
     def build(self) -> BuiltPipeline:
-        return BuiltPipeline(self._pre_batch_builder.build(),
-                             self._post_batch_builder.build(),
-                             self._trained_builder.build())
+        prebatch = self._pre_batch_builder.build()
+        postbatch = self._post_batch_builder.build()
+        trained = self._trained_builder.build()
+        return BuiltPipeline(prebatch, postbatch, trained)
 
 
 scope = Scope[PipelineBuilder](name='pipeline_builder')
@@ -249,8 +270,12 @@ def batch(tensor: TensorLike, ragged: Optional[bool] = None):
     return get_default().batch(tensor, ragged=ragged)
 
 
-def propagate_marks(tensor: TensorLike):
-    return get_default().propagate_marks(tensor)
+def propagate_marks(x: TensorLike) -> Optional[str]:
+    return get_default().propagate_marks(x)
+
+
+def check_mark(x: TensorLike, mark: str, name: str = 'x'):
+    return get_default().check_mark(x, mark, name)
 
 
 def py_func_builder(pipeline_model: str = PipelineModels.PRE_BATCH,

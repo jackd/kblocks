@@ -55,7 +55,8 @@ class Trainable(object):
             optimizer_fn: Optional[
                 Callable[[], tf.keras.optimizers.Optimizer]] = None,
             model_dir: Optional[str] = None,
-            add_learning_rate_summary: bool = False):
+            add_learning_rate_summary: bool = False,
+            auto_compile=True):
         self._log_updater = log_lib.LogUpdater()
         # self._step_fn_callback = StepFnCallback()
         if model_dir is not None:
@@ -71,12 +72,14 @@ class Trainable(object):
                         'learning_rate', optimizer._decayed_lr(tf.float32))
                 self._pipeline = pipeline_fn(problem.features_spec,
                                              problem.outputs_spec)
-                if self._pipeline.model is not None:
-                    self._pipeline.model.compile(
-                        loss=self._problem.loss,
-                        metrics=self._problem.metrics,
-                        optimizer=optimizer,
-                    )
+                self._optimizer = optimizer
+                if auto_compile and self._pipeline.model is not None:
+                    self._compile()
+
+    def _compile(self):
+        self._pipeline.model.compile(loss=self._problem.loss,
+                                     metrics=self._problem.metrics,
+                                     optimizer=self._optimizer)
 
     def operative_config(self):
         return gin.operative_config_str()
@@ -225,6 +228,83 @@ class Trainable(object):
             summarize(result)
         return bm
 
+    def profile(self,
+                batch_size: int,
+                burn_iters: int,
+                min_iters: int,
+                prefetch_buffer: Optional[int] = None):
+        # https://www.tensorflow.org/api_docs/python/tf/compat/v1/profiler/Profiler
+        from kblocks.profile_utils import summarize
+        Profiler = tf.compat.v1.profiler.Profiler
+        ProfileOptionBuilder = tf.compat.v1.profiler.ProfileOptionBuilder
+        model = self._pipeline.model
+        problem = self.problem
+        optimizer: tf.keras.optimizers.Optimizer = model.optimizer
+        dataset = self._get_datasets('train',
+                                     batch_size,
+                                     -1,
+                                     prefetch_buffer=prefetch_buffer)
+        inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
+            dataset).get_next()
+        out = model(inputs)
+        loss_: tf.keras.losses.Loss = problem.loss
+        loss = loss_(labels, out)
+        weights = model.trainable_weights
+        grads = optimizer.get_gradients(loss, weights)
+        grads_and_vars = tuple(
+            (g, v) for g, v in zip(grads, weights) if g is not None)
+        train_op = optimizer.apply_gradients(grads_and_vars)
+
+        with tf.compat.v1.Session() as sess:
+            logging.info('Starting profiling...')
+            profiler = Profiler(graph=sess.graph)
+
+            variables = model.weights + optimizer.weights
+            # TODO: how do you get optimizer hyperparameter variables?
+            for name in ('beta_1', 'beta_2', 'learning_rate', 'momentum'):
+                a = getattr(optimizer, name, None)
+                if isinstance(a, tf.Variable):
+                    variables.append(a)
+            sess.run([v.initializer for v in variables])
+            for i in range(burn_iters):
+                sess.run(train_op)
+
+            run_meta = tf.compat.v1.RunMetadata()
+
+            opts = ProfileOptionBuilder.time_and_memory(
+                # min_accelerator_micros=1
+            )
+            profiles = []
+            for i in range(min_iters):
+                sess.run(train_op,
+                         options=tf.compat.v1.RunOptions(
+                             trace_level=tf.compat.v1.RunOptions.FULL_TRACE),
+                         run_metadata=run_meta)
+                profiler.add_step(i, run_meta)
+
+                # Profile the parameters of your model.
+                # profiler.profile_name_scope(options=(
+                #     ProfileOptionBuilder.trainable_variables_parameter()))
+
+                # Or profile the timing of your model operations.
+                profiles.append(profiler.profile_operations(options=opts))
+
+                # # Or you can generate a timeline:
+                # opts = (option_builder.ProfileOptionBuilder(
+                #         option_builder.ProfileOptionBuilder.time_and_memory())
+                #         .with_step(i)
+                #         .with_timeline_output(filename).build())
+                # profiler.profile_graph(options=opts)
+            ALL_ADVICE = {
+                'ExpensiveOperationChecker': {},
+                'AcceleratorUtilizationChecker': {},
+                'JobChecker': {},  # Only available internally.
+                'OperationChecker': {},
+            }
+            profiler.advise(ALL_ADVICE)
+            summarize(profiles)
+            return profiles
+
     def custom_fit(self,
                    batch_size: int,
                    epochs: Optional[int] = None,
@@ -234,7 +314,8 @@ class Trainable(object):
                    callbacks: List[tf.keras.callbacks.Callback] = [],
                    chkpt_kwargs: Mapping[str, Any] = {}):
         from tqdm import tqdm
-        # TODO: support callbacks
+        if len(callbacks) > 0:
+            raise NotImplementedError('TODO: add callback support')
         problem = self.problem
         pipeline = self.pipeline
         # model_dir = self.model_dir
@@ -401,6 +482,37 @@ class Trainable(object):
                         callback(*out)
         logging.info('Finished running dataset')
 
+    def run_predictions(self,
+                        batch_size: int,
+                        num_examples: int = 10,
+                        shuffle_buffer: Optional[int] = None,
+                        split: Split = 'train',
+                        num_parallel_calls: int = 1,
+                        callback: Optional[Callable[[Any, Any], None]] = None):
+        from tqdm import tqdm
+        model = self._pipeline.model
+        logging.info('Running dataset')
+        dataset = self._get_datasets(
+            split,
+            batch_size,
+            shuffle_buffer,
+            num_parallel_calls=num_parallel_calls).take(num_examples)
+        if tf.executing_eagerly():
+            for example, label in tqdm(dataset, total=num_examples):
+                predictions = model(example)
+                if callback is not None:
+                    callback(predictions, label)
+        else:
+            example, label = tf.compat.v1.data.make_one_shot_iterator(
+                dataset).get_next()
+            predictions = model(example)
+            with tf.compat.v1.Session() as sess:
+                for _ in tqdm(range(num_examples), total=num_examples):
+                    out = sess.run((predictions, label))
+                    if callback is not None:
+                        callback(*out)
+        logging.info('Finished running dataset')
+
 
 @gin.configurable(module='kb.framework')
 def fit(trainable: Trainable,
@@ -446,38 +558,58 @@ def run_dataset(trainable: Trainable,
                 num_examples: int = 10,
                 shuffle_buffer: Optional[int] = None,
                 split: Split = 'train',
-                callback: Optional[Callable[[Any, Any], None]] = None):
-    trainable.run_dataset(batch_size,
-                          num_examples,
-                          shuffle_buffer=shuffle_buffer,
-                          split=split,
-                          callback=callback)
+                callback: Optional[Callable[[Any, Any], None]] = None,
+                num_parallel_calls=1):
+    return trainable.run_dataset(batch_size,
+                                 num_examples,
+                                 shuffle_buffer=shuffle_buffer,
+                                 split=split,
+                                 callback=callback,
+                                 num_parallel_calls=num_parallel_calls)
+
+
+@gin.configurable(module='kb.framework')
+def run_predictions(trainable: Trainable,
+                    batch_size: int,
+                    num_examples: int = 10,
+                    shuffle_buffer: Optional[int] = None,
+                    split: Split = 'train',
+                    callback: Optional[Callable[[Any, Any], None]] = None):
+    return trainable.run_predictions(batch_size,
+                                     num_examples,
+                                     shuffle_buffer=shuffle_buffer,
+                                     split=split,
+                                     callback=callback)
 
 
 @gin.configurable(module='kb.framework')
 def model_summary(trainable: Trainable):
-    trainable.model_summary()
+    return trainable.model_summary()
 
 
 @gin.configurable(module='kb.framework')
 def operative_config(trainable: Trainable):
-    print(trainable.operative_config())
+    out = trainable.operative_config()
+    print(out)
+    return out
 
 
 @gin.configurable(module='kb.framework')
 def model_config(trainable: Trainable):
-    print(trainable.model_config())
+    out = trainable.model_config()
+    print(out)
+    return out
 
 
 @gin.configurable(module='kb.framework')
 def check_gradients(trainable: Trainable, batch_size: int):
-    trainable.check_gradients(batch_size)
+    return trainable.check_gradients(batch_size)
 
 
 @gin.configurable(module='kb.framework')
 def check_weight_updates(trainable: Trainable, batch_size: int,
                          total_steps: int):
-    trainable.check_weight_updates(batch_size, total_steps)
+    return trainable.check_weight_updates(batch_size, total_steps)
 
 
 @gin.configurable(module='kb.framework')
@@ -486,12 +618,13 @@ def benchmark(trainable=gin.REQUIRED,
               burn_iters=gin.REQUIRED,
               min_iters=gin.REQUIRED,
               prefetch_buffer=None):
-    trainable.benchmark(batch_size, burn_iters, min_iters, prefetch_buffer)
+    return trainable.benchmark(batch_size, burn_iters, min_iters,
+                               prefetch_buffer)
 
 
 def graph_wrap(fn: Callable):
     with tf.Graph().as_default():
-        fn()
+        return fn()
 
 
 @gin.configurable(module='kb.framework')
@@ -503,9 +636,31 @@ def benchmark_wrapped():
     By having this wrapper, those arguments aren't created until after we enter
     the graph context.
     """
-    graph_wrap(benchmark)
+    return graph_wrap(benchmark)
 
 
 @gin.configurable(module='kb.framework')
 def fit_wrapped():
-    graph_wrap(fit)
+    return graph_wrap(fit)
+
+
+@gin.configurable(module='kb.framework')
+def profile(trainable=gin.REQUIRED,
+            batch_size=gin.REQUIRED,
+            burn_iters=gin.REQUIRED,
+            min_iters=gin.REQUIRED,
+            prefetch_buffer=None):
+    return trainable.profile(batch_size=batch_size,
+                             burn_iters=burn_iters,
+                             min_iters=min_iters,
+                             prefetch_buffer=prefetch_buffer)
+
+
+@gin.configurable(module='kb.framework')
+def profile_wrapped():
+    return graph_wrap(profile)
+
+
+@gin.configurable(module='kb.framework.misc')
+def print_preds(predictions, labels):
+    print(predictions)

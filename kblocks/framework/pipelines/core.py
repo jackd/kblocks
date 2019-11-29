@@ -30,7 +30,7 @@ class Pipeline(abc.ABC):
 
     def post_batch_map(self, args: NestedTensorLike) -> NestedTensorLike:
         """Mapping applied to dataset features after batching."""
-        return args
+        return tuple(tf.nest.flatten(args))
 
     @abc.abstractproperty
     def features_spec(self) -> NestedTensorLikeSpec:

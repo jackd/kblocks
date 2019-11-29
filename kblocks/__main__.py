@@ -33,21 +33,11 @@ from __future__ import division
 from __future__ import print_function
 
 from absl import app
-from absl import logging
 from kblocks import cli
-from kblocks import tf_config
-from kblocks import utils
 
 
 def cli_main(argv):
-    gin_summary = cli.get_gin_summary(argv)
-    gin_summary.enable_path_options()
-    gin_summary.parse(finalize=True)
-    cli.logging_config()
-    logging.info(gin_summary.pretty_format())
-    utils.proc()
-    tf_config.TfConfig().configure()
-    cli.main()
+    cli.summary_main(cli.get_gin_summary(argv))
 
 
 if __name__ == '__main__':

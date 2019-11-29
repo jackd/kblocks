@@ -90,6 +90,8 @@ class ModelBuilder(object):
 
         final_inputs = [input_like(x) for x in self._inputs]
 
+        # if there's an error below, it's most likely caused by a cyclic
+        # dependency, i.e. an input has a dependency on our of the outputs.
         pf_inputs_model = tf.keras.models.Model(
             self._inputs, self._py_func_builder.input_tensors)
 

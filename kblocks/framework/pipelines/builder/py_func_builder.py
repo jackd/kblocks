@@ -28,6 +28,7 @@ class PyFuncBuilder(object):
                  output_callback: Optional[Callable[[tf.Tensor], None]] = None):
         self._name = name
         self._input_tensors: List[tf.Tensor] = []
+        self._input_names: List[Optional[str]] = []
         self._input_nodes: List[PyFuncNode] = []
         self._nodes: List[PyFuncNode] = []
         self._output_indices: List[int] = []
@@ -60,23 +61,26 @@ class PyFuncBuilder(object):
         self._nodes.append(out)
         return out
 
-    def input_node(self, tensor) -> PyFuncNode:
+    def input_node(self, tensor: tf.Tensor,
+                   name: Optional[str] = None) -> PyFuncNode:
         if not isinstance(tensor, tf.Tensor):
             raise ValueError('tensor must be a Tensor, got {}'.format(tensor))
         node = self._node()
         if self._input_callback is not None:
             self._input_callback(tensor)
         self._input_tensors.append(tensor)
+        self._input_names.append(name)
         self._input_nodes.append(node)
         return node
 
-    def unstack(self, node, num_outputs) -> List[PyFuncNode]:
+    def unstack(self, node: PyFuncNode, num_outputs: int) -> List[PyFuncNode]:
         return [
             self.node(functools.partial(_get, i=i), node)
             for i in range(num_outputs)
         ]
 
-    def node(self, fn, *args: PyFuncNode, **kwargs: PyFuncNode) -> PyFuncNode:
+    def node(self, fn: Callable, *args: PyFuncNode,
+             **kwargs: PyFuncNode) -> PyFuncNode:
         for i, arg in enumerate(args):
             self._assert_is_own_node(arg, 'arg{}'.format(i))
         for k, v in kwargs.items():
@@ -104,16 +108,19 @@ class PyFuncBuilder(object):
             raise ValueError('{}.builder must be self, got {}'.format(
                 name, node.builder))
 
-    def output_tensor(self, node: PyFuncNode,
-                      tensor_spec: tf.TensorSpec) -> tf.Tensor:
+    def output_tensor(self,
+                      node: PyFuncNode,
+                      tensor_spec: tf.TensorSpec,
+                      name: Optional[str] = None) -> tf.Tensor:
         self._assert_is_own_node(node)
         for i, spec in enumerate(tf.nest.flatten(tensor_spec)):
             assert_is_tensor_spec(spec, 'spec{}'.format(i))
         self._output_indices.append(node.index)
         self._output_specs.append(tensor_spec)
         out = tf.nest.map_structure(
-            lambda spec: Input(shape=spec.shape, dtype=spec.dtype, batch_size=1
-                              ), tensor_spec)
+            lambda spec: Input(
+                shape=spec.shape, dtype=spec.dtype, batch_size=1, name=name),
+            tensor_spec)
         if self._output_callback is not None:
             for o in tf.nest.flatten(out):
                 self._output_callback(o)
@@ -150,8 +157,8 @@ class PyFuncBuilder(object):
 
     def model(self) -> tf.keras.Model:
         inputs = [
-            Input(shape=i.shape, dtype=i.dtype, batch_size=1)
-            for i in self._input_tensors
+            Input(shape=i.shape, dtype=i.dtype, batch_size=1, name=n)
+            for (i, n) in zip(self._input_tensors, self._input_names)
         ]
         inps = [tf.squeeze(i, axis=0) for i in inputs]
         assert (len(inps) > 0)
