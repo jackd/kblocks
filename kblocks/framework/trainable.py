@@ -17,6 +17,7 @@ from kblocks.tf_typing import NestedTensorLikeSpec
 from kblocks.framework.problems.core import Split
 from kblocks.framework import steps
 from kblocks.extras.callbacks import log_updater as log_lib
+from kblocks.extras.callbacks import value_updater as val_lib
 # from kblocks.extras.callbacks.step import StepFnCallback
 from kblocks.benchmark_utils import summarize
 
@@ -58,20 +59,25 @@ class Trainable(object):
             add_learning_rate_summary: bool = False,
             auto_compile=True):
         self._log_updater = log_lib.LogUpdater()
+        self._value_updater = val_lib.ValueUpdater()
         # self._step_fn_callback = StepFnCallback()
         if model_dir is not None:
             model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._model_dir = model_dir
         self._problem = problem
         with log_lib.scope(self._log_updater):
-            with problem_scope(problem):
-                optimizer = None if optimizer_fn is None else optimizer_fn()
-                steps.set_step(optimizer.iterations)
-                if add_learning_rate_summary and optimizer is not None:
-                    self._log_updater.log_each_epoch(
-                        'learning_rate', optimizer._decayed_lr(tf.float32))
-                self._pipeline = pipeline_fn(problem.features_spec,
-                                             problem.outputs_spec)
+            with val_lib.scope(self._value_updater):
+                with problem_scope(problem):
+                    if optimizer_fn is None:
+                        optimizer = None
+                    else:
+                        optimizer = optimizer_fn()
+                        steps.set_step(optimizer.iterations)
+                    if add_learning_rate_summary and optimizer is not None:
+                        self._log_updater.log_each_epoch(
+                            'learning_rate', optimizer._decayed_lr(tf.float32))
+                    self._pipeline = pipeline_fn(problem.features_spec,
+                                                 problem.outputs_spec)
                 self._optimizer = optimizer
                 if auto_compile and self._pipeline.model is not None:
                     self._compile()
@@ -396,12 +402,15 @@ class Trainable(object):
         epochs = _get_epochs(epochs, total_train_steps, train_steps)
 
         used_callbacks: List[tf.keras.callbacks.Callback] = [
+            self._value_updater
+        ] if self._value_updater.used else []
+        used_callbacks.extend([
             # DebugCallback(),
             self._log_updater,
             # self._step_fn_callback,
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
-        ]
+        ])
 
         model = pipeline.model
 

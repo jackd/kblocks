@@ -9,7 +9,7 @@ from kblocks.tf_typing import Dimension
 
 def flatten_leading_dims(x: Union[tf.Tensor, tf.RaggedTensor],
                          num_dims: int = 2,
-                         leading_dim_shape: Dimension = -1):
+                         leading_dim: Dimension = -1):
     if num_dims == 1:
         return x
     if num_dims < 1:
@@ -27,7 +27,7 @@ def flatten_leading_dims(x: Union[tf.Tensor, tf.RaggedTensor],
         dynamic_shape = tf.unstack(tf.shape(x)[num_dims:])
         shape = tuple(
             d if s is None else s for s, d in zip(shape, dynamic_shape))
-    return tf.reshape(x, (leading_dim_shape, *shape))
+    return tf.reshape(x, (leading_dim, *shape))
 
 
 def reshape_leading_dim(x: tf.Tensor, dims: Iterable[Dimension]):
@@ -53,9 +53,11 @@ def reshape_leading_dim(x: tf.Tensor, dims: Iterable[Dimension]):
     if x.shape.ndims == 0:
         raise ValueError('Cannot reshape leading dims of a scalar')
     dims_tup = tuple(dims)
-    if dims_tup.count(-1) > 1:
-        raise ValueError('At most one of dims can be -1, got {}'.format(
-            dims_tup.count(-1)))
+    num_unknown = sum(
+        1 if isinstance(d, int) and d == -1 else 0 for d in dims_tup)
+    if num_unknown > 1:
+        raise ValueError(
+            'At most one of dims can be -1, got {}'.format(num_unknown))
 
     shape = tuple(x.shape[1:])
     if any(s is None for s in shape):

@@ -69,3 +69,21 @@ class WeightDecay(Constraint):
         if self._factor != 1:
             w = self._factor * w
         return w
+
+
+@gin.configurable(module='kb.constraints')
+class ScheduleConstraint(Constraint):
+
+    def __init__(self, schedule):
+        if not callable(schedule):
+            schedule = tf.keras.optimizers.schedules.deserialize(schedule)
+        self._schedule = schedule
+
+    def get_config(self):
+        out = super(ScheduleConstraint, self).get_config()
+        out['schedule'] = tf.keras.optimizers.schedules.serialize(
+            self._schedule)
+        return out
+
+    def __call__(self, w: tf.Tensor) -> tf.Tensor:
+        return self._schedule(tf.summary.experimental.get_step())

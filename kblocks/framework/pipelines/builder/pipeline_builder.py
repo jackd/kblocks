@@ -7,9 +7,9 @@ import tensorflow as tf
 
 from kblocks.spec import to_spec
 from kblocks.scope import Scope
+from kblocks.tensor_dict import TensorDict
 from kblocks.framework.pipelines.builder.model_builder import ModelBuilder
 from kblocks.framework.pipelines.builder.utils import assert_is_tensor_spec
-from kblocks.framework.pipelines.builder.utils import TensorDict
 from kblocks.framework.pipelines.core import Pipeline
 
 from kblocks.tf_typing import NestedTensorLike
@@ -35,8 +35,6 @@ class BuiltPipeline(Pipeline):
         self._pre_batch_model = pre_batch_model
         self._post_batch_model = post_batch_model
         self._trained_model = trained_model
-        # from kblocks.model_utils import wrap_model  # HACK
-        # self._trained_model = wrap_model(trained_model)
 
     def pre_batch_map(self, *args: NestedTensorLike) -> NestedTensorLike:
         """Mapping applied to dataset features before batching."""
@@ -83,7 +81,8 @@ class PipelineModels(object):
 
 class PipelineBuilder(object):
 
-    def __init__(self):
+    def __init__(self, batch_size: Optional[int] = None):
+        self._batch_size = batch_size
         self._pre_batch_builder = ModelBuilder()
         self._post_batch_builder = ModelBuilder()
         self._trained_builder = ModelBuilder()
@@ -93,16 +92,21 @@ class PipelineBuilder(object):
             PipelineModels.TRAINED: self._trained_builder,
         }
         self._marks = Marks()
+        self._batch_size = batch_size
 
-    def propagate_marks(self, x: TensorLike) -> Optional[str]:
-        return self._marks.propagate(x)
+    @property
+    def batch_size(self) -> Optional[int]:
+        return self._batch_size
 
-    def check_mark(self, x: TensorLike, mark: str, name: str = 'x') -> None:
-        actual = self.propagate_marks(x)
+    def propagate_marks(self, end: TensorLike) -> Optional[str]:
+        return self._marks.propagate(end)
+
+    def check_mark(self, end: TensorLike, mark: str, name: str = 'end') -> None:
+        actual = self.propagate_marks(end)
         if actual != mark:
             raise RuntimeError(
                 'Expected {} to have mark {}, but {} has mark {}'.format(
-                    name, mark, x, actual))
+                    name, mark, end, actual))
 
     def py_func_builder(self,
                         pipeline_model: str = PipelineModels.PRE_BATCH,
@@ -150,7 +154,8 @@ class PipelineBuilder(object):
                 inp = Input(shape=tensor.shape,
                             ragged=True,
                             dtype=tensor.dtype,
-                            name=name)
+                            name=name,
+                            batch_size=self.batch_size)
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
@@ -172,7 +177,8 @@ class PipelineBuilder(object):
                 inp = Input(output.shape,
                             dtype=output.dtype,
                             ragged=True,
-                            name=name)
+                            name=name,
+                            batch_size=self.batch_size)
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
@@ -195,7 +201,10 @@ class PipelineBuilder(object):
                     'tensor must be a tensor if Ragged is False, got {}'.format(
                         tensor))
             self._pre_batch_builder.add_output(tensor)
-            out = Input(shape=tensor.shape, dtype=tensor.dtype, name=name)
+            out = Input(shape=tensor.shape,
+                        dtype=tensor.dtype,
+                        name=name,
+                        batch_size=self.batch_size)
             self._post_batch_builder.add_input(out)
             self._marks[out] = PipelineModels.POST_BATCH
             return out
@@ -255,6 +264,8 @@ def pre_batch_input(tensor_spec: tf.TensorSpec):
 
 
 def trained_input(tensor: TensorLike):
+    # if tensor.shape[0] != 2:
+    #     raise Exception(tensor.shape[0])  # HACK
     return get_default().trained_input(tensor)
 
 
@@ -270,12 +281,15 @@ def batch(tensor: TensorLike, ragged: Optional[bool] = None):
     return get_default().batch(tensor, ragged=ragged)
 
 
-def propagate_marks(x: TensorLike) -> Optional[str]:
-    return get_default().propagate_marks(x)
+def propagate_marks(tensor: TensorLike) -> Optional[str]:
+    return get_default().propagate_marks(tensor)
 
 
-def check_mark(x: TensorLike, mark: str, name: str = 'x'):
-    return get_default().check_mark(x, mark, name)
+get_mark = propagate_marks
+
+
+def check_mark(tensor: TensorLike, mark: str, name: Optional[str]):
+    return get_default().check_mark(tensor, mark, name)
 
 
 def py_func_builder(pipeline_model: str = PipelineModels.PRE_BATCH,

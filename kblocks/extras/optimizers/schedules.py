@@ -153,6 +153,7 @@ def exponential_decay_towards(step,
                   decay_rate=decay_rate,
                   staircase=staircase,
                   impl=impl)
+    # raise Exception()
     if asymptote > initial_value:
         return asymptote - exponential_decay(
             step,
