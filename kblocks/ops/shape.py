@@ -30,7 +30,8 @@ def flatten_leading_dims(x: Union[tf.Tensor, tf.RaggedTensor],
     return tf.reshape(x, (leading_dim, *shape))
 
 
-def reshape_leading_dim(x: tf.Tensor, dims: Iterable[Dimension]):
+def reshape_leading_dim(x: Union[tf.Tensor, tf.RaggedTensor],
+                        dims: Iterable[Dimension]):
     """
     Reshape the leading dimensions of x.
 
@@ -59,12 +60,47 @@ def reshape_leading_dim(x: tf.Tensor, dims: Iterable[Dimension]):
         raise ValueError(
             'At most one of dims can be -1, got {}'.format(num_unknown))
 
+    if isinstance(x, tf.RaggedTensor):
+        if len(dims_tup) != 2:
+            raise NotImplementedError('TODO - recursive?')
+        i, j = dims_tup
+        if isinstance(i, int) and i == -1:
+            i = x.nrows(out_type=tf.int64) // j
+        elif isinstance(j, int) and j == -1:
+            j = x.nrows(out_type=tf.int64) // i
+        row_splits = tf.range(0, i * j + 1, j)
+        return tf.keras.layers.Lambda(
+            lambda args: tf.RaggedTensor.from_row_splits(*args))(
+                [x, row_splits])
+
     shape = tuple(x.shape[1:])
     if any(s is None for s in shape):
         dynamic_shape = tf.unstack(tf.shape(x)[1:])
         shape = tuple(
             d if s is None else s for s, d in zip(shape, dynamic_shape))
     return tf.reshape(x, dims_tup + shape)
+
+
+def _dimension(x, axis=0, out_type=tf.int64):
+    return tf.shape(x, out_type=out_type)[axis]
+
+
+def dimension(x, axis=0, out_type=tf.int64) -> Dimension:
+    dim = x.shape[axis]
+    if dim is not None:
+        return dim
+    if isinstance(x, tf.RaggedTensor):
+        if axis < 0:
+            axis += x.shape.ndims
+        assert (axis >= 0)
+        if axis == 0:
+            return dimension(x.row_splits, 0, out_type) - 1
+        else:
+            return dimension(x.values, axis - 1, out_type)
+    # lambda wrapper sometimes needed to avoid tf node.inputs being empty??
+    return tf.keras.layers.Lambda(_dimension,
+                                  arguments=dict(axis=axis,
+                                                 out_type=out_type))(x)
 
 
 def as_batched(x, batch_size: Dimension = -1, element_size: Dimension = -1):

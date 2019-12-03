@@ -197,7 +197,44 @@ class Trainable(object):
                   batch_size: int,
                   burn_iters: int,
                   min_iters: int,
-                  prefetch_buffer: Optional[int] = None):
+                  prefetch_buffer: Optional[int] = None,
+                  dataset_only: bool = False):
+        kwargs = dict(
+            batch_size=batch_size,
+            burn_iters=burn_iters,
+            min_iters=min_iters,
+            prefetch_buffer=prefetch_buffer,
+        )
+        if dataset_only:
+            return self.benchmark_dataset(**kwargs)
+        else:
+            return self.benchmark_pipeline(**kwargs)
+
+    def benchmark_dataset(self,
+                          batch_size: int,
+                          burn_iters: int,
+                          min_iters: int,
+                          prefetch_buffer: Optional[int] = None):
+        dataset = self._get_datasets('train',
+                                     batch_size,
+                                     -1,
+                                     prefetch_buffer=prefetch_buffer)
+        op = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
+        bm = tf.test.Benchmark()
+        with tf.compat.v1.Session() as sess:
+            logging.info('Starting benchmarking...')
+            result = bm.run_op_benchmark(sess,
+                                         op,
+                                         burn_iters=burn_iters,
+                                         min_iters=min_iters)
+            summarize(result)
+        return result
+
+    def benchmark_pipeline(self,
+                           batch_size: int,
+                           burn_iters: int,
+                           min_iters: int,
+                           prefetch_buffer: Optional[int] = None):
         model = self._pipeline.model
         problem = self.problem
         optimizer = model.optimizer
@@ -218,7 +255,7 @@ class Trainable(object):
 
         bm = tf.test.Benchmark()
         with tf.compat.v1.Session() as sess:
-            logging.info('Starting benchmarking...')
+            logging.info('Initializing variables...')
 
             variables = model.weights + optimizer.weights
             # TODO: how do you get optimizer hyperparameter variables?
@@ -227,12 +264,14 @@ class Trainable(object):
                 if isinstance(a, tf.Variable):
                     variables.append(a)
             sess.run([v.initializer for v in variables])
+
+            logging.info('Starting benchmarking...')
             result = bm.run_op_benchmark(sess,
                                          train_op,
                                          burn_iters=burn_iters,
                                          min_iters=min_iters)
             summarize(result)
-        return bm
+        return result
 
     def profile(self,
                 batch_size: int,
@@ -487,6 +526,7 @@ class Trainable(object):
             with tf.compat.v1.Session() as sess:
                 for _ in tqdm(range(num_examples), total=num_examples):
                     out = sess.run((example, label))
+
                     if callback is not None:
                         callback(*out)
         logging.info('Finished running dataset')
@@ -626,9 +666,13 @@ def benchmark(trainable=gin.REQUIRED,
               batch_size=gin.REQUIRED,
               burn_iters=gin.REQUIRED,
               min_iters=gin.REQUIRED,
-              prefetch_buffer=None):
-    return trainable.benchmark(batch_size, burn_iters, min_iters,
-                               prefetch_buffer)
+              prefetch_buffer=None,
+              dataset_only=False):
+    return trainable.benchmark(batch_size,
+                               burn_iters,
+                               min_iters,
+                               prefetch_buffer,
+                               dataset_only=dataset_only)
 
 
 def graph_wrap(fn: Callable):

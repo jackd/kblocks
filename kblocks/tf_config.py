@@ -52,11 +52,13 @@ class TfConfig(object):
                  allow_growth: bool = True,
                  visible_devices: Optional[Sequence[int]] = None,
                  jit: Optional[bool] = None,
-                 optimizer_options: Optional[dict] = None):
+                 optimizer_options: Optional[dict] = None,
+                 log_device_placement: Optional[bool] = None):
         self.optimizer_options = optimizer_options
         self.allow_growth = allow_growth
         self.visible_devices = visible_devices
         self.jit = jit
+        self.log_device_placement = log_device_placement
 
     def configure(self):
         if self.visible_devices is not None:
@@ -77,11 +79,18 @@ class TfConfig(object):
         if self.jit is not None:
             tf.config.optimizer.set_jit(self.jit)
 
+        dp = self.log_device_placement
+        if dp is not None:
+            tf.debugging.set_log_device_placement(dp)
+
     def get_config(self):
-        return dict(allow_growth=self.allow_growth,
-                    visible_devices=self.visible_devices,
-                    jit=self.jit,
-                    optimizer_options=self.optimizer_options)
+        return dict(
+            allow_growth=self.allow_growth,
+            visible_devices=self.visible_devices,
+            jit=self.jit,
+            optimizer_options=self.optimizer_options,
+            log_device_placement=self.log_device_placement,
+        )
 
     @classmethod
     def from_config(cls, config):

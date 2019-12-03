@@ -19,7 +19,9 @@ kb.framework.benchmark.batch_size = %batch_size
 kb.framework.benchmark.burn_iters = %burn_iters
 kb.framework.benchmark.min_iters = %min_iters
 kb.framework.benchmark.prefetch_buffer = %prefetch_buffer
+kb.framework.benchmark.dataset_only = %dataset_only
 
 prefetch_buffer = None
 burn_iters = 50
 min_iters = 100
+dataset_only = False

@@ -11,8 +11,8 @@ def summarize(result, print_fn=print):
         print_fn: print-like function.
     """
     print_fn('Wall time (ms): {}'.format(result['wall_time'] * 1000))
-    print_fn('Memory (Mb):    {}'.format(
-        result['extras']['allocator_maximum_num_bytes_GPU_0_bfc'] / 1024**2))
+    gpu_mem = result['extras'].get('allocator_maximum_num_bytes_GPU_0_bfc', 0)
+    print_fn('Memory (Mb):    {}'.format(gpu_mem / 1024**2))
 
 
 def summarize_all(*args, print_fn=print):
