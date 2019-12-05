@@ -299,6 +299,7 @@ class Trainable(object):
         grads_and_vars = tuple(
             (g, v) for g, v in zip(grads, weights) if g is not None)
         train_op = optimizer.apply_gradients(grads_and_vars)
+        all_ops = (train_op,) + tuple(model.updates)
 
         with tf.compat.v1.Session() as sess:
             logging.info('Starting profiling...')
@@ -312,7 +313,7 @@ class Trainable(object):
                     variables.append(a)
             sess.run([v.initializer for v in variables])
             for i in range(burn_iters):
-                sess.run(train_op)
+                sess.run(all_ops)
 
             run_meta = tf.compat.v1.RunMetadata()
 
@@ -419,6 +420,34 @@ class Trainable(object):
             for m in metrics:
                 logging.info('{}: {}'.format(m.name, m.result()))
 
+    def evaluate(self, batch_size: int, chkpt_kwargs: Mapping[str, Any] = {}):
+        problem = self.problem
+        pipeline = self.pipeline
+        model_dir = self.model_dir
+        model = pipeline.model
+        split = 'validation'
+
+        ds = self._get_datasets(split, batch_size)
+        steps = problem.examples_per_epoch(split) // batch_size
+
+        if model_dir is None:
+            logging.warning(
+                'No model_dir provided - evaluating without restoration')
+        else:
+            chkpt_dir = os.path.join(model_dir, 'chkpts')
+            chkpt_callback = cb.CheckpointCallback(directory=chkpt_dir,
+                                                   **chkpt_kwargs)
+
+            chkpt_callback.set_model(model)
+            chkpt = chkpt_callback.checkpoint()
+            if chkpt is None:
+                logging.warning(
+                    'No checkpoint found - evaluating without restoration')
+            else:
+                initial_epoch = chkpt_callback.epoch(chkpt)
+                chkpt_callback.restore(initial_epoch).expect_partial()
+        model.evaluate(ds, steps=steps)
+
     def fit(self,
             batch_size: int,
             epochs: Optional[int] = None,
@@ -468,7 +497,7 @@ class Trainable(object):
                 initial_epoch = 0
             else:
                 initial_epoch = chkpt_callback.epoch(chkpt)
-                chkpt_callback.restore(initial_epoch)
+                chkpt_callback.restore(initial_epoch).assert_consumed()
 
             used_callbacks.append(chkpt_callback)
         else:
@@ -581,6 +610,13 @@ def fit(trainable: Trainable,
                          callbacks=callbacks,
                          chkpt_kwargs=chkpt_kwargs,
                          use_custom=use_custom)
+
+
+@gin.configurable(module='kb.framework')
+def evaluate(trainable: Trainable,
+             batch_size: int,
+             chkpt_kwargs: Mapping[str, Any] = {}):
+    return trainable.evaluate(batch_size=batch_size, chkpt_kwargs=chkpt_kwargs)
 
 
 @gin.configurable(module='kb.framework')

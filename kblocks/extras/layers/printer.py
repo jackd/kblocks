@@ -13,4 +13,4 @@ class Printer(tf.keras.layers.Layer):
 
     def call(self, inputs):
         with tf.control_dependencies([tf.print(self._targets_fn(inputs))]):
-            return tf.identity(inputs)
+            return tf.nest.map_structure(tf.identity, inputs)

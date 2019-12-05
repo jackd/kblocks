@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
 from kblocks.ops import shape as shape_ops
 
@@ -46,6 +47,17 @@ class ShapeTest(tf.test.TestCase):
                               (None, 2, 3))
         self.assertShapeEqual(shape_ops.reshape_leading_dim(x, (5, 2)),
                               (5, 2, 3))
+
+    def test_reshape_ragged_leading_dim(self):
+        x = tf.zeros((100,), dtype=tf.float32)
+        rl = tf.constant([50, 30, 10, 10])
+        rt = tf.RaggedTensor.from_row_lengths(x, rl)
+        out = shape_ops.reshape_leading_dim(rt, (2, 2))
+
+        self.assertEqual(out.ragged_rank, 2)
+        np.testing.assert_equal(self.evaluate(out.row_splits), [0, 2, 4])
+        np.testing.assert_equal(
+            self.evaluate(out.values.row_splits), [0, 50, 80, 90, 100])
 
     def test_as_batched(self):
         x = inp((10, 3))

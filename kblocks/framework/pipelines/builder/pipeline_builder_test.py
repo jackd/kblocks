@@ -117,6 +117,7 @@ class PipelineBuilderTest(tf.test.TestCase):
 
         model = pl.model
         dataset = dataset.map(pl.pre_batch_map).batch(2).map(pl.post_batch_map)
+        # print(dataset.element_spec)
 
         expected_batched = post_batch_map([pre_batch_map(x) for x in gen()])
         expected_output = [scale_factor * x for x in expected_batched]
@@ -168,4 +169,5 @@ if __name__ == '__main__':
     tf.compat.v1.enable_v2_tensorshape()
     tf.test.main()
     # PipelineBuilderTest().test_marks()
+    # PipelineBuilderTest().test_ragged()
     # print('good')

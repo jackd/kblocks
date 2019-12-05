@@ -2,9 +2,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from typing import List, Optional
+
 from absl import logging
 import tensorflow as tf
 
+from kblocks.ops import ragged as ragged_ops
 from kblocks.spec import to_spec
 from kblocks.scope import Scope
 from kblocks.tensor_dict import TensorDict
@@ -38,10 +41,11 @@ class BuiltPipeline(Pipeline):
 
     def pre_batch_map(self, *args: NestedTensorLike) -> NestedTensorLike:
         """Mapping applied to dataset features before batching."""
-        out = self._pre_batch_model(
-            tuple(tf.expand_dims(arg, axis=0) for arg in tf.nest.flatten(args)))
+        args = [tf.expand_dims(arg, axis=0) for arg in tf.nest.flatten(args)]
+        out = self._pre_batch_model(args)
         if isinstance(out, list):
             out = tuple(out)
+        # reconstruct ragged structure here.
         return out
 
     def post_batch_map(self, *args: NestedTensorLike) -> NestedTensorLike:
@@ -49,6 +53,7 @@ class BuiltPipeline(Pipeline):
         out = self._post_batch_model(args)
         if isinstance(out, list):
             out = tuple(out)
+
         return out
 
     @property
@@ -171,24 +176,32 @@ class PipelineBuilder(object):
                 return rebuilt
 
             elif isinstance(tensor, tf.Tensor):
-                output = Lambda(tf.RaggedTensor.from_tensor)(tf.expand_dims(
-                    tensor, axis=0))
+                assert (tensor.shape[0] is None)
+                output = Lambda(ragged_ops.pre_batch_ragged)(tensor)
                 self._pre_batch_builder.add_output(output)
                 inp = Input(output.shape,
                             dtype=output.dtype,
                             ragged=True,
                             name=name,
                             batch_size=self.batch_size)
+                assert (isinstance(inp, tf.RaggedTensor))
                 self._marks[inp] = PipelineModels.POST_BATCH
                 self._post_batch_builder.add_input(inp)
 
-                components = Lambda(lambda i: [
-                    tf.identity(i.flat_values), *(
-                        tf.identity(rs) for rs in i.nested_row_splits[1:])
-                ])(inp)
-                rebuilt = Lambda(
-                    lambda c: tf.RaggedTensor.from_nested_row_splits(
-                        c[0], c[1:]))(components)
+                rebuilt = Lambda(ragged_ops.post_batch_ragged)(inp)
+
+                # def f(rt):
+                #     assert (isinstance(rt, tf.RaggedTensor))
+                #     return [
+                #         tf.identity(rt.flat_values),
+                #         *(tf.identity(rs) for rs in rt.nested_row_splits[1:])
+                #     ]
+
+                # assert (isinstance(inp, tf.RaggedTensor))
+                # components = Lambda(f)(inp)
+                # rebuilt = Lambda(
+                #     lambda c: tf.RaggedTensor.from_nested_row_splits(
+                #         c[0], c[1:]))(components)
                 self._marks[rebuilt] = PipelineModels.POST_BATCH
                 return rebuilt
             else:
@@ -209,39 +222,90 @@ class PipelineBuilder(object):
             self._marks[out] = PipelineModels.POST_BATCH
             return out
 
-    def _trained_input(self, tensor: tf.Tensor) -> tf.Tensor:
+    def trained_input(self, tensor: TensorLike) -> TensorLike:
+        if tensor.shape[0] != self.batch_size:
+            raise ValueError(
+                'batch_size not consistent with value provided in constructor. '
+                'Expected {}, got shape {}'.format(self.batch_size,
+                                                   tensor.shape))
+
         self._marks[tensor] = PipelineModels.POST_BATCH
-        assert (isinstance(tensor, tf.Tensor))
         assert (len(tensor.shape) > 0)
         self._post_batch_builder.add_output(tensor)
+        ragged = isinstance(tensor, tf.RaggedTensor)
+        sparse = isinstance(tensor, tf.SparseTensor)
         inp = Input(shape=tensor.shape[1:],
                     dtype=tensor.dtype,
-                    batch_size=tensor.shape[0])
-        self._marks[inp] = PipelineModels.TRAINED
-        self._trained_builder.add_input(inp)
-        return inp
+                    batch_size=tensor.shape[0],
+                    ragged=ragged,
+                    sparse=sparse)
 
-    def trained_input(self, tensor: TensorLike) -> TensorLike:
-        if isinstance(tensor, tf.RaggedTensor):
-            # components = (tensor.flat_values,) + tensor.nested_row_splits
-            components = Lambda(
-                lambda x: [tf.identity(x.flat_values)] +
-                [tf.identity(rs) for rs in x.nested_row_splits])(tensor)
-            components = [self._trained_input(c) for c in components]
-            # return components
-            rt = Lambda(lambda args: tf.RaggedTensor.from_nested_row_splits(
-                args[0], args[1:]))(components)
-            # rt = tf.RaggedTensor.from_nested_row_splits(components[0],
-            #                                             components[1:])
-            return rt
-        elif not isinstance(tensor, tf.Tensor):
-            raise ValueError('tensor must be a Tensor or RaggedTensor, got '
-                             '{}'.format(tensor))
-        if len(tensor.shape) == 0:
-            tensor = tf.expand_dims(tensor, axis=0)
-            tensor = self._trained_input(tensor)
-            return tf.squeeze(tensor, axis=0)
-        return self._trained_input(tensor)
+        # TODO: consider using (rt|sp)._to_components() ?
+        src_components: List[tf.Tensor]
+        dst_components: List[tf.Tensor]
+        if ragged:
+            src_components = [tensor.flat_values, *tensor.nested_row_splits]
+            dst_components = [inp.flat_values, *inp.nested_row_splits]
+            assert (len(src_components) == len(dst_components))
+            for src, dst in zip(src_components, dst_components):
+                dst.set_shape(src.shape)
+            components = Lambda(lambda x: tuple(
+                tf.identity(c) for c in (x.flat_values, *x.nested_row_splits)))(
+                    inp)
+            out = Lambda(lambda x: tf.RaggedTensor.from_nested_row_splits(
+                x[0], x[1:], validate=False))(components)
+
+        elif sparse:
+            src_components = [tensor.indices, tensor.values]
+            dst_components = [inp.indices, inp.values]
+            for src, dst in zip(src_components, dst_components):
+                dst.set_shape(src.shape)
+            components = Lambda(lambda x:
+                                (tf.identity(x.indices), tf.identity(x.values),
+                                 tf.identity(x.dense_shape)))(inp)
+            out = Lambda(lambda x: tf.SparseTensor(*x))(components)
+        else:
+            assert (isinstance(tensor, tf.Tensor))
+            out = inp
+
+        self._marks[out] = PipelineModels.TRAINED
+        self._trained_builder.add_input(inp)
+        if (tuple(out.shape) != tuple(tensor.shape)):
+            print(out.shape)
+            print(tensor.shape)
+            raise Exception()
+        return out
+
+    # def _trained_input(self, tensor: tf.Tensor) -> tf.Tensor:
+    #     self._marks[tensor] = PipelineModels.POST_BATCH
+    #     assert (isinstance(tensor, tf.Tensor))
+    #     assert (len(tensor.shape) > 0)
+    #     self._post_batch_builder.add_output(tensor)
+    #     inp = Input(shape=tensor.shape[1:],
+    #                 dtype=tensor.dtype,
+    #                 batch_size=tensor.shape[0])
+    #     self._marks[inp] = PipelineModels.TRAINED
+    #     self._trained_builder.add_input(inp)
+    #     return inp
+
+    # def trained_input(self, tensor: TensorLike) -> TensorLike:
+    #     if isinstance(tensor, tf.RaggedTensor):
+    #         components = Lambda(
+    #             lambda x: [tf.identity(x.flat_values)] +
+    #             [tf.identity(rs) for rs in x.nested_row_splits])(tensor)
+    #         components = [self._trained_input(c) for c in components]
+    #         # return components
+    #         rt = Lambda(lambda args: tf.RaggedTensor.from_nested_row_splits(
+    #             args[0], args[1:]))(components)
+    #         return rt
+    #     elif not isinstance(tensor, tf.Tensor):
+    #         raise ValueError('tensor must be a Tensor or RaggedTensor, got '
+    #                          '{}'.format(tensor))
+    #     if len(tensor.shape) == 0:
+    #         tensor = tf.expand_dims(tensor, axis=0)
+    #         tensor = self._trained_input(tensor)
+    #         return tf.squeeze(tensor, axis=0)
+    #     return self._trained_input(tensor)
 
     def trained_output(self, tensor: TensorLike) -> TensorLike:
         self._marks[tensor] = PipelineModels.TRAINED
@@ -264,8 +328,6 @@ def pre_batch_input(tensor_spec: tf.TensorSpec):
 
 
 def trained_input(tensor: TensorLike):
-    # if tensor.shape[0] != 2:
-    #     raise Exception(tensor.shape[0])  # HACK
     return get_default().trained_input(tensor)
 
 
@@ -283,6 +345,10 @@ def batch(tensor: TensorLike, ragged: Optional[bool] = None):
 
 def propagate_marks(tensor: TensorLike) -> Optional[str]:
     return get_default().propagate_marks(tensor)
+
+
+def get_batch_size() -> Optional[int]:
+    return get_default().batch_size
 
 
 get_mark = propagate_marks

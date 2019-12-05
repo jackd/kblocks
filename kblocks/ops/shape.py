@@ -51,6 +51,10 @@ def reshape_leading_dim(x: Union[tf.Tensor, tf.RaggedTensor],
 
     See also: flatten_leading_dims, as_batched
     """
+    # print('---')
+    # print(x.shape[0], dims)
+    # if x.shape[0] is None:
+    #     raise ValueError(x.shape)  # HACK
     if x.shape.ndims == 0:
         raise ValueError('Cannot reshape leading dims of a scalar')
     dims_tup = tuple(dims)
@@ -68,10 +72,11 @@ def reshape_leading_dim(x: Union[tf.Tensor, tf.RaggedTensor],
             i = x.nrows(out_type=tf.int64) // j
         elif isinstance(j, int) and j == -1:
             j = x.nrows(out_type=tf.int64) // i
-        row_splits = tf.range(0, i * j + 1, j)
-        return tf.keras.layers.Lambda(
-            lambda args: tf.RaggedTensor.from_row_splits(*args))(
-                [x, row_splits])
+        dtype = x.row_splits.dtype
+        i = tf.cast(i, dtype)
+        j = tf.cast(j, dtype)
+        row_splits = tf.range(0, i * j + 1, j, dtype=dtype)
+        return tf.RaggedTensor.from_row_splits(x, row_splits)
 
     shape = tuple(x.shape[1:])
     if any(s is None for s in shape):
@@ -83,6 +88,13 @@ def reshape_leading_dim(x: Union[tf.Tensor, tf.RaggedTensor],
 
 def _dimension(x, axis=0, out_type=tf.int64):
     return tf.shape(x, out_type=out_type)[axis]
+
+
+def as_batched(x, batch_size: Dimension = -1, element_size: Dimension = -1):
+    if element_size == -1 and batch_size == -1:
+        raise ValueError(
+            'At most one of `batch_size` and `element_size` can be -1')
+    return reshape_leading_dim(x, (batch_size, element_size))
 
 
 def dimension(x, axis=0, out_type=tf.int64) -> Dimension:
@@ -101,10 +113,3 @@ def dimension(x, axis=0, out_type=tf.int64) -> Dimension:
     return tf.keras.layers.Lambda(_dimension,
                                   arguments=dict(axis=axis,
                                                  out_type=out_type))(x)
-
-
-def as_batched(x, batch_size: Dimension = -1, element_size: Dimension = -1):
-    if element_size == -1 and batch_size == -1:
-        raise ValueError(
-            'At most one of `batch_size` and `element_size` can be -1')
-    return reshape_leading_dim(x, (batch_size, element_size))

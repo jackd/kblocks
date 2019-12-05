@@ -66,13 +66,18 @@ class ModelBuilder(object):
         self._inputs.append(inp)
 
     def add_output(self, tensor: TensorLike) -> None:
+        if isinstance(tensor, tf.RaggedTensor):
+            if not hasattr(tensor, '_keras_history'):
+                raise RuntimeError(
+                    'ragged tensors must be the output from a layer, otherwise'
+                    ' there are issues later.')
         if not isinstance(tensor, (tf.Tensor, tf.RaggedTensor)):
             raise ValueError(
                 'tensor must be a Tensor or RaggedTensor, got {}'.format(
                     tensor))
         self._outputs.append(tensor)
 
-    def build(self) -> Optional[tf.keras.Model]:
+    def build(self) -> Optional[tf.keras.models.Model]:
         if len(self._inputs) == 0:
             return None
         for x in self._inputs:
