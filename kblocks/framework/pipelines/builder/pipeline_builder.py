@@ -354,7 +354,7 @@ def get_batch_size() -> Optional[int]:
 get_mark = propagate_marks
 
 
-def check_mark(tensor: TensorLike, mark: str, name: Optional[str]):
+def check_mark(tensor: TensorLike, mark: str, name: Optional[str]=None):
     return get_default().check_mark(tensor, mark, name)
 
 

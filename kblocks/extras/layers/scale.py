@@ -29,9 +29,12 @@ class Scale(tf.keras.layers.Layer):
             ))
         return config
 
+    def _scale_shape(self, input_shape):
+        return (input_shape[-1],)
+
     def build(self, input_shape):
         self.scalar = self.add_weight('scalar',
-                                      shape=(),
+                                      shape=self._scale_shape(input_shape),
                                       dtype=self.dtype,
                                       initializer=self.initializer,
                                       constraint=self.constraint,
@@ -42,13 +45,20 @@ class Scale(tf.keras.layers.Layer):
 
 
 @gin.configurable(module='kb.extras.layers')
+class UniformScale(Scale):
+
+    def _scale_shape(self, input_shape):
+        return ()
+
+
+@gin.configurable(module='kb.extras.layers')
 def ZeroInit(initializer='zeros', regularizer=None, constraint=None, **kwargs):
     """
     Just a Scale with different default initializer.
 
     https://openreview.net/forum?id=BJeVklHtPr&fbclid=IwAR38PoAbf6WqlyLzMNuQURUJntGITfZvFFVb3z1a4Fiumwe1IM3lmjHGsl4
     """
-    return Scale(initializer=initializer,
-                 regularizer=regularizer,
-                 constraint=constraint,
-                 **kwargs)
+    return UniformScale(initializer=initializer,
+                        regularizer=regularizer,
+                        constraint=constraint,
+                        **kwargs)

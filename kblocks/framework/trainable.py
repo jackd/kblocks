@@ -4,10 +4,11 @@ from __future__ import print_function
 
 from absl import logging
 import os
+from typing import Sequence, Mapping, Any, Optional, Callable, List
+from tqdm import tqdm
 import numpy as np
 import tensorflow as tf
 import gin
-from typing import Sequence, Mapping, Any, Optional, Callable, List
 
 from kblocks.framework.problems import Problem
 from kblocks.framework.problems import scope as problem_scope
@@ -162,36 +163,50 @@ class Trainable(object):
                 logging.info('{} ({}) value largely unchanged'.format(
                     weight.name, tuple(weight.shape)))
 
-    def check_gradients(self, batch_size: int):
-        with tf.GradientTape() as tape:
-            for args in self._get_datasets('train',
-                                           batch_size,
-                                           shuffle_buffer=None,
-                                           prefetch_buffer=None).take(1):
-                if len(args) == 3:
-                    features, labels, label_weights = args
-                else:
-                    features, labels = args
-                    label_weights = None
-                model = self._pipeline.model(features)
-                loss: tf.keras.losses.Loss = self._problem.loss
+    def check_gradients(self, batch_size: int, burn_iters=50, run_iters=1):
+        model = self._pipeline.model
+        loss: tf.keras.losses.Loss = self._problem.loss
+        dataset = self._get_datasets('train',
+                                     batch_size,
+                                     shuffle_buffer=None,
+                                     prefetch_buffer=None)
+        weights = model.trainable_weights
+
+        def compute_grads_and_vars(args):
+            if len(args) == 3:
+                features, labels, label_weights = args
+            else:
+                features, labels = args
+                label_weights = None
+            with tf.GradientTape() as tape:
                 inference = model(features)
                 loss_val = loss(labels, inference, label_weights)
                 model_losses = list(model.losses)
                 if len(model_losses) > 0:
                     model_losses.append(loss_val)
                     loss_val = tf.add_n(model_losses)
-                weights = model.trainable_weights
                 grads = tape.gradient(loss_val, weights)
-                for (weight, grad) in zip(weights, grads):
-                    if grad is None:
-                        logging.info(
-                            'Gradient for weight {} ({}) is None'.format(
-                                weight.name, tuple(weight.shape)))
-                    elif np.allclose(grad.numpy(), 0):
-                        logging.info(
-                            'Gradients for weight {} ({}) are all close to zero'
-                            .format(weight.name, tuple(weight.shape)))
+            return zip(grads, weights)
+
+        for args in tqdm(dataset.take(burn_iters),
+                         total=burn_iters,
+                         desc='Burning in...'):
+            grads_and_vars = compute_grads_and_vars(args)
+            model.optimizer.apply_gradients(grads_and_vars)
+
+        for i, args in enumerate(dataset.take(run_iters)):
+            print('Starting run step {}'.format(i))
+            grads_and_vars = compute_grads_and_vars(args)
+            for grad, weight in grads_and_vars:
+                if grad is None:
+                    print('Gradient for weight {} ({}) is None'.format(
+                        weight.name, tuple(weight.shape)))
+                elif np.allclose(grad.numpy(), 0):
+                    print(
+                        'Gradients for weight {} ({}) are all close to zero, largest is {}'
+                        .format(weight.name, tuple(weight.shape),
+                                tf.reduce_max(tf.abs(grad)).numpy()))
+        print('Finished checking gradients')
 
     def benchmark(self,
                   batch_size: int,
