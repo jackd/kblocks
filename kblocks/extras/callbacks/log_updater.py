@@ -9,6 +9,18 @@ from kblocks.scope import Scope
 K = tf.keras.backend
 
 
+def _update_logs(logs, var_logs):
+    if tf.executing_eagerly():
+        for k, v in var_logs.items():
+            v = K.get_value(v)
+            logs[k] = v
+    else:
+        sess = tf.compat.v1.get_default_session()
+        var_logs = sess.run(var_logs)
+        for k, v in var_logs.items():
+            logs[k] = v
+
+
 @gin.configurable(module='kb.extras.callbacks')
 class LogUpdater(tf.keras.callbacks.Callback):
 
@@ -17,15 +29,12 @@ class LogUpdater(tf.keras.callbacks.Callback):
         self._epoch_logs = {}
 
     def on_batch_end(self, batch, logs=None):
-        if logs is not None:
-            for k, v in self._batch_logs.items():
-                v = K.get_value(v)
-                logs[k] = v
+        if logs is not None and self._batch_logs:
+            _update_logs(logs, self._batch_logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        if logs is not None:
-            for k, v in self._epoch_logs.items():
-                logs[k] = K.get_value(v)
+        if logs is not None and self._epoch_logs:
+            _update_logs(logs, self._epoch_logs)
 
     def _assert_not_present(self, key):
         if key in self._batch_logs or self._epoch_logs:

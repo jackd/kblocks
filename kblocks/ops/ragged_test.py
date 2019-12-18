@@ -68,6 +68,17 @@ class RaggedTest(tf.test.TestCase):
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_equal(actual, expected)
 
+    def test_segment_sum(self):
+        values = tf.random.normal(shape=(100, 5), dtype=tf.float32)
+        row_lengths = tf.constant([50, 30, 20])
+        rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
+        segment_ids = rt.value_rowids()
+        num_segments = row_lengths.shape[0]
+        actual = ragged_ops.segment_sum(values, segment_ids, num_segments)
+        expected = tf.reduce_sum(rt, axis=1)
+        actual, expected = self.evaluate((actual, expected))
+        np.testing.assert_allclose(actual, expected)
+
 
 if __name__ == '__main__':
     tf.test.main()

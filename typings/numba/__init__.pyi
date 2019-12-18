@@ -1,3 +1,4 @@
+import numpy as np
 from typing import TypeVar, Callable, Any, Iterable, Optional, Tuple, List
 
 _FuncT = TypeVar('_FuncT', bound=Callable[..., Any])
@@ -27,6 +28,13 @@ def jitclass(spec: List[Tuple[str, Any]]) -> Callable[[_FuncT], _FuncT]:
 
 
 __version__: str
+uint8: Any
 uint32: Any
 int64: Any
 float32: Any
+float64: Any
+void: Any
+
+
+def from_type(dtype: np.dtype) -> Any:
+    ...

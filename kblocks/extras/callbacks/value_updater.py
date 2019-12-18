@@ -18,9 +18,15 @@ class ValueUpdater(tf.keras.callbacks.Callback):
         self._epoch_updates = TensorDict()
 
     def _update_values(self, updates: TensorDict):
-        for v, fn in updates.items():
-            value = fn()
-            K.set_value(v, value)
+        if tf.executing_eagerly():
+            for v, fn in updates.items():
+                value = fn()
+                K.set_value(v, value)
+        else:
+            sess = tf.compat.v1.get_default_session()
+            assert (sess is not None)
+            ops = [v.assign(fn()) for v, fn in updates.items()]
+            sess.run(ops)
 
     def on_batch_end(self, batch, logs=None):
         self._update_values(self._batch_updates)

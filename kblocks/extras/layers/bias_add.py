@@ -36,4 +36,5 @@ class BiasAdd(tf.keras.layers.Layer):
         config.update(
             dict(initializer=tf.keras.initializers.serialize(self.initializer),
                  regularizer=tf.keras.regularizers.serialize(self.regularizer),
-                 constraint=tf.keras.constraint.serialize(self.constraint)))
+                 constraint=tf.keras.constraints.serialize(self.constraint)))
+        return config

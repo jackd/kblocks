@@ -57,22 +57,23 @@ def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
 
 
 def lengths_to_mask(row_lengths: tf.Tensor, size: Optional[Dimension] = None):
-    if not isinstance(row_lengths, tf.Tensor):
-        row_lengths = tf.convert_to_tensor(row_lengths,
-                                           getattr(size, 'dtype', None))
-    if size is None:
-        size = tf.reduce_max(row_lengths)
-    else:
-        size = tf.convert_to_tensor(size, row_lengths.dtype)
-    size_t: tf.Tensor = size
-    shape = tf.concat([tf.shape(row_lengths, out_type=size_t.dtype), [size]],
-                      axis=-1)
-    row_lengths = tf.expand_dims(row_lengths, axis=-1)
-    r = tf.range(size, dtype=row_lengths.dtype)
-    return tf.broadcast_to(r, shape) < row_lengths
+    return tf.sequence_mask(row_lengths, size)
+    # if not isinstance(row_lengths, tf.Tensor):
+    #     row_lengths = tf.convert_to_tensor(row_lengths,
+    #                                        getattr(size, 'dtype', None))
+    # if size is None:
+    #     size = tf.reduce_max(row_lengths)
+    # else:
+    #     size = tf.convert_to_tensor(size, row_lengths.dtype)
+    # size_t: tf.Tensor = size
+    # shape = tf.concat([tf.shape(row_lengths, out_type=size_t.dtype), [size]],
+    #                   axis=-1)
+    # row_lengths = tf.expand_dims(row_lengths, axis=-1)
+    # r = tf.range(size, dtype=row_lengths.dtype)
+    # return tf.broadcast_to(r, shape) < row_lengths
 
 
-def mask_to_lengths(mask: tf.Tensor):
+def mask_to_lengths(mask: tf.Tensor) -> tf.Tensor:
     """
     Convert boolean mask to row lengths of rank 1 less.
 
@@ -87,28 +88,32 @@ def mask_to_lengths(mask: tf.Tensor):
     return tf.math.count_nonzero(mask, axis=-1)
 
 
-def row_max(values, row_lengths, num_segments, max_length):
+def _row_reduction(reduction, values: tf.Tensor, row_lengths: tf.Tensor,
+                   num_segments: Dimension, max_length: int) -> tf.Tensor:
     indices = tf.reshape(tf.range(num_segments * max_length),
                          (num_segments, max_length))
     mask = lengths_to_mask(row_lengths, max_length)
     indices = tf.boolean_mask(indices, mask)
     rest = values.shape[1:]
-    dense_values = tf.scatter_nd(tf.expand_dims(indices, axis=1), values,
+    indices = tf.expand_dims(indices, axis=1)
+    dense_values = tf.scatter_nd(indices, values,
                                  [num_segments * max_length, *rest])
     dense_values = tf.reshape(dense_values, (num_segments, max_length, *rest))
-    return tf.reduce_max(dense_values, axis=1)
+    return reduction(dense_values, axis=1)
 
 
-# class RaggedComponents(Tuple[tf.Tensor, ...]):
-#     pass
+def row_max(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
+            max_length: int) -> tf.Tensor:
+    return _row_reduction(tf.reduce_max, values, row_lengths, num_segments,
+                          max_length)
 
-# def to_components(rt: tf.RaggedTensor) -> Tuple[tf.Tensor, ...]:
-#     return RaggedComponents((rt.flat_values,) + rt.nested_row_splits)
 
-# def from_components(components: Iterable[tf.Tensor], validate=True,
-#                     name=None) -> tf.RaggedTensor:
-#     values, *splits = components
-#     return tf.RaggedTensor.from_nested_row_splits(values,
-#                                                   splits,
-#                                                   validate=validate,
-#                                                   name=name)
+def row_sum(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
+            max_length: int) -> tf.Tensor:
+    return _row_reduction(tf.reduce_sum, values, row_lengths, num_segments,
+                          max_length)
+
+
+def segment_sum(values, segment_ids, num_segments):
+    return tf.scatter_nd(tf.expand_dims(segment_ids, axis=-1), values,
+                         [num_segments, *values.shape[1:]])

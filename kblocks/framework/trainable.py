@@ -66,6 +66,7 @@ class Trainable(object):
             model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._model_dir = model_dir
         self._problem = problem
+        self._optimizer_fn = optimizer_fn
         with log_lib.scope(self._log_updater):
             with val_lib.scope(self._value_updater):
                 with problem_scope(problem):
@@ -163,7 +164,7 @@ class Trainable(object):
                 logging.info('{} ({}) value largely unchanged'.format(
                     weight.name, tuple(weight.shape)))
 
-    def check_gradients(self, batch_size: int, burn_iters=50, run_iters=1):
+    def check_gradients(self, batch_size: int, burn_iters=50, run_iters=5):
         model = self._pipeline.model
         loss: tf.keras.losses.Loss = self._problem.loss
         dataset = self._get_datasets('train',
@@ -213,7 +214,9 @@ class Trainable(object):
                   burn_iters: int,
                   min_iters: int,
                   prefetch_buffer: Optional[int] = None,
-                  dataset_only: bool = False):
+                  dataset_only: bool = False,
+                  forward_only: bool = False,
+                  fixed_inputs: bool = False):
         kwargs = dict(
             batch_size=batch_size,
             burn_iters=burn_iters,
@@ -223,7 +226,9 @@ class Trainable(object):
         if dataset_only:
             return self.benchmark_dataset(**kwargs)
         else:
-            return self.benchmark_pipeline(**kwargs)
+            return self.benchmark_pipeline(forward_only=forward_only,
+                                           fixed_inputs=fixed_inputs,
+                                           **kwargs)
 
     def benchmark_dataset(self,
                           batch_size: int,
@@ -249,43 +254,66 @@ class Trainable(object):
                            batch_size: int,
                            burn_iters: int,
                            min_iters: int,
-                           prefetch_buffer: Optional[int] = None):
-        model = self._pipeline.model
-        problem = self.problem
-        optimizer = model.optimizer
-        dataset = self._get_datasets('train',
-                                     batch_size,
-                                     -1,
-                                     prefetch_buffer=prefetch_buffer)
-        inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
-            dataset).get_next()
-        out = model(inputs)
-        loss_: tf.keras.losses.Loss = problem.loss
-        loss = loss_(labels, out)
-        weights = model.trainable_weights
-        grads = optimizer.get_gradients(loss, weights)
-        grads_and_vars = tuple(
-            (g, v) for g, v in zip(grads, weights) if g is not None)
-        train_op = optimizer.apply_gradients(grads_and_vars)
+                           prefetch_buffer: Optional[int] = None,
+                           forward_only=False,
+                           fixed_inputs=False):
+        pipeline = self._pipeline
+        with tf.Graph().as_default():
+            dataset = self._get_datasets(
+                'train',
+                batch_size,
+                -1,
+                prefetch_buffer=prefetch_buffer,
+            )
 
-        bm = tf.test.Benchmark()
-        with tf.compat.v1.Session() as sess:
-            logging.info('Initializing variables...')
+            inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
+                dataset).get_next()
 
-            variables = model.weights + optimizer.weights
-            # TODO: how do you get optimizer hyperparameter variables?
-            for name in ('beta_1', 'beta_2', 'learning_rate', 'momentum'):
-                a = getattr(optimizer, name, None)
-                if isinstance(a, tf.Variable):
-                    variables.append(a)
-            sess.run([v.initializer for v in variables])
+            if fixed_inputs:
+                logging.info('Getting hack inputs...')
+                with tf.compat.v1.Session() as sess:
+                    inputs, labels = sess.run((inputs, labels))
+                logging.info('Got inputs!')
 
-            logging.info('Starting benchmarking...')
-            result = bm.run_op_benchmark(sess,
-                                         train_op,
-                                         burn_iters=burn_iters,
-                                         min_iters=min_iters)
-            summarize(result)
+                inputs, labels = tf.nest.map_structure(
+                    lambda x: tf.constant(x)
+                    if isinstance(x, np.ndarray) else tf.RaggedTensor.
+                    from_nested_row_splits(tf.constant(x.flat_values), [
+                        tf.constant(i) for i in x.nested_row_splits
+                    ]), (inputs, labels))
+
+            model = tf.keras.models.clone_model(pipeline.model,
+                                                input_tensors=inputs)
+
+            out, = model.outputs
+            if forward_only:
+                train_op = out
+            else:
+                # recreate loss/optimizer for new graph
+                serialized_loss = tf.keras.utils.serialize_keras_object(
+                    self.problem.loss)
+                loss_ = tf.keras.losses.deserialize(serialized_loss)
+                optimizer = self._optimizer_fn()
+                loss = loss_(labels, out)
+                weights = model.trainable_weights
+                grads = optimizer.get_gradients(loss, weights)
+                grads_and_vars = tuple(
+                    (g, v) for g, v in zip(grads, weights) if g is not None)
+                train_op = optimizer.apply_gradients(grads_and_vars)
+                train_op = tf.group((train_op,) + tuple(model.updates))
+
+            bm = tf.test.Benchmark()
+            with tf.compat.v1.Session() as sess:
+                logging.info('Initializing variables...')
+
+                sess.run(tf.compat.v1.global_variables_initializer())
+
+                logging.info('Starting benchmarking...')
+                result = bm.run_op_benchmark(sess,
+                                             train_op,
+                                             burn_iters=burn_iters,
+                                             min_iters=min_iters)
+        summarize(result)
         return result
 
     def profile(self,
@@ -463,6 +491,63 @@ class Trainable(object):
                 chkpt_callback.restore(initial_epoch).expect_partial()
         model.evaluate(ds, steps=steps)
 
+    def fit_simple(self,
+                   batch_size: int,
+                   epochs: Optional[int] = None,
+                   total_train_steps: Optional[int] = None,
+                   shuffle_buffer: Optional[int] = None,
+                   verbose: bool = True,
+                   callbacks: List[tf.keras.callbacks.Callback] = [],
+                   chkpt_kwargs: Mapping[str, Any] = {},
+                   validation_freq: int = 1):
+        pipeline = self._pipeline
+        train_steps = self.problem.examples_per_epoch('train', batch_size)
+        serialized_loss = tf.keras.utils.serialize_keras_object(
+            self.problem.loss)
+        model = pipeline.model
+        with tf.Graph().as_default():
+            # recreate model for new graph
+            dataset = self._get_datasets('train', batch_size)
+            inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
+                dataset).get_next()
+            # with tf.compat.v1.Session():
+            model = tf.keras.models.clone_model(model, input_tensors=inputs)
+            model.compile(optimizer=self._optimizer_fn(),
+                          loss=tf.keras.losses.deserialize(serialized_loss),
+                          target_tensors=labels)
+            model.fit(
+                # dataset,
+                epochs=epochs,
+                steps_per_epoch=train_steps,
+            )
+
+        # problem = self.problem
+        # pipeline = self.pipeline
+        # model = pipeline.model
+        # # model_dir = self.model_dir
+
+        # splits = ('train', 'validation')
+        # train_ds, val_ds = self._get_datasets(
+        #     splits,
+        #     batch_size,
+        #     shuffle_buffer,
+        # )
+        # train_steps, val_steps = (
+        #     problem.examples_per_epoch(split, batch_size) for split in splits)
+
+        # epochs = _get_epochs(epochs, total_train_steps, train_steps)
+        # model.fit(
+        #     x=train_ds,
+        #     epochs=epochs,
+        #     verbose=verbose,
+        #     steps_per_epoch=train_steps,
+        #     validation_data=val_ds,
+        #     validation_steps=val_steps,
+        #     # callbacks=used_callbacks,
+        #     # initial_epoch=initial_epoch,
+        #     validation_freq=validation_freq,
+        # )
+
     def fit(self,
             batch_size: int,
             epochs: Optional[int] = None,
@@ -471,14 +556,18 @@ class Trainable(object):
             verbose: bool = True,
             callbacks: List[tf.keras.callbacks.Callback] = [],
             chkpt_kwargs: Mapping[str, Any] = {},
+            validation_freq: int = 1,
             use_custom: bool = False):
         problem = self.problem
         pipeline = self.pipeline
         model_dir = self.model_dir
 
         splits = ('train', 'validation')
-        train_ds, val_ds = self._get_datasets(splits, batch_size,
-                                              shuffle_buffer)
+        train_ds, val_ds = self._get_datasets(
+            splits,
+            batch_size,
+            shuffle_buffer,
+        )
         train_steps, val_steps = (
             problem.examples_per_epoch(split, batch_size) for split in splits)
 
@@ -499,52 +588,71 @@ class Trainable(object):
 
         # creates relevant learning_rate variable for restoration
         model.optimizer.learning_rate
-        if model_dir is not None:
-            if not os.path.isdir(model_dir):
-                os.makedirs(model_dir)
-            chkpt_dir = os.path.join(model_dir, 'chkpts')
-            chkpt_callback = cb.CheckpointCallback(directory=chkpt_dir,
-                                                   **chkpt_kwargs)
 
-            chkpt_callback.set_model(model)
-            chkpt = chkpt_callback.checkpoint()
-            if chkpt is None:
-                initial_epoch = 0
+        # do_fit needs to be in a session if running in graph mode
+        def do_fit():
+            if model_dir is not None:
+                if not os.path.isdir(model_dir):
+                    os.makedirs(model_dir)
+                chkpt_dir = os.path.join(model_dir, 'chkpts')
+                chkpt_callback = cb.CheckpointCallback(directory=chkpt_dir,
+                                                       **chkpt_kwargs)
+
+                chkpt_callback.set_model(model)
+                chkpt = chkpt_callback.checkpoint()
+                if chkpt is None:
+                    initial_epoch = 0
+                else:
+                    initial_epoch = chkpt_callback.epoch(chkpt)
+                    chkpt_callback.restore(initial_epoch).assert_consumed()
+
+                used_callbacks.append(chkpt_callback)
             else:
-                initial_epoch = chkpt_callback.epoch(chkpt)
-                chkpt_callback.restore(initial_epoch).assert_consumed()
+                initial_epoch = 0
 
-            used_callbacks.append(chkpt_callback)
+            if initial_epoch == 0 and not tf.executing_eagerly():
+                tf.compat.v1.get_default_session().run(
+                    tf.compat.v1.global_variables_initializer())
+
+            used_callbacks.extend(callbacks)
+            if model_dir is not None:
+                used_callbacks.extend([
+                    # cb.HPCallback(log_dir=model_dir),
+                    tf.keras.callbacks.TensorBoard(
+                        log_dir=model_dir,
+                        profile_batch=train_steps // 2,
+                        # profile_batch=0,
+                    ),
+                ])
+
+            logging.info('Training starting with operative config: \n{}'.format(
+                gin.operative_config_str()))
+            model.summary(print_fn=logging.info)
+
+            kwargs = dict(
+                x=train_ds,
+                epochs=epochs,
+                verbose=verbose,
+                steps_per_epoch=train_steps,
+                validation_data=val_ds,
+                validation_steps=val_steps,
+                callbacks=used_callbacks,
+                initial_epoch=initial_epoch,
+                validation_freq=validation_freq,
+            )
+
+            if use_custom:
+                from kblocks.model_utils import custom_fit
+                return custom_fit(model, **kwargs)
+            else:
+                return model.fit(**kwargs)
+
+        # checkpoints require an active session
+        if tf.executing_eagerly():
+            do_fit()
         else:
-            initial_epoch = 0
-
-        used_callbacks.extend(callbacks)
-        if model_dir is not None:
-            used_callbacks.extend([
-                # cb.HPCallback(log_dir=model_dir),
-                tf.keras.callbacks.TensorBoard(log_dir=model_dir,
-                                               profile_batch=train_steps // 2),
-            ])
-
-        logging.info('Training starting with operative config: \n{}'.format(
-            gin.operative_config_str()))
-        model.summary(print_fn=logging.info)
-
-        kwargs = dict(
-            x=train_ds,
-            epochs=epochs,
-            verbose=verbose,
-            steps_per_epoch=train_steps,
-            validation_data=val_ds,
-            validation_steps=val_steps,
-            callbacks=used_callbacks,
-            initial_epoch=initial_epoch,
-        )
-        if use_custom:
-            from kblocks.model_utils import custom_fit
-            return custom_fit(model, **kwargs)
-        else:
-            return model.fit(**kwargs)
+            with tf.compat.v1.Session():
+                do_fit()
 
     def run_dataset(self,
                     batch_size: int,
@@ -616,6 +724,7 @@ def fit(trainable: Trainable,
         verbose: bool = True,
         callbacks: List[tf.keras.callbacks.Callback] = [],
         chkpt_kwargs: Mapping[str, Any] = {},
+        validation_freq: int = 1,
         use_custom: bool = False):
     return trainable.fit(batch_size=batch_size,
                          epochs=epochs,
@@ -624,7 +733,28 @@ def fit(trainable: Trainable,
                          verbose=verbose,
                          callbacks=callbacks,
                          chkpt_kwargs=chkpt_kwargs,
+                         validation_freq=validation_freq,
                          use_custom=use_custom)
+
+
+@gin.configurable(module='kb.framework')
+def fit_simple(trainable: Trainable,
+               batch_size: int,
+               epochs: Optional[int] = None,
+               total_train_steps: Optional[int] = None,
+               shuffle_buffer: Optional[int] = None,
+               verbose: bool = True,
+               callbacks: List[tf.keras.callbacks.Callback] = [],
+               chkpt_kwargs: Mapping[str, Any] = {},
+               validation_freq: int = 1):
+    return trainable.fit_simple(batch_size=batch_size,
+                                epochs=epochs,
+                                total_train_steps=total_train_steps,
+                                shuffle_buffer=shuffle_buffer,
+                                verbose=verbose,
+                                callbacks=callbacks,
+                                chkpt_kwargs=chkpt_kwargs,
+                                validation_freq=validation_freq)
 
 
 @gin.configurable(module='kb.framework')
@@ -702,8 +832,13 @@ def model_config(trainable: Trainable):
 
 
 @gin.configurable(module='kb.framework')
-def check_gradients(trainable: Trainable, batch_size: int):
-    return trainable.check_gradients(batch_size)
+def check_gradients(trainable: Trainable,
+                    batch_size: int,
+                    burn_iters: int = 50,
+                    run_iters: int = 5):
+    return trainable.check_gradients(batch_size,
+                                     burn_iters=burn_iters,
+                                     run_iters=run_iters)
 
 
 @gin.configurable(module='kb.framework')
@@ -718,12 +853,16 @@ def benchmark(trainable=gin.REQUIRED,
               burn_iters=gin.REQUIRED,
               min_iters=gin.REQUIRED,
               prefetch_buffer=None,
-              dataset_only=False):
+              dataset_only=False,
+              forward_only=False,
+              fixed_inputs=False):
     return trainable.benchmark(batch_size,
                                burn_iters,
                                min_iters,
                                prefetch_buffer,
-                               dataset_only=dataset_only)
+                               dataset_only=dataset_only,
+                               forward_only=forward_only,
+                               fixed_inputs=fixed_inputs)
 
 
 def graph_wrap(fn: Callable):
@@ -746,6 +885,11 @@ def benchmark_wrapped():
 @gin.configurable(module='kb.framework')
 def fit_wrapped():
     return graph_wrap(fit)
+
+
+@gin.configurable(module='kb.framework')
+def fit_simple_wrapped():
+    return graph_wrap(fit_simple)
 
 
 @gin.configurable(module='kb.framework')

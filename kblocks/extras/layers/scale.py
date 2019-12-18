@@ -33,12 +33,15 @@ class Scale(tf.keras.layers.Layer):
         return (input_shape[-1],)
 
     def build(self, input_shape):
+        if self.built:
+            return
         self.scalar = self.add_weight('scalar',
                                       shape=self._scale_shape(input_shape),
                                       dtype=self.dtype,
                                       initializer=self.initializer,
                                       constraint=self.constraint,
                                       regularizer=self.constraint)
+        super(Scale, self).build(input_shape)
 
     def call(self, inputs):
         return inputs * self.scalar
