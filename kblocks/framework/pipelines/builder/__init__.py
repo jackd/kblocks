@@ -14,6 +14,8 @@ from kblocks.framework.pipelines.builder.pipeline_builder import trained_input
 from kblocks.framework.pipelines.builder.pipeline_builder import trained_output
 from kblocks.framework.pipelines.builder.pipeline_builder import py_func_builder
 from kblocks.framework.pipelines.builder.pipeline_builder import check_mark
+from kblocks.framework.pipelines.builder.pipeline_builder import get_batch_size
+from kblocks.framework.pipelines.builder.pipeline_builder import get_mark
 from kblocks.framework.pipelines.builder.pipeline_builder import propagate_marks
 from kblocks.framework.pipelines.builder.pipeline_builder import scope
 from kblocks.framework.pipelines.builder.py_func_builder import PyFuncBuilder
@@ -34,6 +36,8 @@ __all__ = [
     'trained_output',
     'py_func_builder',
     'check_mark',
+    'get_batch_size',
+    'get_mark',
     'propagate_marks',
     'scope',
 ]

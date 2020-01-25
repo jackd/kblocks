@@ -11,6 +11,13 @@ from kblocks.tf_typing import TensorLike
 
 Lambda = tf.keras.layers.Lambda
 
+# def Lambda(*args, **kwargs):
+#     layer = tf.keras.layers.Lambda(*args, **kwargs)
+#     # print(layer.name)
+#     if layer.name == 'lambda_27':
+#         raise Exception()
+#     return layer
+
 
 def dimension(x: TensorLike, axis=0, out_type=tf.int64) -> tf.Tensor:
     return Lambda(shape_ops.dimension,

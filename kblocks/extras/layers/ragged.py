@@ -19,6 +19,13 @@ class RaggedComponents(NamedTuple):
 
 Lambda = tf.keras.layers.Lambda
 
+# def Lambda(*args, **kwargs):
+#     layer = tf.keras.layers.Lambda(*args, **kwargs)
+#     # print(layer.name)
+#     if layer.name == 'lambda_27':
+#         raise Exception()
+#     return layer
+
 
 def from_row_splits(values: RTensor,
                     row_splits: tf.Tensor,
@@ -32,8 +39,9 @@ def from_nested_row_splits(flat_values: tf.Tensor,
                            nested_row_splits: Iterable[tf.Tensor],
                            name=None,
                            validate=True) -> tf.RaggedTensor:
-    return Lambda(lambda args: tf.RaggedTensor.from_row_splits(
-        *args, name=name, validate=validate))([flat_values, *nested_row_splits])
+    return Lambda(lambda args: tf.RaggedTensor.from_nested_row_splits(
+        args[0], args[1:], name=name, validate=validate))(
+            [flat_values, *nested_row_splits])
 
 
 def from_row_lengths(values: tf.Tensor,
@@ -182,25 +190,41 @@ def mask_to_lengths(mask: tf.Tensor) -> tf.Tensor:
 
 
 def row_max(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
-            max_length: int) -> tf.Tensor:
+            max_length: Dimension) -> tf.Tensor:
     args = [values, row_lengths]
-    kwargs = dict(max_length=max_length)
+    names = ['values', 'row_lengths']
+    kwargs = dict()
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)
+        names.append('num_segments')
     else:
         kwargs['num_segments'] = num_segments
-    return Lambda(lambda args: ragged_ops.row_max(*args, **kwargs))(args)
+    if isinstance(max_length, tf.Tensor):
+        args.append(max_length)
+        names.append('max_length')
+    else:
+        kwargs['max_length'] = max_length
+    return Lambda(lambda args: ragged_ops.row_max(
+        **{k: v for k, v in zip(names, args)}, **kwargs))(args)
 
 
 def row_sum(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
-            max_length: int) -> tf.Tensor:
+            max_length: Dimension) -> tf.Tensor:
     args = [values, row_lengths]
-    kwargs = dict(max_length=max_length)
+    names = ['values', 'row_lengths']
+    kwargs = dict()
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)
+        names.append('num_segments')
     else:
         kwargs['num_segments'] = num_segments
-    return Lambda(lambda args: ragged_ops.row_sum(*args, **kwargs))(args)
+    if isinstance(max_length, tf.Tensor):
+        args.append(max_length)
+        names.append('max_length')
+    else:
+        kwargs['max_length'] = max_length
+    return Lambda(lambda args: ragged_ops.row_sum(
+        **{k: v for k, v in zip(names, args)}, **kwargs))(args)
 
 
 def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor,
@@ -212,3 +236,25 @@ def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor,
     else:
         kwargs = dict(num_segments=num_segments)
     return Lambda(lambda args: ragged_ops.segment_sum(*args, **kwargs))(args)
+
+
+def repeat_ranges(row_lengths: tf.Tensor,
+                  maxlen: Optional[Dimension] = None) -> tf.Tensor:
+    if isinstance(maxlen, int):
+        args = [row_lengths]
+        kwargs = dict(maxlen=maxlen)
+    else:
+        args = [row_lengths, maxlen]
+        kwargs = {}
+    return Lambda(lambda args: ragged_ops.repeat_ranges(*args, **kwargs))(args)
+
+
+def to_tensor(rt: tf.RaggedTensor,
+              ncols: Optional[Dimension] = None) -> tf.Tensor:
+    if isinstance(ncols, int):
+        args = [row_lengths]
+        kwargs = dict(ncols=ncols)
+    else:
+        args = [row_lengths, ncols]
+        kwargs = {}
+    return Lambda(lambda args: ragged_ops.to_tensor(*args, **kwargs))(args)

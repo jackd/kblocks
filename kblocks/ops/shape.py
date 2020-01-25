@@ -51,10 +51,6 @@ def reshape_leading_dim(x: Union[tf.Tensor, tf.RaggedTensor],
 
     See also: flatten_leading_dims, as_batched
     """
-    # print('---')
-    # print(x.shape[0], dims)
-    # if x.shape[0] is None:
-    #     raise ValueError(x.shape)  # HACK
     if x.shape.ndims == 0:
         raise ValueError('Cannot reshape leading dims of a scalar')
     dims_tup = tuple(dims)
@@ -94,7 +90,10 @@ def dimension(x: TensorLike, axis=0, out_type=tf.int64) -> tf.Tensor:
             axis += x.shape.ndims
         assert (axis >= 0)
         if axis == 0:
-            return dimension(x.row_splits, 0, out_type) - 1
+            dim = x.nrows(out_type)
+            if dim.dtype != out_type:
+                dim = tf.cast(dim, out_type)
+            return dim
         else:
             return dimension(x.values, axis - 1, out_type)
     elif isinstance(x, tf.SparseTensor):

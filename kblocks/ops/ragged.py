@@ -117,3 +117,34 @@ def row_sum(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
 def segment_sum(values, segment_ids, num_segments):
     return tf.scatter_nd(tf.expand_dims(segment_ids, axis=-1), values,
                          [num_segments, *values.shape[1:]])
+
+
+def repeat_ranges(row_lengths: tf.Tensor,
+                  maxlen: Optional[Dimension] = None) -> tf.Tensor:
+    row_lengths = tf.convert_to_tensor(row_lengths)
+    assert (row_lengths.shape.ndims == 1)
+    if maxlen is None:
+        maxlen = tf.reduce_max(row_lengths)
+    else:
+        assert (isinstance(maxlen, int) or maxlen.shape.ndims == 0)
+    ranges = tf.expand_dims(tf.range(maxlen, dtype=row_lengths.dtype), axis=0)
+    ranges = tf.tile(ranges, (tf.size(row_lengths), 1))
+    return tf.boolean_mask(ranges,
+                           ranges < tf.expand_dims(row_lengths, axis=-1))
+
+
+def to_tensor(rt: tf.RaggedTensor,
+              ncols: Optional[Dimension] = None) -> tf.Tensor:
+    if rt.ragged_rank > 1:
+        raise NotImplementedError
+    row_lengths = rt.row_lengths()
+    if ncols is None:
+        ncols = tf.reduce_max(row_lengths)
+    i = rt.value_rowids()
+    j = repeat_ranges(row_lengths, ncols)
+    indices = tf.stack((i, j), axis=-1)
+    updates = rt.values
+    shape = tf.concat(
+        ((rt.nrows(), ncols), tf.shape(rt.values, out_type=tf.int64)[1:]),
+        axis=0)
+    return tf.scatter_nd(indices, updates, shape)

@@ -258,61 +258,73 @@ class Trainable(object):
                            forward_only=False,
                            fixed_inputs=False):
         pipeline = self._pipeline
-        with tf.Graph().as_default():
-            dataset = self._get_datasets(
-                'train',
-                batch_size,
-                -1,
-                prefetch_buffer=prefetch_buffer,
-            )
+        # with tf.Graph().as_default():
+        dataset = self._get_datasets(
+            'train',
+            batch_size,
+            -1,
+            prefetch_buffer=prefetch_buffer,
+        )
 
-            inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
-                dataset).get_next()
+        inputs, labels = tf.compat.v1.data.make_one_shot_iterator(
+            dataset).get_next()
 
-            if fixed_inputs:
-                logging.info('Getting hack inputs...')
-                with tf.compat.v1.Session() as sess:
-                    inputs, labels = sess.run((inputs, labels))
-                logging.info('Got inputs!')
-
-                inputs, labels = tf.nest.map_structure(
-                    lambda x: tf.constant(x)
-                    if isinstance(x, np.ndarray) else tf.RaggedTensor.
-                    from_nested_row_splits(tf.constant(x.flat_values), [
-                        tf.constant(i) for i in x.nested_row_splits
-                    ]), (inputs, labels))
-
-            model = tf.keras.models.clone_model(pipeline.model,
-                                                input_tensors=inputs)
-
-            out, = model.outputs
-            if forward_only:
-                train_op = out
-            else:
-                # recreate loss/optimizer for new graph
-                serialized_loss = tf.keras.utils.serialize_keras_object(
-                    self.problem.loss)
-                loss_ = tf.keras.losses.deserialize(serialized_loss)
-                optimizer = self._optimizer_fn()
-                loss = loss_(labels, out)
-                weights = model.trainable_weights
-                grads = optimizer.get_gradients(loss, weights)
-                grads_and_vars = tuple(
-                    (g, v) for g, v in zip(grads, weights) if g is not None)
-                train_op = optimizer.apply_gradients(grads_and_vars)
-                train_op = tf.group((train_op,) + tuple(model.updates))
-
-            bm = tf.test.Benchmark()
+        if fixed_inputs:
+            logging.info('Getting hack inputs...')
             with tf.compat.v1.Session() as sess:
-                logging.info('Initializing variables...')
+                inputs, labels = sess.run((inputs, labels))
+            logging.info('Got inputs!')
 
-                sess.run(tf.compat.v1.global_variables_initializer())
+            inputs, labels = tf.nest.map_structure(
+                lambda x: tf.constant(x)
+                if isinstance(x, np.ndarray) else tf.RaggedTensor.
+                from_nested_row_splits(tf.constant(x.flat_values), [
+                    tf.constant(i) for i in x.nested_row_splits
+                ]), (inputs, labels))
 
-                logging.info('Starting benchmarking...')
-                result = bm.run_op_benchmark(sess,
-                                             train_op,
-                                             burn_iters=burn_iters,
-                                             min_iters=min_iters)
+        # for i in inputs:
+        #     if isinstance(i, tf.RaggedTensor):
+        #         print([
+        #             i.flat_values.shape,
+        #             *(rs.shape for rs in i.nested_row_splits), i.dtype
+        #         ])
+        #     else:
+        #         print(i.shape.as_list(), i.dtype)
+        # exit()
+        # model = tf.keras.models.clone_model(pipeline.model,
+        #                                     input_tensors=inputs)
+
+        model = pipeline.model
+        out = model(inputs)
+
+        # out, = model.outputs
+        if forward_only:
+            train_op = out
+        else:
+            # recreate loss/optimizer for new graph
+            serialized_loss = tf.keras.utils.serialize_keras_object(
+                self.problem.loss)
+            loss_ = tf.keras.losses.deserialize(serialized_loss)
+            optimizer = self._optimizer_fn()
+            loss = loss_(labels, out)
+            weights = model.trainable_weights
+            grads = optimizer.get_gradients(loss, weights)
+            grads_and_vars = tuple(
+                (g, v) for g, v in zip(grads, weights) if g is not None)
+            train_op = optimizer.apply_gradients(grads_and_vars)
+            # train_op = tf.group((train_op,) + tuple(model.updates))
+
+        bm = tf.test.Benchmark()
+        with tf.compat.v1.Session() as sess:
+            logging.info('Initializing variables...')
+
+            sess.run(tf.compat.v1.global_variables_initializer())
+
+            logging.info('Starting benchmarking...')
+            result = bm.run_op_benchmark(sess,
+                                         train_op,
+                                         burn_iters=burn_iters,
+                                         min_iters=min_iters)
         summarize(result)
         return result
 
@@ -656,27 +668,41 @@ class Trainable(object):
 
     def run_dataset(self,
                     batch_size: int,
-                    num_examples: int = 10,
+                    burn_iters: int = 10,
+                    min_iters: int = 10,
                     shuffle_buffer: Optional[int] = None,
                     split: Split = 'train',
                     num_parallel_calls: int = 1,
                     callback: Optional[Callable[[Any, Any], None]] = None):
-        from tqdm import tqdm
+        # from tqdm import tqdm
+        from tqdm import trange
         logging.info('Running dataset')
-        dataset = self._get_datasets(
-            split,
-            batch_size,
-            shuffle_buffer,
-            num_parallel_calls=num_parallel_calls).take(num_examples)
+        dataset = self._get_datasets(split,
+                                     batch_size,
+                                     shuffle_buffer,
+                                     num_parallel_calls=num_parallel_calls)
         if tf.executing_eagerly():
-            for example, label in tqdm(dataset, total=num_examples):
+            # for example, label in tqdm(dataset.take(burn_iters), total=burn_iters):
+            it = iter(dataset)
+            for _ in trange(burn_iters, desc='Burning in...'):
+                example, label = next(it)
+                if callback is not None:
+                    callback(example, label)
+            # for example, label in tqdm(dataset.take(min_iters), total=min_iters):
+            for _ in trange(min_iters, desc='Benchmarking...'):
+                example, label = next(it)
                 if callback is not None:
                     callback(example, label)
         else:
             example, label = tf.compat.v1.data.make_one_shot_iterator(
                 dataset).get_next()
             with tf.compat.v1.Session() as sess:
-                for _ in tqdm(range(num_examples), total=num_examples):
+                for _ in tqdm(range(burn_iters), total=burn_iters):
+                    out = sess.run((example, label))
+
+                    if callback is not None:
+                        callback(*out)
+                for _ in tqdm(range(min_iters), total=min_iters):
                     out = sess.run((example, label))
 
                     if callback is not None:
@@ -690,7 +716,7 @@ class Trainable(object):
                         split: Split = 'train',
                         num_parallel_calls: int = 1,
                         callback: Optional[Callable[[Any, Any], None]] = None):
-        from tqdm import tqdm
+        from tqdm import trange, tqdm
         model = self._pipeline.model
         logging.info('Running dataset')
         dataset = self._get_datasets(
@@ -708,7 +734,7 @@ class Trainable(object):
                 dataset).get_next()
             predictions = model(example)
             with tf.compat.v1.Session() as sess:
-                for _ in tqdm(range(num_examples), total=num_examples):
+                for _ in trange(num_examples):
                     out = sess.run((predictions, label))
                     if callback is not None:
                         callback(*out)
@@ -785,13 +811,15 @@ def custom_fit(trainable: Trainable,
 @gin.configurable(module='kb.framework')
 def run_dataset(trainable: Trainable,
                 batch_size: int,
-                num_examples: int = 10,
+                burn_iters: int = 10,
+                min_iters: int = 10,
                 shuffle_buffer: Optional[int] = None,
                 split: Split = 'train',
                 callback: Optional[Callable[[Any, Any], None]] = None,
                 num_parallel_calls=1):
     return trainable.run_dataset(batch_size,
-                                 num_examples,
+                                 burn_iters=burn_iters,
+                                 min_iters=min_iters,
                                  shuffle_buffer=shuffle_buffer,
                                  split=split,
                                  callback=callback,

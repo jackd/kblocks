@@ -156,7 +156,9 @@ class PipelineBuilder(object):
         if ragged:
             if isinstance(tensor, tf.RaggedTensor):
                 self._pre_batch_builder.add_output(tensor)
-                inp = Input(shape=tensor.shape,
+                shape = tensor.shape.as_list()
+                shape[0] = None  # non-None shape results in non-ragged tensor
+                inp = Input(shape=shape,
                             ragged=True,
                             dtype=tensor.dtype,
                             name=name,
@@ -354,7 +356,7 @@ def get_batch_size() -> Optional[int]:
 get_mark = propagate_marks
 
 
-def check_mark(tensor: TensorLike, mark: str, name: Optional[str]=None):
+def check_mark(tensor: TensorLike, mark: str, name: Optional[str] = None):
     return get_default().check_mark(tensor, mark, name)
 
 

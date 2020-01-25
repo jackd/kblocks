@@ -79,6 +79,23 @@ class RaggedTest(tf.test.TestCase):
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_allclose(actual, expected)
 
+    def test_repeat_ranges(self):
+        expected = [0, 1, 2, 0, 1, 0, 1, 2, 3, 4, 5]
+        actual = ragged_ops.repeat_ranges([3, 2, 6])
+        np.testing.assert_equal(self.evaluate(actual), expected)
+
+    def test_to_tensor(self):
+        expected = [
+            [2, 3, 1, 0, 0],
+            [1, 3, 4, 2, 0],
+            [0, 0, 0, 0, 0],
+            [5, 0, 0, 0, 0],
+        ]
+        actual = ragged_ops.to_tensor(
+            tf.RaggedTensor.from_row_lengths([2, 3, 1, 1, 3, 4, 2, 5],
+                                             [3, 4, 0, 1]), 5)
+        np.testing.assert_equal(self.evaluate(actual), expected)
+
 
 if __name__ == '__main__':
     tf.test.main()
