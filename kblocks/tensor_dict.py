@@ -1,6 +1,7 @@
+from typing import Generic, TypeVar
 import tensorflow as tf
 import collections
-from kblocks.tf_typing import T, TensorLike
+from kblocks.tf_typing import TensorLike
 from typing import MutableMapping
 
 RaggedComponents = collections.namedtuple('RaggedComponents',
@@ -8,6 +9,8 @@ RaggedComponents = collections.namedtuple('RaggedComponents',
 
 SparseComponents = collections.namedtuple('SparseComponents',
                                           ['indices', 'values'])
+
+T = TypeVar('T')
 
 
 def _tensor_key(x):
@@ -26,7 +29,8 @@ def _tensor_key(x):
             .format(x))
 
 
-class TensorDict(MutableMapping[TensorLike, T], collections.MutableMapping):
+class TensorDict(Generic[T], MutableMapping[TensorLike, T],
+                 collections.MutableMapping):
 
     def __init__(self, **kwargs):
         self._base = {}

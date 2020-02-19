@@ -2,14 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from kblocks.framework.problems.core import Problem
-from kblocks.framework.problems.core import scope
-from kblocks.framework.problems.core import get_default
-from kblocks.framework.problems.tfds import TfdsProblem
+from .source import DataSource
+from .source import TfdsSource
+from .pipelines import DataPipeline
+from .pipelines import BasePipeline
 
 __all__ = [
-    'Problem',
-    'TfdsProblem',
-    'scope',
-    'get_default',
+    'DataSource',
+    'TfdsSource',
+    'DataPipeline',
+    'BasePipeline',
 ]

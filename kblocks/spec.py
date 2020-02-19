@@ -7,6 +7,25 @@ from kblocks.tf_typing import TensorLike, TensorLikeSpec, NestedTensorSpec, Nest
 from typing import Callable
 
 
+def to_input(spec: TensorLikeSpec) -> TensorLike:
+    if isinstance(spec, tf.TensorSpec):
+        return tf.keras.Input(shape=spec.shape[1:],
+                              batch_size=spec.shape[0],
+                              dtype=spec.dtype)
+    elif isinstance(spec, tf.RaggedTensorSpec):
+        return tf.keras.Input(shape=spec._shape[1:],
+                              batch_size=spec._shape[0],
+                              dtype=spec._dtype,
+                              ragged=True)
+    elif isinstance(spec, tf.SparseTensorSpec):
+        return tf.keras.Input(shape=spec.shape[1:],
+                              batch_size=spec.shape[0],
+                              dtype=spec.dtype,
+                              sparse=True)
+    else:
+        raise TypeError('Unrecognized spec type {}'.format(type(spec)))
+
+
 def to_spec(tensor: TensorLike) -> TensorLikeSpec:
     """Convert a (Ragged/Sparse)Tensor to the corresponding TensorSpec."""
     if isinstance(tensor, tf.RaggedTensor):
@@ -41,3 +60,17 @@ def map_spec(map_fn: Callable[[NestedTensorLike], NestedTensorLike],
         tf.nest.map_structure(lambda spec: spec.shape))
     dataset = dataset.map(map_fn)
     return dataset.spec
+
+
+def shape(spec: TensorLikeSpec) -> tf.TensorShape:
+    if isinstance(spec, tf.RaggedTensor):
+        return spec._shape
+    else:
+        return spec.shape
+
+
+def dtype(spec: TensorLikeSpec) -> tf.DType:
+    if isinstance(spec, tf.RaggedTensor):
+        return spec._dtype
+    else:
+        return spec.dtype

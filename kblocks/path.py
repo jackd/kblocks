@@ -13,5 +13,9 @@ def model_dir(root_dir='~/kblocks',
               variant_id='v0',
               run=0):
     """Good default configurable model directory."""
-    return os.path.join(root_dir, problem_id, model_id, variant_id,
-                        'run-{:02d}'.format(run))
+    args = [
+        k for k in (root_dir, problem_id, model_id, variant_id) if k is not None
+    ]
+    if run is not None:
+        args.append('run-{:02d}'.format(run))
+    return os.path.join(*args)

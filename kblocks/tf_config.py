@@ -82,6 +82,7 @@ class TfConfig(object):
         dp = self.log_device_placement
         if dp is not None:
             tf.debugging.set_log_device_placement(dp)
+        tf.keras.backend.clear_session()
 
     def get_config(self):
         return dict(

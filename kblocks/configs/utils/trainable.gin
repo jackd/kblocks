@@ -1,21 +1,34 @@
 # Default configuration for anything using Trainables
+# as a minimum must define model_fn, base_source, batch_size
 
 import kblocks.framework.trainable
+import kblocks.framework.sources
 import kblocks.framework.pipelines
+import kblocks.framework.compilers
+import kblocks.keras.optimizers
 
-trainable = @kb.framework.Trainable()
+trainable = @kb.framework.base_trainable()
 
-kb.framework.Trainable.problem = %problem
-kb.framework.Trainable.pipeline_fn = %pipeline_fn
-kb.framework.Trainable.optimizer_fn = %optimizer_fn
-kb.framework.Trainable.model_dir = %model_dir
-kb.framework.Trainable.auto_compile = %auto_compile
+kb.framework.base_trainable.source = %source
+kb.framework.base_trainable.model_fn = %model_fn
+kb.framework.base_trainable.compiler = %compiler
+kb.framework.base_trainable.model_dir = %model_dir
 
-pipeline_fn = @kb.framework.ModelPipeline
-kb.framework.ModelPipeline.model_fn = %model_fn
-model_fn = None
+kb.framework.PipelinedSource.source = %base_source
+kb.framework.PipelinedSource.pipeline = %pipeline
+
+kb.framework.BasePipeline.batch_size = %batch_size
+
+kb.framework.compile_model.optimizer = %optimizer
+
+source = @kb.framework.PipelinedSource()
+pipeline = @kb.framework.BasePipeline()
+compiler = @kb.framework.compile_model
 
 kb.logging_config.log_dir = @kb.log_dir()
 kb.log_dir.root_dir = %model_dir
 
-auto_compile = True
+batch_size = None
+base_source = None
+model_fn = None
+optimizer = @tf.keras.optimizers.Adam()

@@ -19,6 +19,10 @@ Lambda = tf.keras.layers.Lambda
 #     return layer
 
 
+def size(x: tf.Tensor, out_type=tf.int64):
+    return Lambda(tf.size, arguments=dict(out_type=out_type))(x)
+
+
 def dimension(x: TensorLike, axis=0, out_type=tf.int64) -> tf.Tensor:
     return Lambda(shape_ops.dimension,
                   arguments=dict(axis=axis, out_type=out_type))(x)

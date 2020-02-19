@@ -4,8 +4,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
-from kblocks.framework.pipelines.builder import pipeline_builder as pl_lib
-from kblocks.framework.pipelines.builder import PipelineModels as mod
+from kblocks.framework.problems.pipelines.builder import pipeline_builder as pl_lib
+from kblocks.framework.problems.pipelines.builder import PipelineModels as mod
+from kblocks.extras.layers import ragged as ragged_layers
 
 
 class Scaler(tf.keras.layers.Layer):
@@ -24,23 +25,15 @@ class Scaler(tf.keras.layers.Layer):
         return inputs * self._tensor
 
 
-# def tree_dfs(starts, neighbors_fn):
-#     stack = list(starts)
-#     while len(stack) > 0:
-#         out = stack.pop()
-#         stack.extend(neighbors_fn(out))
-#         yield out
-
-
 class PipelineBuilderTest(tf.test.TestCase):
 
     def test_single_io(self):
-        plb = pl_lib.PipelineBuilder()
         batch_size = 2
         num_elements = 5
+        scale_factor = 5.
+        plb = pl_lib.PipelineBuilder(batch_size=batch_size)
         x_np = np.reshape(np.arange(batch_size * num_elements),
                           (batch_size, num_elements)).astype(np.float32)
-        scale_factor = 5.
 
         def gen():
             return x_np
@@ -53,7 +46,7 @@ class PipelineBuilderTest(tf.test.TestCase):
 
         dataset = tf.data.Dataset.from_generator(gen, tf.float32, (5,))
 
-        inp = plb.pre_batch_input(dataset.element_spec)
+        inp = tf.nest.map_structure(plb.base_input, dataset.element_spec)
         self.assertEqual(inp.shape, dataset.element_spec.shape)
         self.assertEqual(inp.dtype, dataset.element_spec.dtype)
 
@@ -62,23 +55,62 @@ class PipelineBuilderTest(tf.test.TestCase):
         plb.trained_output(
             Scaler(tf.keras.initializers.constant(scale_factor))(trained))
 
-        pl = plb.build()
-        model = pl.model
-        dataset = dataset.map(pl.pre_batch_map).batch(batch_size).map(
-            pl.post_batch_map)
+        pipeline, model = plb.build()
+        dataset = pipeline(dataset)
 
-        expected_batched = post_batch_map(
-            np.array([pre_batch_map(x) for x in gen()]))
-        expected_output = scale_factor * expected_batched
+        expected_output = post_batch_map(pre_batch_map(x_np)) * scale_factor
 
         for example in dataset:
             output = model(example)
-            np.testing.assert_allclose(self.evaluate(example), expected_batched)
+            np.testing.assert_allclose(self.evaluate(output), expected_output)
+            break
+
+    def test_single_io_cached(self):
+        batch_size = 2
+        num_elements = 5
+        scale_factor = 5.
+        plb = pl_lib.PipelineBuilder(batch_size=batch_size, use_cache=True)
+        x_np = np.reshape(np.arange(batch_size * num_elements),
+                          (batch_size, num_elements)).astype(np.float32)
+
+        def gen():
+            return x_np
+
+        def pre_cache_map(x):
+            return 7 * x
+
+        def pre_batch_map(x):
+            return 2 * x
+
+        def post_batch_map(x):
+            return 3 * x
+
+        dataset = tf.data.Dataset.from_generator(gen, tf.float32, (5,))
+
+        inp = tf.nest.map_structure(plb.base_input, dataset.element_spec)
+        self.assertEqual(inp.shape, dataset.element_spec.shape)
+        self.assertEqual(inp.dtype, dataset.element_spec.dtype)
+
+        batched = post_batch_map(
+            plb.batch(pre_batch_map(plb.cache(pre_cache_map(inp)))))
+        trained = plb.trained_input(batched)
+        plb.trained_output(
+            Scaler(tf.keras.initializers.constant(scale_factor))(trained))
+
+        pipeline, model = plb.build()
+        dataset = pipeline(dataset)
+
+        expected_output = post_batch_map(pre_batch_map(
+            pre_cache_map(x_np))) * scale_factor
+
+        for example in dataset:
+            output = model(example)
             np.testing.assert_allclose(self.evaluate(output), expected_output)
             break
 
     def test_ragged(self):
-        plb = pl_lib.PipelineBuilder()
+        batch_size = 2
+        plb = pl_lib.PipelineBuilder(batch_size)
         x_np = [
             np.expand_dims(np.arange(5).astype(np.float32), axis=-1),
             np.expand_dims(np.arange(5, 12).astype(np.float32), axis=-1),
@@ -104,20 +136,19 @@ class PipelineBuilderTest(tf.test.TestCase):
 
         dataset = tf.data.Dataset.from_generator(gen, tf.float32, (None, 1))
 
-        inp = plb.pre_batch_input(dataset.element_spec)
+        inp = plb.base_input(dataset.element_spec)
         self.assertEqual(inp.shape[0], dataset.element_spec.shape[0])
         self.assertEqual(inp.dtype, dataset.element_spec.dtype)
 
-        batched = plb.batch(pre_batch_map(inp), ragged=True)
-        batched = tf.keras.layers.Lambda(post_batch_map)(batched)
+        x = tf.keras.layers.Lambda(pre_batch_map)(inp)
+        batched = tf.keras.layers.Lambda(post_batch_map)(plb.batch(x,
+                                                                   ragged=True))
         trained = plb.trained_input(batched)
         trained = Scaler(tf.keras.initializers.constant(scale_factor))(trained)
-        plb.trained_output(trained.flat_values)
-        pl = plb.build()
+        plb.trained_output(ragged_layers.flat_values(trained))
 
-        model = pl.model
-        dataset = dataset.map(pl.pre_batch_map).batch(2).map(pl.post_batch_map)
-        # print(dataset.element_spec)
+        pipeline, model = plb.build()
+        dataset = pipeline(dataset)
 
         expected_batched = post_batch_map([pre_batch_map(x) for x in gen()])
         expected_output = [scale_factor * x for x in expected_batched]
@@ -129,8 +160,8 @@ class PipelineBuilderTest(tf.test.TestCase):
             break
 
     def test_marks(self):
-        plb = pl_lib.PipelineBuilder()
         batch_size = 2
+        plb = pl_lib.PipelineBuilder(batch_size=batch_size)
         num_elements = 5
         x_np = np.reshape(np.arange(batch_size * num_elements),
                           (batch_size, num_elements)).astype(np.float32)
@@ -146,8 +177,7 @@ class PipelineBuilderTest(tf.test.TestCase):
             return 3 * x
 
         dataset = tf.data.Dataset.from_generator(gen, tf.float32, (5,))
-
-        inp = plb.pre_batch_input(dataset.element_spec)
+        inp = plb.base_input(dataset.element_spec)
         self.assertEqual(inp.shape, dataset.element_spec.shape)
         self.assertEqual(inp.dtype, dataset.element_spec.dtype)
 
@@ -156,18 +186,16 @@ class PipelineBuilderTest(tf.test.TestCase):
         trained_out = Scaler(
             tf.keras.initializers.constant(scale_factor))(trained)
         plb.trained_output(trained_out)
-        plb.propagate_marks(trained_out)
+        plb.get_mark(trained_out)
 
-        self.assertEqual(plb.propagate_marks(inp), mod.PRE_BATCH)
-        self.assertEqual(plb.propagate_marks(batched), mod.POST_BATCH)
-        self.assertEqual(plb.propagate_marks(trained), mod.TRAINED)
-        self.assertEqual(plb.propagate_marks(trained_out), mod.TRAINED)
+        self.assertEqual(plb.get_mark(inp), mod.PRE_BATCH)
+        self.assertEqual(plb.get_mark(batched), mod.POST_BATCH)
+        self.assertEqual(plb.get_mark(trained), mod.TRAINED)
+        self.assertEqual(plb.get_mark(trained_out), mod.TRAINED)
 
 
 if __name__ == '__main__':
-    tf.compat.v1.enable_eager_execution()
-    tf.compat.v1.enable_v2_tensorshape()
     tf.test.main()
+    # PipelineBuilderTest().test_single_io()
     # PipelineBuilderTest().test_marks()
     # PipelineBuilderTest().test_ragged()
-    # print('good')

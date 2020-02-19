@@ -1,10 +1,11 @@
 import simple
-import kblocks.keras.optimizers
-import kblocks.framework.pipelines
 
-problem = @cifar100_problem()
-optimizer_fn = @tf.keras.optimizers.Adam
-ModelPipeline.model_fn = @simple_cnn
+source = @cifar100_source()
+compiler = @cifar100_compile
+model_fn = @simple_cnn
 model_dir = '/tmp/kblocks/examples/cifar100'
+cifar100_source.batch_size = %batch_size
+
+
 batch_size = 16
 epochs = 40

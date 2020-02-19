@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 import os
 from absl import logging
-import contextlib
 from typing import Union, Iterable, List
 
 KB_CONFIG_DIR = os.path.realpath(
@@ -26,8 +25,11 @@ def try_register_config_dir(key, path):
         path: path to configuration dir.
     """
     if key in os.environ:
-        logging.warning('{} environment variable already defined. '
-                        'Config parsing may act surprisingly')
+        print(path)
+        print(os.environ[key])
+        if os.environ[key] != path:
+            logging.warning('{} environment variable already defined. '
+                            'Config parsing may act surprisingly'.format(key))
     else:
         os.environ[key] = path
 

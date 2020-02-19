@@ -38,7 +38,24 @@ def compound_constraint(*constraints):
 
 
 @gin.configurable(module='kb.constraints')
-class MaxValue(Constraint):
+class AtLeast(Constraint):
+
+    def __init__(self, value: Union[int, float]):
+        self._value = value
+
+    def get_config(self):
+        return dict(value=self._value)
+
+    @property
+    def value(self) -> Union[int, float]:
+        return self._value
+
+    def __call__(self, w: tf.Tensor) -> tf.Tensor:
+        return tf.minimum(w, self._value)
+
+
+@gin.configurable(module='kb.constraints')
+class AtMost(Constraint):
 
     def __init__(self, value: Union[int, float]):
         self._value = value

@@ -7,14 +7,26 @@ from typing import Iterable, Tuple, Optional
 import tensorflow as tf
 from kblocks.tf_typing import Dimension
 
+# def splits_to_ids(splits):
+#     splits = tf.cast(splits, tf.int64)
+#     return lengths_to_ids(splits_to_lengths(splits))
+
+splits_to_ids = tf.ragged.row_splits_to_segment_ids
+ids_to_splits = tf.ragged.segment_ids_to_row_splits
+
+# def ids_to_splits(rowids):
+#     rowids = tf.cast(rowids, tf.int64)
+#     return lengths_to_splits(ids_to_lengths(rowids))
+
 
 def pre_batch_ragged(tensor: tf.Tensor) -> tf.RaggedTensor:
     return tf.RaggedTensor.from_tensor(tf.expand_dims(tensor, axis=0))
 
 
-def post_batch_ragged(rt: tf.RaggedTensor) -> tf.RaggedTensor:
+def post_batch_ragged(rt: tf.RaggedTensor, validate=True) -> tf.RaggedTensor:
     return tf.RaggedTensor.from_nested_row_splits(rt.flat_values,
-                                                  rt.nested_row_splits[1:])
+                                                  rt.nested_row_splits[1:],
+                                                  validate=validate)
 
 
 def lengths_to_splits(row_lengths: tf.Tensor) -> tf.Tensor:

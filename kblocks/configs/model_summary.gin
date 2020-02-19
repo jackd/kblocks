@@ -1,4 +1,3 @@
 include 'utils/trainable.gin'
 kb.main.fn = @kb.framework.model_summary
 kb.framework.model_summary.trainable = %trainable
-auto_compile = False

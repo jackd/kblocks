@@ -1,29 +1,15 @@
-# Training config template for basic supervised learning
-# may set `is_meta_model = True` for models using `kblocks.meta_models`.
-
-# REQUIRES:
-# problem
-# pipeline_fn
-# optimizer_fn
-# epochs or total_train_steps
-# model_dir
-
-import kblocks.framework.steps
 import kblocks.cli
 include 'utils/trainable.gin'
 
 kb.main.fn = @kb.framework.fit
 
-kb.framework.get_batch_size.batch_size = %batch_size
-kb.framework.get_epochs.epochs = %epochs
-
 kb.framework.fit.trainable = %trainable  # default defined in trainable.gin
-kb.framework.fit.batch_size = %batch_size
 kb.framework.fit.epochs = %epochs
 kb.framework.fit.total_train_steps = %total_train_steps
-kb.framework.fit.shuffle_buffer = %shuffle_buffer
 kb.framework.fit.validation_freq = %validation_freq
+kb.framework.fit.build_only = %build_only
 
+build_only = False
 epochs = None
 total_train_steps = None
 

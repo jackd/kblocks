@@ -59,10 +59,14 @@ def from_value_rowids(values: tf.Tensor,
                       validate=True):
 
     args = [values, rowids]
+    kwargs = dict(name=name, validate=validate)
     if nrows is not None:
-        args.append(nrows)
-    return Lambda(lambda args: tf.RaggedTensor.from_value_rowids(
-        *args, name=name, validate=validate))(args)
+        if isinstance(nrows, int):
+            kwargs['nrows'] = nrows
+        else:
+            args.append(nrows)
+    return Lambda(
+        lambda args: tf.RaggedTensor.from_value_rowids(*args, **kwargs))(args)
 
 
 def from_tensor(tensor: tf.Tensor,
@@ -252,9 +256,9 @@ def repeat_ranges(row_lengths: tf.Tensor,
 def to_tensor(rt: tf.RaggedTensor,
               ncols: Optional[Dimension] = None) -> tf.Tensor:
     if isinstance(ncols, int):
-        args = [row_lengths]
+        args = [rt]
         kwargs = dict(ncols=ncols)
     else:
-        args = [row_lengths, ncols]
+        args = [rt, ncols]
         kwargs = {}
     return Lambda(lambda args: ragged_ops.to_tensor(*args, **kwargs))(args)
