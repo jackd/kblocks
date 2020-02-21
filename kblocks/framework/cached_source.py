@@ -70,7 +70,7 @@ class TfdsCache(tfds.core.GeneratorBasedBuilder):
     def _generate_examples(self, dataset):
         """Generate NMNIST examples as dicts."""
         for i, example in enumerate(dataset):
-            yield (i, tf.nest.map_structure(lambda x: x.numpy(), example))
+            yield (i, example)
 
 
 @gin.configurable(module='kb.framework')
