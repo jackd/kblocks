@@ -19,8 +19,10 @@ ids_to_splits = tf.ragged.segment_ids_to_row_splits
 #     return lengths_to_splits(ids_to_lengths(rowids))
 
 
-def pre_batch_ragged(tensor: tf.Tensor) -> tf.RaggedTensor:
-    return tf.RaggedTensor.from_tensor(tf.expand_dims(tensor, axis=0))
+def pre_batch_ragged(tensor: tf.Tensor,
+                     row_splits_dtype=tf.int64) -> tf.RaggedTensor:
+    return tf.RaggedTensor.from_tensor(tf.expand_dims(tensor, axis=0),
+                                       row_splits_dtype=row_splits_dtype)
 
 
 def post_batch_ragged(rt: tf.RaggedTensor, validate=True) -> tf.RaggedTensor:
@@ -85,7 +87,7 @@ def lengths_to_mask(row_lengths: tf.Tensor, size: Optional[Dimension] = None):
     # return tf.broadcast_to(r, shape) < row_lengths
 
 
-def mask_to_lengths(mask: tf.Tensor) -> tf.Tensor:
+def mask_to_lengths(mask: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
     """
     Convert boolean mask to row lengths of rank 1 less.
 
@@ -97,7 +99,7 @@ def mask_to_lengths(mask: tf.Tensor) -> tf.Tensor:
     if mask.dtype != tf.bool:
         raise ValueError('mask must have dtype bool but has dtype {}'.format(
             mask.dtype))
-    return tf.math.count_nonzero(mask, axis=-1)
+    return tf.math.count_nonzero(mask, axis=-1, dtype=dtype)
 
 
 def _row_reduction(reduction, values: tf.Tensor, row_lengths: tf.Tensor,

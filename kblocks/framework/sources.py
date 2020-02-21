@@ -41,7 +41,9 @@ class TfdsSource(DataSource):
                  download_and_prepare: bool = True,
                  split_map=None,
                  examples_per_epoch=None,
+                 shuffle_files: Optional[bool] = None,
                  meta=None):
+        self._shuffle_files = shuffle_files
         self._examples_per_epoch = examples_per_epoch
         if isinstance(builder, str):
             builder = tfds.builder(builder)
@@ -72,29 +74,34 @@ class TfdsSource(DataSource):
         return self._split_map.get(split, split)
 
     def examples_per_epoch(self, split):
-        split = self._split(split)
-        if self._examples_per_epoch is not None:
+        if self._examples_per_epoch is None:
+            split = self._split(split)
+            return self.builder.info.splits[split].num_examples
+        else:
             if isinstance(self._examples_per_epoch, int):
                 return self._examples_per_epoch
             else:
                 return self._examples_per_epoch[split]
-        return self.builder.info.splits[split].num_examples
 
     def get_dataset(self, split):
-        split = self._split(split)
+        mapped_split = self._split(split)
         if isinstance(split, dict):
             RI = tfds.core.tfrecords_reader.ReadInstruction
             ri = None
-            for k, (from_, to) in split.items():
+            for k, (from_, to) in mapped_split.items():
                 nex = RI(k, from_=from_ * 100, to=to * 100, unit='%')
                 if ri is None:
                     ri = nex
                 else:
                     ri = ri + nex
-            split = ri
+            mapped_split = ri
 
-        dataset = self.builder.as_dataset(split=split,
-                                          as_supervised=self.as_supervised)
+        shuffle_files = self._shuffle_files
+        if shuffle_files is None:
+            shuffle_files = split == 'train'
+        dataset = self.builder.as_dataset(split=mapped_split,
+                                          as_supervised=self.as_supervised,
+                                          shuffle_files=shuffle_files)
         if self._examples_per_epoch is not None:
             dataset = dataset.take(self.examples_per_epoch(split))
         return dataset

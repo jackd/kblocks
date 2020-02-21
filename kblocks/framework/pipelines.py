@@ -35,20 +35,22 @@ class DataPipeline(abc.ABC):
 @gin.configurable(module='kb.framework')
 class BasePipeline(DataPipeline):
 
-    def __init__(self,
-                 batch_size: int,
-                 pre_cache_map: Optional[Callable] = None,
-                 pre_batch_map: Optional[Callable] = None,
-                 post_batch_map: Optional[Callable] = None,
-                 cache_dir: Optional[str] = None,
-                 shuffle_buffer: Optional[int] = None,
-                 repeats: Optional[int] = None,
-                 prefetch_buffer: int = AUTOTUNE,
-                 num_parallel_calls: int = AUTOTUNE,
-                 cache_repeats: Optional[int] = None,
-                 clear_cache: bool = False,
-                 pre_cache: bool = True,
-                 drop_remainder: bool = True):
+    def __init__(
+            self,
+            batch_size: int,
+            pre_cache_map: Optional[Callable] = None,
+            pre_batch_map: Optional[Callable] = None,
+            post_batch_map: Optional[Callable] = None,
+            cache_dir: Optional[str] = None,
+            num_shards: int = 4,  # used in cache
+            shuffle_buffer: Optional[int] = None,
+            repeats: Optional[int] = None,
+            prefetch_buffer: int = AUTOTUNE,
+            num_parallel_calls: int = AUTOTUNE,
+            cache_repeats: Optional[int] = None,
+            clear_cache: bool = False,
+            pre_cache: bool = True,
+            drop_remainder: bool = True):
         if cache_dir is not None:
             cache_dir = os.path.expandvars(os.path.expanduser(cache_dir))
         self._pre_cache_map = pre_cache_map
@@ -64,6 +66,7 @@ class BasePipeline(DataPipeline):
         self._cache_repeats = cache_repeats
         self._pre_cache = pre_cache
         self._drop_remainder = drop_remainder
+        self._num_shards = num_shards
         if clear_cache:
             self.clear_cache()
 
