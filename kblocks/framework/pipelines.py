@@ -32,6 +32,45 @@ class DataPipeline(abc.ABC):
         raise NotImplementedError('Abstract method')
 
 
+def sharded_cache(dataset: tf.data.Dataset,
+                  num_shards: int,
+                  path: str,
+                  preprocess_cache=False):
+    paths = [
+        f'{path}-sharded-{i:03d}-{num_shards:03d}' for i in range(num_shards)
+    ]
+    shards = [
+        dataset.shard(num_shards, i).cache(path) for i, path in enumerate(paths)
+    ]
+    if preprocess_cache:
+        for path, shard in zip(paths, shards):
+            if not cache_exists(path):
+                logging.info(f'Creating cache at {path}')
+                create_cache_data(shard)
+    shard_ds = tf.data.Dataset.from_tensor_slices(shards)
+    return shard_ds.interleave(lambda x: x)
+
+
+def cache_exists(path: str):
+    return os.path.isfile(f'{path}.index')
+
+
+def create_cache_data(dataset):
+    if tf.executing_eagerly():
+        for example in tqdm(dataset, desc='Caching (eager)...'):
+            del example
+    else:
+        example = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
+        with tf.compat.v1.Session() as sess:
+            try:
+                pbar = tqdm(desc='Caching (session)...')
+                while True:
+                    sess.run(example)
+                    pbar.update()
+            except tf.errors.OutOfRangeError:
+                pass
+
+
 @gin.configurable(module='kb.framework')
 class BasePipeline(DataPipeline):
 
@@ -42,7 +81,8 @@ class BasePipeline(DataPipeline):
             pre_batch_map: Optional[Callable] = None,
             post_batch_map: Optional[Callable] = None,
             cache_dir: Optional[str] = None,
-            num_shards: int = 4,  # used in cache
+            use_cache: bool = False,
+            num_shards: Optional[int] = None,  # used in cache
             shuffle_buffer: Optional[int] = None,
             repeats: Optional[int] = None,
             prefetch_buffer: int = AUTOTUNE,
@@ -69,6 +109,7 @@ class BasePipeline(DataPipeline):
         self._num_shards = num_shards
         if clear_cache:
             self.clear_cache()
+        self._use_cache = use_cache
 
     def clear_cache(self):
         cache_dir = self._cache_dir
@@ -129,27 +170,21 @@ class BasePipeline(DataPipeline):
             root_dir = os.path.dirname(cache_path)
             if root_dir is not None and not os.path.isdir(root_dir):
                 os.makedirs(root_dir)
-        dataset = dataset.cache(cache_path)
-        index_path = '{}.index'.format(cache_path)
-        if not os.path.isfile(index_path) and preprocess_cache:
+        if self._num_shards is None:
+            dataset = dataset.cache(cache_path)
+            exists = cache_exists(cache_path)
             if cache_path == '':
                 logging.info('Creating cache in memory')
             else:
                 logging.info('Creating cache at {}'.format(cache_path))
-            if tf.executing_eagerly():
-                for example in tqdm(dataset, desc='Caching (eager)...'):
-                    del example
-            else:
-                example = tf.compat.v1.data.make_one_shot_iterator(
-                    dataset).get_next()
-                with tf.compat.v1.Session() as sess:
-                    try:
-                        pbar = tqdm(desc='Caching (session)...')
-                        while True:
-                            sess.run(example)
-                            pbar.update()
-                    except tf.errors.OutOfRangeError:
-                        pass
+            if not exists and preprocess_cache:
+                create_cache_data(dataset)
+        else:
+            dataset = sharded_cache(dataset,
+                                    self._num_shards,
+                                    cache_path,
+                                    preprocess_cache=preprocess_cache)
+
         return dataset
 
     def _process_dataset(self,
@@ -160,10 +195,12 @@ class BasePipeline(DataPipeline):
             if preprocess_cache is None:
                 preprocess_cache = self._pre_cache
             if self._pre_cache_map is not None:
-                dataset = dataset.map(self._pre_cache_map,
-                                      self._num_parallel_calls)
-                dataset = self._cache(dataset, self.cache_path(split),
-                                      preprocess_cache)
+                dataset = dataset.map(
+                    self._pre_cache_map,
+                    1 if self._use_cache else self._num_parallel_calls)
+                if self._use_cache:
+                    dataset = self._cache(dataset, self.cache_path(split),
+                                          preprocess_cache)
 
             if self._repeats != -1:
                 dataset = dataset.repeat(self._repeats)

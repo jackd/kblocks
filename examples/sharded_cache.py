@@ -1,67 +1,43 @@
-from typing import Dict
+import numpy as np
 import tensorflow as tf
-import tensorflow_datasets as tfds
+from tqdm import tqdm
+
+example_size = 10**7
+dataset_size = 32
+num_shards = 8
+batch_size = 4
 
 
-class CacheConfig(tfds.core.BuilderConfig):
-
-    def __init__(self,
-                 name,
-                 datasets: Dict[str, tf.data.Dataset],
-                 description='cached dataset'):
-        self._datasets = datasets
-        first, *rest = (ds.example_spec for ds in tf.nest.flatten(datasets))
-        for r in rest:
-            if not tf.nest.assert_same_structure(first, r):
-                raise ValueError('dataset element_specs not same structure')
-            struct = tf.nest.map_structure(lambda a, b: a == b, first, r)
-            if not all(tf.nest.flatten(struct)):
-                raise ValueError('dataset element_specs not all the same')
-        self._example_spec = first
-
-        super().__init__(name=name, version='0.0.1', description=description)
-
-    @property
-    def example_spec(self):
-        return self._example_spec
-
-    @property
-    def flat_features(self):
-        return tuple(
-            tfds.core.features.Tensor(shape=x.shape, dtype=x.dtype)
-            for x in tf.nest.flatten(self.example_spec, expand_composites=True))
-
-    def repack(self, example):
-        return tf.nest.pack_sequence_as(self.example_spec,
-                                        example,
-                                        expand_composites=True)
-
-    @property
-    def datasets(self):
-        return self._datasets.copy()  # defensive copy
+def gen():
+    for _ in range(dataset_size):
+        yield np.random.uniform(size=example_size)
+        # yield np.zeros((example_size,))
 
 
-def _as_feature_dict(example):
-    return {f'feature-{i}': v for i, v in enumerate(example)}
+dataset = tf.data.Dataset.from_generator(gen, tf.float64, (example_size,))
+
+base = dataset.cache('/tmp/cache_test/base')
 
 
-class TfdsCache(tfds.core.GeneratorBasedBuilder):
+def profile(dataset, name):
+    dataset = dataset.batch(batch_size).prefetch(-1)
+    for _ in tqdm(dataset,
+                  total=dataset_size // batch_size,
+                  desc=f'{name}, initial run'):
+        pass
 
-    def _info(self):
-        return tfds.core.DatasetInfo(
-            builder=self,
-            features=tfds.core.features.FeaturesDict(
-                _as_feature_dict(self.builder_config.flat_features)))
+    for _ in tqdm(dataset,
+                  total=dataset_size // batch_size,
+                  desc=f'{name}, second run'):
+        pass
 
-    def _split_generators(self, dl_manager):
-        """Returns SplitGenerators."""
-        return [
-            tfds.core.SplitGenerator(name=split,
-                                     gen_kwargs=dict(dataset=dataset))
-            for split, dataset in self.builder_config.datasets.items()
-        ]
 
-    def _generate_examples(self, dataset):
-        """Generate NMNIST examples as dicts."""
-        for i, example in dataset:
-            yield i, _as_feature_dict(example)
+sharded = [
+    dataset.shard(num_shards, i).cache(f'/tmp/cache_test/shard-{i}')
+    for i in range(num_shards)
+]
+sharded = tf.data.Dataset.from_tensor_slices(sharded).interleave(lambda x: x)
+
+# both run at ~4 hz
+profile(sharded, 'sharded')
+profile(base, 'base')

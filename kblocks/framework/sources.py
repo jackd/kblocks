@@ -10,6 +10,7 @@ import tensorflow_datasets as tfds
 from .pipelines import DataPipeline
 
 Split = Union[str, tfds.Split]
+gin.external_configurable(tfds.ReadConfig, module='tfds')
 
 
 @gin.configurable(module='kb.framework')
@@ -33,6 +34,26 @@ class DataSource(abc.ABC):
 
 
 @gin.configurable(module='kb.framework')
+class BaseSource(DataSource):
+
+    def __init__(self, dataset_fn: Callable[[Split], tf.data.Dataset],
+                 examples_per_epoch, meta):
+        self._dataset_fn = dataset_fn
+        self._examples_per_epoch = examples_per_epoch
+        self._meta = meta
+
+    @property
+    def meta(self):
+        return deepcopy(self._meta)
+
+    def get_dataset(self, split: Split):
+        return self._dataset_fn(split)
+
+    def examples_per_epoch(self, split: Split):
+        return self._examples_per_epoch[split]
+
+
+@gin.configurable(module='kb.framework')
 class TfdsSource(DataSource):
 
     def __init__(self,
@@ -42,6 +63,7 @@ class TfdsSource(DataSource):
                  split_map=None,
                  examples_per_epoch=None,
                  shuffle_files: Optional[bool] = None,
+                 read_config: Optional[tfds.ReadConfig] = None,
                  meta=None):
         self._shuffle_files = shuffle_files
         self._examples_per_epoch = examples_per_epoch
@@ -65,6 +87,7 @@ class TfdsSource(DataSource):
                 if hasattr(label, 'num_classes'):
                     meta = dict(num_classes=label.num_classes)
         self._meta = meta
+        self._read_config = read_config
 
     @property
     def meta(self) -> Dict[str, Any]:
@@ -101,7 +124,8 @@ class TfdsSource(DataSource):
             shuffle_files = split == 'train'
         dataset = self.builder.as_dataset(split=mapped_split,
                                           as_supervised=self.as_supervised,
-                                          shuffle_files=shuffle_files)
+                                          shuffle_files=shuffle_files,
+                                          read_config=self._read_config)
         if self._examples_per_epoch is not None:
             dataset = dataset.take(self.examples_per_epoch(split))
         return dataset
