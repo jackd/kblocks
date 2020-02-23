@@ -18,4 +18,4 @@ def model_dir(root_dir='~/kblocks',
     ]
     if run is not None:
         args.append('run-{:02d}'.format(run))
-    return os.path.join(*args)
+    return os.path.expanduser(os.path.expandvars(os.path.join(*args)))
