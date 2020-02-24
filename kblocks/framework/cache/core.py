@@ -20,9 +20,12 @@ def graph_dataset_iterator(dataset):
 
 
 def dataset_iterator(dataset, as_numpy=None):
+    if hasattr(dataset, 'as_numpy_iterator'):
+        return dataset.as_numpy_iterator()
     if tf.executing_eagerly():
         if as_numpy:
-            return dataset.as_numpy_iterator()
+            return (
+                tf.nest.map_structure(lambda x: x.numpy(), d) for d in dataset)
         else:
             return dataset
     else:
@@ -89,14 +92,18 @@ class BaseCacheManager(object):
             return dataset.cache(path)
 
 
+def _identity(x):
+    return x
+
+
 @gin.configurable(module='kb.framework')
 class ParentManager(CacheManager):
 
     def __init__(self,
                  cache_dir: str,
                  num_children: int,
-                 cycle_length=AUTOTUNE,
-                 block_length=1,
+                 cycle_length=1,
+                 block_length=32,
                  num_parallel_calls=AUTOTUNE,
                  manager_impl=BaseCacheManager):
         self._cache_dir = cache_dir
@@ -129,7 +136,7 @@ class ParentManager(CacheManager):
                  dataset) in zip(self._managers, self._children(dataset))
         ]
         return tf.data.Dataset.from_tensor_slices(datasets).interleave(
-            lambda x: x, **self._interleave_kwargs)
+            _identity, **self._interleave_kwargs)
 
 
 @gin.configurable(module='kb.framework')
@@ -156,3 +163,13 @@ class RepeatCacheManager(ParentManager):
 
     def _children(self, dataset):
         return [dataset] * self._num_repeats
+
+
+@gin.configurable(module='kb.framework')
+def cache_managers(root_dir,
+                   train_impl=BaseCacheManager,
+                   validation_impl=BaseCacheManager):
+    return dict(
+        train=train_impl(os.path.join(root_dir, 'train')),
+        validation=validation_impl(os.path.join(root_dir, 'validation')),
+    )

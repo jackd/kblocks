@@ -1,4 +1,5 @@
 import abc
+from absl import logging
 from typing import Callable, Optional, Mapping
 import tensorflow as tf
 import gin
@@ -38,7 +39,7 @@ class BasePipeline(DataPipeline):
                  pre_cache_map: Optional[Callable] = None,
                  pre_batch_map: Optional[Callable] = None,
                  post_batch_map: Optional[Callable] = None,
-                 cache_impl: Optional[Mapping[str, CacheManager]] = None,
+                 cache_managers: Optional[Mapping[str, CacheManager]] = None,
                  shuffle_buffer: Optional[int] = None,
                  repeats: Optional[int] = None,
                  prefetch_buffer: int = AUTOTUNE,
@@ -55,7 +56,7 @@ class BasePipeline(DataPipeline):
         self._prefetch_buffer = prefetch_buffer
         self._num_parallel_calls = num_parallel_calls
         self._clear_cache = clear_cache
-        self._cache_impl = cache_impl
+        self._cache_managers = cache_managers
         self._drop_remainder = drop_remainder
 
     @property
@@ -83,17 +84,21 @@ class BasePipeline(DataPipeline):
                          split: str) -> tf.data.Dataset:
         with tf.keras.backend.learning_phase_scope(split == 'train'):
             if self._pre_cache_map is not None:
-                cache_impl = (None if self._cache_impl is None else
-                              self._cache_impl.get(split))
-                use_cache = cache_impl is not None
+                cache_managers = (None if self._cache_managers is None else
+                                  self._cache_managers.get(split))
+                use_cache = cache_managers is not None
                 dataset = dataset.map(
                     self._pre_cache_map,
                     1 if use_cache else self._num_parallel_calls)
 
                 if use_cache:
                     if self._clear_cache:
-                        cache_impl.clear()
-                    dataset = cache_impl(dataset)
+                        cache_managers.clear()
+                    dataset = cache_managers(dataset)
+                else:
+                    logging.warning(
+                        '`pre_cache_map` supplied but no `cache_managers` '
+                        'given - not caching.')
 
             if self._repeats != -1:
                 dataset = dataset.repeat(self._repeats)

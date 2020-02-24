@@ -39,15 +39,25 @@ def block_diagonalize_sparse_general(sparse_indices, *offsets):
     return tuple(out)
 
 
-def ragged_to_sparse_indices(rt: tf.RaggedTensor, offset: tf.Tensor
-                            ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+def ragged_to_sparse_indices(
+        rt: tf.RaggedTensor,
+        offset: tf.Tensor,
+        dtype=None,
+) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    if dtype is None:
+        dtype = rt.dtype
+    assert (offset.dtype == dtype)
     assert (isinstance(rt, tf.RaggedTensor))
     rt.shape.assert_has_rank(3)
     assert (rt.ragged_rank == 2)
-    b = rt.value_rowids()
-    i = rt.values.value_rowids()
+    b = tf.ragged.row_splits_to_segment_ids(rt.row_splits, out_type=dtype)
+    i = tf.ragged.row_splits_to_segment_ids(rt.values.row_splits,
+                                            out_type=dtype)
     b = tf.gather(b, i)
-    j = apply_offset(b, rt.flat_values, offset)
+    j = rt.flat_values
+    if j.dtype != dtype:
+        j = tf.cast(j, dtype)
+    j = apply_offset(b, j, offset)
     return b, i, j
 
 

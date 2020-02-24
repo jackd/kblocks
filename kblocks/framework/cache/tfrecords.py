@@ -3,6 +3,7 @@ Simple re-implementation of tf.data.Dataset.cache.
 
 I swear there's a memory leak in the official implementation.
 """
+from typing import Optional
 import os
 from absl import logging
 from tqdm import tqdm
@@ -96,27 +97,15 @@ class TFRecordsCacheManager(core.BaseCacheManager):
     def __init__(self,
                  cache_dir: str,
                  num_shards: int,
-                 num_parallel_reads: int = tf.data.experimental.AUTOTUNE):
+                 num_parallel_reads: Optional[int] = None):
         if num_shards < 1:
             raise ValueError(f'num_shards must be at least 1, got {num_shards}')
         super().__init__(cache_dir=cache_dir)
         self._num_shards = num_shards
+        if num_parallel_reads is None:
+            num_parallel_reads = num_shards
         self._num_parallel_reads = num_parallel_reads
 
     def __call__(self, dataset):
         return _cache_dataset(dataset, self.cache_dir, self._num_shards,
                               self._num_parallel_reads)
-
-
-if __name__ == '__main__':
-    cache_dir = '/tmp/cache_test'
-
-    # dataset = tf.data.Dataset.from_tensor_slices(
-    #     dict(x=tf.range(10), y=10 - tf.range(10)))
-    dataset = tf.data.Dataset.from_tensor_slices(
-        (tf.range(10), 10 - tf.range(10)))
-    manager = TFRecordsCacheManager(cache_dir=cache_dir, num_shards=5)
-    manager.clear()
-    dataset = manager(dataset)
-    for example in dataset:
-        print(tf.nest.map_structure(lambda x: x.numpy(), example))

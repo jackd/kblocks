@@ -5,6 +5,20 @@ import kblocks.ops.sparse as sparse_ops
 
 class SparseOpsTest(tf.test.TestCase):
 
+    def test_ragged_to_sparse_indices(self):
+        values = tf.constant([0, 1, 2, 0, 1, 0, 1, 2, 3], dtype=tf.int64)
+        rs0 = tf.constant([0, 3, 5, 9])
+        rs1 = tf.constant([0, 2, 3])
+        offset = tf.constant([0, 10], dtype=tf.int64)
+
+        rt = tf.RaggedTensor.from_row_splits(values, rs0)
+        rt = tf.RaggedTensor.from_row_splits(rt, rs1)
+
+        b, i, j = self.evaluate(sparse_ops.ragged_to_sparse_indices(rt, offset))
+        np.testing.assert_equal(b, [0, 0, 0, 0, 0, 1, 1, 1, 1])
+        np.testing.assert_equal(i, [0, 0, 0, 1, 1, 2, 2, 2, 2])
+        np.testing.assert_equal(j, [0, 1, 2, 0, 1, 10, 11, 12, 13])
+
     def test_block_diagonalize(self):
         b0 = [0, 0, 0, 0]
         i0 = [0, 2, 2, 3]
