@@ -9,8 +9,7 @@ import tensorflow as tf
 import numpy as np
 
 from kblocks.extras import callbacks as cb
-from kblocks.tf_typing import NestedTensorLikeSpec
-from kblocks.framework.sources import DataSource
+from .sources import DataSource
 # from kblocks.extras.callbacks import log_updater as log_lib
 # from kblocks.extras.callbacks import value_updater as val_lib
 # from kblocks.extras.callbacks.step import StepFnCallback

@@ -31,7 +31,7 @@ def apply_offset(batch_index: tf.Tensor, other_index: tf.Tensor,
 def block_diagonalize_sparse_general(sparse_indices, *offsets):
     if isinstance(sparse_indices, tf.Tensor):
         sparse_indices = tf.unstack(sparse_indices, axis=-1)
-    assert (len(sparse_indices == len(offsets) + 1))
+    assert (len(sparse_indices) == len(offsets) + 1)
     b, *rest = sparse_indices
     out = []
     for index, offset in zip(rest, offsets):

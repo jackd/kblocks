@@ -19,5 +19,6 @@ Conv2D = loc['Conv2D']
 Convolution3D = loc['Convolution3D']
 Conv3D = loc['Conv3D']
 Dropout = loc['Dropout']
+AlphaDropout = loc['AlphaDropout']
 
 del loc, wrap
