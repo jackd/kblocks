@@ -1,10 +1,7 @@
 """
 tf.keras.layers.Lambda wrappers around RaggedComponent constructors/components.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from typing import Iterable, Union, Tuple, NamedTuple, Optional
+from typing import Any, Iterable, Union, Tuple, NamedTuple, Optional, Dict
 import tensorflow as tf
 from kblocks.ops import ragged as ragged_ops
 from kblocks.tf_typing import Dimension
@@ -75,9 +72,9 @@ def from_tensor(tensor: tf.Tensor,
                 ragged_rank: int = 1,
                 name=None,
                 row_splits_dtype=tf.int64):
-    kwargs = dict(name=name,
-                  ragged_rank=ragged_rank,
-                  row_splits_dtype=row_splits_dtype)
+    kwargs: Dict[str, Any] = dict(name=name,
+                                  ragged_rank=ragged_rank,
+                                  row_splits_dtype=row_splits_dtype)
     args = []
     names = []
     for name, value in (
@@ -97,6 +94,10 @@ def from_tensor(tensor: tf.Tensor,
         return tf.RaggedTensor.from_tensor(**kwargs)
 
     return Lambda(f, arguments=kwargs)(args)
+
+
+def nrows(rt: tf.RaggedTensor) -> tf.Tensor:
+    return Lambda(lambda rt: tf.identity(rt.nrows()))(rt)
 
 
 def values(rt: tf.RaggedTensor) -> RTensor:
@@ -153,8 +154,9 @@ def pre_batch_ragged(tensor: tf.Tensor) -> tf.RaggedTensor:
     return Lambda(ragged_ops.pre_batch_ragged)(tensor)
 
 
-def post_batch_ragged(rt: tf.RaggedTensor) -> tf.RaggedTensor:
-    return Lambda(ragged_ops.post_batch_ragged)(rt)
+def post_batch_ragged(rt: tf.RaggedTensor, validate=True) -> tf.RaggedTensor:
+    return Lambda(ragged_ops.post_batch_ragged,
+                  arguments=dict(validate=validate))(rt)
 
 
 def lengths_to_splits(row_lengths: tf.Tensor) -> tf.Tensor:

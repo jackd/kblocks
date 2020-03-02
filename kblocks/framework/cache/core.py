@@ -169,7 +169,10 @@ class RepeatCacheManager(ParentManager):
 def cache_managers(root_dir,
                    train_impl=BaseCacheManager,
                    validation_impl=BaseCacheManager):
-    return dict(
-        train=train_impl(os.path.join(root_dir, 'train')),
-        validation=validation_impl(os.path.join(root_dir, 'validation')),
-    )
+    out = {}
+    if train_impl is not None:
+        out['train'] = train_impl(os.path.join(root_dir, 'train'))
+    if validation_impl is not None:
+        out['validation'] = validation_impl(os.path.join(
+            root_dir, 'validation'))
+    return out

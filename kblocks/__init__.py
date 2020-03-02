@@ -1,6 +1,6 @@
 import sys
 import tensorflow as tf
-from kblocks.version import __version__
+from .version import __version__
 
 if (sys.version_info < (3, 6)):
     raise NotImplementedError('Only python 3.6 onwards supported')
