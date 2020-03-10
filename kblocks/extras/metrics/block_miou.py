@@ -1,8 +1,5 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 from typing import Iterable
+import gin
 import numpy as np
 import tensorflow as tf
 
@@ -30,25 +27,37 @@ def mean_iou(cm: tf.Tensor, dtype: tf.DType = tf.float32):
                                  num_valid_entries)
 
 
+@gin.configurable(module='kb.metrics')
 class BlockMeanIoU(tf.keras.metrics.MeanIoU):
     """
     Calculate MeanIoU averaged over blocks.
 
     Useful for, say, multi-class semantic segmentation, where each class
-    has its own difference semantic labels. Each classes semantic labels are
+    has its own different semantic labels. Each classes semantic labels are
     assumed to be contiguous, so we calculate the mean IoU over each block then
-    average across all blocks.
+    average across all blocks. The last element is the mean iou over the entire
+    confusion matrix.
 
     Args:
         row_splits: iterable of ints
     """
 
-    def __init__(self, row_splits: Iterable[int], name=None, dtype=None):
+    def __init__(self,
+                 row_splits: Iterable[int],
+                 take_argmax=True,
+                 name=None,
+                 dtype=None):
+        self.take_argmax = True
         self.row_splits = tuple(row_splits)
         self.num_blocks = len(self.row_splits) - 1
         super(BlockMeanIoU, self).__init__(num_classes=self.row_splits[-1],
                                            name=name,
                                            dtype=dtype)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        if self.take_argmax:
+            y_pred = tf.argmax(y_pred, axis=-1)
+        return super().update_state(y_true, y_pred, sample_weight)
 
     def result(self):
         out = []
@@ -56,9 +65,9 @@ class BlockMeanIoU(tf.keras.metrics.MeanIoU):
             start, end = self.row_splits[i:i + 2]
             block_cm = self.total_cm[start:end, start:end]
             out.append(mean_iou(block_cm, self.dtype))
-        out.append(np.mean(out))
+        out.append(tf.reduce_mean(out))
         out.append(mean_iou(self.total_cm))
-        return np.array(out)
+        return tf.stack(out, axis=0)
 
     def get_config(self):
         config = super(BlockMeanIoU, self).get_config()

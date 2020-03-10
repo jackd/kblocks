@@ -28,29 +28,48 @@ def _spec_to_placeholder(spec, name=None):
 
 
 def _spec_to_input(spec, name=None):
-    return tf.keras.Input(shape=spec.shape[1:],
-                          batch_size=spec.shape[0],
-                          ragged=isinstance(spec, tf.RaggedTensorSpec),
-                          sparse=isinstance(spec, tf.SparseTensorSpec),
-                          dtype=spec.dtype,
-                          name=name)
+    if isinstance(spec, tf.RaggedTensorSpec):
+        shape = spec._shape
+        dtype = spec._dtype
+    else:
+        shape = spec.shape
+        dtype = spec.dtype
+    inp = tf.keras.Input(shape=shape[1:],
+                         batch_size=shape[0],
+                         ragged=isinstance(spec, tf.RaggedTensorSpec),
+                         sparse=isinstance(spec, tf.SparseTensorSpec),
+                         dtype=dtype,
+                         name=name)
+    if isinstance(spec, tf.RaggedTensorSpec):
+        assert (isinstance(inp, tf.RaggedTensor))
+    return inp
 
 
 def _batched_placeholder_like(x, batch_size=None, name=None):
-    shape = (batch_size, *x.shape)
-    return tf.keras.backend.placeholder(shape=shape,
-                                        dtype=x.dtype,
-                                        sparse=isinstance(x, tf.SparseTensor),
-                                        ragged=isinstance(x, tf.RaggedTensor),
-                                        name=name)
+    shape = [batch_size, *x.shape]
+    if isinstance(x, tf.RaggedTensor):
+        for i in range(x.ragged_rank):
+            shape[i + 2] = None
+
+    out = tf.keras.backend.placeholder(shape=shape,
+                                       dtype=x.dtype,
+                                       sparse=isinstance(x, tf.SparseTensor),
+                                       ragged=isinstance(x, tf.RaggedTensor),
+                                       name=name)
+    if isinstance(x, tf.RaggedTensor):
+        assert (isinstance(out, tf.RaggedTensor))
+    return out
 
 
 def _placeholder_like(x, name=None):
-    return tf.keras.backend.placeholder(shape=x.shape,
-                                        dtype=x.dtype,
-                                        sparse=isinstance(x, tf.SparseTensor),
-                                        ragged=isinstance(x, tf.RaggedTensor),
-                                        name=name)
+    out = tf.keras.backend.placeholder(shape=x.shape,
+                                       dtype=x.dtype,
+                                       sparse=isinstance(x, tf.SparseTensor),
+                                       ragged=isinstance(x, tf.RaggedTensor),
+                                       name=name)
+    if isinstance(x, tf.RaggedTensor):
+        assert (isinstance(out, tf.RaggedTensor))
+    return out
 
 
 def flatten_inputs(fn, input_structure, expand_composites=False):

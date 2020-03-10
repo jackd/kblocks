@@ -52,6 +52,7 @@ def continuous_mean_iou_loss(y_true: tf.Tensor,
         y_pred = tf.convert_to_tensor(y_pred)
         if from_logits:
             y_pred = tf.nn.softmax(y_pred, axis=-1)
+
         num_classes = y_pred.shape[-1]
         if y_true.shape.ndims != 1:
             y_true = tf.reshape(y_true, (-1,))
@@ -72,6 +73,9 @@ def continuous_mean_iou_loss(y_true: tf.Tensor,
         intersections = tf.linalg.diag_part(continuous_cm)
         unions = (tf.reduce_sum(continuous_cm, axis=0) +
                   tf.reduce_sum(continuous_cm, axis=1)) - intersections
+        valid = tf.greater(unions, 0)
+        intersections = tf.boolean_mask(intersections, valid)
+        unions = tf.boolean_mask(unions, valid)
         ious = intersections / unions
         return 1 - tf.reduce_mean(ious)
 
