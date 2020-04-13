@@ -52,10 +52,11 @@ def _get_epochs(epochs: Optional[int], total_train_steps: Optional[int],
 @gin.configurable(module='kb.framework')
 def base_trainable(source: DataSource,
                    model_fn: Callable,
-                   compiler: Callable[[tf.keras.Model], Any],
+                   compiler: Optional[Callable[[tf.keras.Model], Any]],
                    model_dir: Optional[str] = None):
     model = model_fn(source.example_spec[0], **source.meta)
-    compiler(model)
+    if compiler is not None:
+        compiler(model)
     return Trainable(source, model, model_dir)
 
 
