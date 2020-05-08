@@ -9,9 +9,8 @@ from typing import Iterable, Tuple, Dict, Any, Union
 Constraint = tf.keras.constraints.Constraint
 
 
-@gin.configurable(module='kb.constraints')
+@gin.configurable(module="kb.constraints")
 class CompoundConstraint(Constraint):
-
     def __init__(self, constraints: Iterable[Constraint]):
         self._constraints = tuple(constraints)
 
@@ -37,9 +36,8 @@ def compound_constraint(*constraints):
         return CompoundConstraint(constraints)
 
 
-@gin.configurable(module='kb.constraints')
+@gin.configurable(module="kb.constraints")
 class AtLeast(Constraint):
-
     def __init__(self, value: Union[int, float]):
         self._value = value
 
@@ -54,9 +52,8 @@ class AtLeast(Constraint):
         return tf.minimum(w, self._value)
 
 
-@gin.configurable(module='kb.constraints')
+@gin.configurable(module="kb.constraints")
 class AtMost(Constraint):
-
     def __init__(self, value: Union[int, float]):
         self._value = value
 
@@ -71,7 +68,7 @@ class AtMost(Constraint):
         return tf.maximum(w, self._value)
 
 
-@gin.configurable(module='kb.constraints')
+@gin.configurable(module="kb.constraints")
 class WeightDecay(Constraint):
     """Equivalent to regularizers.l2(decay/2) when using SGD."""
 
@@ -88,9 +85,8 @@ class WeightDecay(Constraint):
         return w
 
 
-@gin.configurable(module='kb.constraints')
+@gin.configurable(module="kb.constraints")
 class ScheduleConstraint(Constraint):
-
     def __init__(self, schedule):
         if not callable(schedule):
             schedule = tf.keras.optimizers.schedules.deserialize(schedule)
@@ -98,8 +94,7 @@ class ScheduleConstraint(Constraint):
 
     def get_config(self):
         out = super(ScheduleConstraint, self).get_config()
-        out['schedule'] = tf.keras.optimizers.schedules.serialize(
-            self._schedule)
+        out["schedule"] = tf.keras.optimizers.schedules.serialize(self._schedule)
         return out
 
     def __call__(self, w: tf.Tensor) -> tf.Tensor:

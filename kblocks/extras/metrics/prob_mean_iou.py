@@ -7,14 +7,15 @@ import tensorflow as tf
 from typing import Optional
 
 
-@gin.configurable(module='kb.metrics')
+@gin.configurable(module="kb.metrics")
 class ProbMeanIoU(tf.keras.metrics.MeanIoU):
     """tf.keras.metrics.MeanIoU wrapper that takes probabilities/logits."""
 
-    def update_state(self,
-                     y_true: tf.Tensor,
-                     y_pred: tf.Tensor,
-                     sample_weight: Optional[tf.Tensor] = None):
+    def update_state(
+        self,
+        y_true: tf.Tensor,
+        y_pred: tf.Tensor,
+        sample_weight: Optional[tf.Tensor] = None,
+    ):
         y_pred = tf.argmax(y_pred, axis=-1)
-        return super(ProbMeanIoU, self).update_state(y_true, y_pred,
-                                                     sample_weight)
+        return super(ProbMeanIoU, self).update_state(y_true, y_pred, sample_weight)

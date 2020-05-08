@@ -5,18 +5,20 @@ from tensorflow.python.framework import tensor_util
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops.ragged import segment_id_ops
+
 # pylint: enable=import-error,no-name-in-module
 
 
 class RaggedStructure(object):
-
-  def __init__(self,
-               row_splits,
-               cached_row_lengths=None,
-               cached_value_rowids=None,
-               cached_nrows=None,
-               internal=False):
-    """Creates a `RaggedStructure` with a specified partitioning for `values`.
+    def __init__(
+        self,
+        row_splits,
+        cached_row_lengths=None,
+        cached_value_rowids=None,
+        cached_nrows=None,
+        internal=False,
+    ):
+        """Creates a `RaggedStructure` with a specified partitioning for `values`.
 
     This constructor is private -- please use one of the following ops to
     build `RaggedStructure`s:
@@ -43,36 +45,38 @@ class RaggedStructure(object):
       ValueError: If multiple partitioning arguments are specified.
       ValueError: If nrows is specified but value_rowids is not None.
     """
-    if not internal:
-      raise ValueError("RaggedTensor constructor is private; please use one "
-                       "of the factory methods instead (e.g., "
-                       "RaggedTensor.from_row_lengths())")
+        if not internal:
+            raise ValueError(
+                "RaggedTensor constructor is private; please use one "
+                "of the factory methods instead (e.g., "
+                "RaggedTensor.from_row_lengths())"
+            )
 
-    # Validate the arguments.
-    if not isinstance(row_splits, ops.Tensor):
-      raise TypeError("Row-partitioning argument must be a Tensor.")
-    row_splits.shape.assert_has_rank(1)
-    row_splits.set_shape([None])
+        # Validate the arguments.
+        if not isinstance(row_splits, ops.Tensor):
+            raise TypeError("Row-partitioning argument must be a Tensor.")
+        row_splits.shape.assert_has_rank(1)
+        row_splits.set_shape([None])
 
-    self._row_splits = row_splits
+        self._row_splits = row_splits
 
-    # Store any cached tensors.  These are used to avoid unnecessary
-    # round-trip conversions when a RaggedTensor is constructed from
-    # lengths or rowids, and we later want those lengths/rowids back.
-    for tensor in [cached_row_lengths, cached_value_rowids, cached_nrows]:
-      if tensor is not None and not isinstance(tensor, ops.Tensor):
-        raise TypeError("Cached value must be a Tensor or None.")
-    self._cached_row_lengths = cached_row_lengths
-    self._cached_value_rowids = cached_value_rowids
-    self._cached_nrows = cached_nrows
+        # Store any cached tensors.  These are used to avoid unnecessary
+        # round-trip conversions when a RaggedTensor is constructed from
+        # lengths or rowids, and we later want those lengths/rowids back.
+        for tensor in [cached_row_lengths, cached_value_rowids, cached_nrows]:
+            if tensor is not None and not isinstance(tensor, ops.Tensor):
+                raise TypeError("Cached value must be a Tensor or None.")
+        self._cached_row_lengths = cached_row_lengths
+        self._cached_value_rowids = cached_value_rowids
+        self._cached_nrows = cached_nrows
 
-  #=============================================================================
-  # Factory Methods
-  #=============================================================================
+    # =============================================================================
+    # Factory Methods
+    # =============================================================================
 
-  @classmethod
-  def from_value_rowids(cls, value_rowids, nrows=None, name=None):
-    """Creates a `RaggedStructure` with rows partitioned by `value_rowids`.
+    @classmethod
+    def from_value_rowids(cls, value_rowids, nrows=None, name=None):
+        """Creates a `RaggedStructure` with rows partitioned by `value_rowids`.
 
     The returned `RaggedStructure` corresponds with provied value_rowids. The
     corresponding `RaggedTensor` would be given by
@@ -111,61 +115,66 @@ class RaggedStructure(object):
       <tf.RaggedStructure [0, 4, 7, 10]>
       ```
     """
-    with ops.name_scope(name, "RaggedFromValueRowIds",
-                        [value_rowids, nrows]):
-      value_rowids = ops.convert_to_tensor(
-          value_rowids, dtypes.int64, name="value_rowids")
-      if nrows is None:
-        const_rowids = tensor_util.constant_value(value_rowids)
-        if const_rowids is None:
-          nrows = array_ops.concat([value_rowids[-1:], [-1]], axis=0)[0] + 1
-          const_nrows = None
-        else:
-          const_nrows = const_rowids[-1] + 1 if const_rowids.size > 0 else 0
-          nrows = ops.convert_to_tensor(const_nrows, dtypes.int64, name="nrows")
-      else:
-        nrows = ops.convert_to_tensor(nrows, dtypes.int64, "nrows")
-        const_nrows = tensor_util.constant_value(nrows)
-        if const_nrows is not None:
-          if const_nrows < 0:
-            raise ValueError("Expected nrows >= 0; got %d" % const_nrows)
-          const_rowids = tensor_util.constant_value(value_rowids)
-          if const_rowids is not None and const_rowids.size > 0:
-            if not const_nrows >= const_rowids[-1] + 1:
-              raise ValueError(
-                  "Expected nrows >= value_rowids[-1] + 1; got nrows=%d, "
-                  "value_rowids[-1]=%d" % (const_nrows, const_rowids[-1]))
+        with ops.name_scope(name, "RaggedFromValueRowIds", [value_rowids, nrows]):
+            value_rowids = ops.convert_to_tensor(
+                value_rowids, dtypes.int64, name="value_rowids"
+            )
+            if nrows is None:
+                const_rowids = tensor_util.constant_value(value_rowids)
+                if const_rowids is None:
+                    nrows = array_ops.concat([value_rowids[-1:], [-1]], axis=0)[0] + 1
+                    const_nrows = None
+                else:
+                    const_nrows = const_rowids[-1] + 1 if const_rowids.size > 0 else 0
+                    nrows = ops.convert_to_tensor(
+                        const_nrows, dtypes.int64, name="nrows"
+                    )
+            else:
+                nrows = ops.convert_to_tensor(nrows, dtypes.int64, "nrows")
+                const_nrows = tensor_util.constant_value(nrows)
+                if const_nrows is not None:
+                    if const_nrows < 0:
+                        raise ValueError("Expected nrows >= 0; got %d" % const_nrows)
+                    const_rowids = tensor_util.constant_value(value_rowids)
+                    if const_rowids is not None and const_rowids.size > 0:
+                        if not const_nrows >= const_rowids[-1] + 1:
+                            raise ValueError(
+                                "Expected nrows >= value_rowids[-1] + 1; got nrows=%d, "
+                                "value_rowids[-1]=%d" % (const_nrows, const_rowids[-1])
+                            )
 
-      value_rowids.shape.assert_has_rank(1)
-      nrows.shape.assert_has_rank(0)
+            value_rowids.shape.assert_has_rank(1)
+            nrows.shape.assert_has_rank(0)
 
-      # Convert value_rowids & nrows to row_splits.
-      # Note: we don't use segment_ids_to_row_splits() here because we want
-      # to save the intermediate value `row_lengths`, so we can cache it.
-      # TODO(b/116708836) Upgrade bincount to accept int64 so we can skip the
-      # cast (Remove the warning in the docstring when we do.)
-      value_rowids_int32 = math_ops.cast(value_rowids, dtypes.int32)
-      nrows_int32 = math_ops.cast(nrows, dtypes.int32)
-      row_lengths = math_ops.bincount(
-          value_rowids_int32,
-          minlength=nrows_int32,
-          maxlength=nrows_int32,
-          dtype=dtypes.int64)
-      row_splits = array_ops.concat([[0], math_ops.cumsum(row_lengths)], axis=0)
-      if const_nrows is not None:
-        row_lengths.set_shape([const_nrows])
-        row_splits.set_shape([const_nrows + 1])
+            # Convert value_rowids & nrows to row_splits.
+            # Note: we don't use segment_ids_to_row_splits() here because we want
+            # to save the intermediate value `row_lengths`, so we can cache it.
+            # TODO(b/116708836) Upgrade bincount to accept int64 so we can skip the
+            # cast (Remove the warning in the docstring when we do.)
+            value_rowids_int32 = math_ops.cast(value_rowids, dtypes.int32)
+            nrows_int32 = math_ops.cast(nrows, dtypes.int32)
+            row_lengths = math_ops.bincount(
+                value_rowids_int32,
+                minlength=nrows_int32,
+                maxlength=nrows_int32,
+                dtype=dtypes.int64,
+            )
+            row_splits = array_ops.concat([[0], math_ops.cumsum(row_lengths)], axis=0)
+            if const_nrows is not None:
+                row_lengths.set_shape([const_nrows])
+                row_splits.set_shape([const_nrows + 1])
 
-      return cls(
-          row_splits,
-          cached_row_lengths=row_lengths,
-          cached_value_rowids=value_rowids,
-          cached_nrows=nrows,
-          internal=True)
+            return cls(
+                row_splits,
+                cached_row_lengths=row_lengths,
+                cached_value_rowids=value_rowids,
+                cached_nrows=nrows,
+                internal=True,
+            )
 
-  @classmethod
-  def from_row_splits(cls, row_splits, name=None):
-    """Creates a `RaggedStructure` with rows partitioned by `row_splits`.
+    @classmethod
+    def from_row_splits(cls, row_splits, name=None):
+        """Creates a `RaggedStructure` with rows partitioned by `row_splits`.
 
     The returned `RaggedStructure` corresponds with the python list defined by:
 
@@ -193,16 +202,16 @@ class RaggedStructure(object):
       <tf.RaggedTensor [0, 4, 4, 7, 8, 8]>
       ```
     """
-    if isinstance(row_splits, (list, tuple)) and not row_splits:
-      raise ValueError("row_splits tensor may not be empty.")
-    with ops.name_scope(name, "RaggedFromRowSplits", [row_splits]):
-      row_splits = ops.convert_to_tensor(row_splits, dtypes.int64, "row_splits")
-      row_splits.shape.assert_has_rank(1)
-      return cls(row_splits=row_splits, internal=True)
+        if isinstance(row_splits, (list, tuple)) and not row_splits:
+            raise ValueError("row_splits tensor may not be empty.")
+        with ops.name_scope(name, "RaggedFromRowSplits", [row_splits]):
+            row_splits = ops.convert_to_tensor(row_splits, dtypes.int64, "row_splits")
+            row_splits.shape.assert_has_rank(1)
+            return cls(row_splits=row_splits, internal=True)
 
-  @classmethod
-  def from_row_lengths(cls, row_lengths, name=None):
-    """Creates a `RaggedStructure` with rows partitioned by `row_lengths`.
+    @classmethod
+    def from_row_lengths(cls, row_lengths, name=None):
+        """Creates a `RaggedStructure` with rows partitioned by `row_lengths`.
 
     The returned `RaggedStructure` corresponds with the python list defined by:
 
@@ -226,20 +235,20 @@ class RaggedStructure(object):
       <tf.RaggedStructure [0, 4, 7, 8, 8])>
       ```
     """
-    with ops.name_scope(name, "RaggedFromRowLengths", [row_lengths]):
-      row_lengths = ops.convert_to_tensor(row_lengths, dtypes.int64,
-                                          "row_lengths")
-      row_lengths.shape.assert_has_rank(1)
-      row_limits = math_ops.cumsum(row_lengths)
-      row_splits = array_ops.concat([[0], row_limits], axis=0)
-      return cls(
-          row_splits=row_splits,
-          cached_row_lengths=row_lengths,
-          internal=True)
+        with ops.name_scope(name, "RaggedFromRowLengths", [row_lengths]):
+            row_lengths = ops.convert_to_tensor(
+                row_lengths, dtypes.int64, "row_lengths"
+            )
+            row_lengths.shape.assert_has_rank(1)
+            row_limits = math_ops.cumsum(row_lengths)
+            row_splits = array_ops.concat([[0], row_limits], axis=0)
+            return cls(
+                row_splits=row_splits, cached_row_lengths=row_lengths, internal=True
+            )
 
-  @classmethod
-  def from_row_starts(cls, row_starts, nvals, name=None):
-    """Creates a `RaggedStructure` with rows partitioned by `row_starts`.
+    @classmethod
+    def from_row_starts(cls, row_starts, nvals, name=None):
+        """Creates a `RaggedStructure` with rows partitioned by `row_starts`.
 
     Equivalent to: `from_row_splits(concat([row_starts, nvals]))`.
 
@@ -262,15 +271,15 @@ class RaggedStructure(object):
       <tf.RaggedTensor [[3, 1, 4, 1], [], [5, 9, 2], [6], []]>
       ```
     """
-    with ops.name_scope(name, "RaggedFromRowStarts", [row_starts]):
-      row_starts = ops.convert_to_tensor(row_starts, dtypes.int64, "row_starts")
-      row_starts.shape.assert_has_rank(1)
-      row_splits = array_ops.concat([row_starts, nvals], axis=0)
-      return cls(row_splits=row_splits, internal=True)
+        with ops.name_scope(name, "RaggedFromRowStarts", [row_starts]):
+            row_starts = ops.convert_to_tensor(row_starts, dtypes.int64, "row_starts")
+            row_starts.shape.assert_has_rank(1)
+            row_splits = array_ops.concat([row_starts, nvals], axis=0)
+            return cls(row_splits=row_splits, internal=True)
 
-  @classmethod
-  def from_row_limits(cls,  row_limits, name=None):
-    """Creates a `RaggedTensor` with rows partitioned by `row_limits`.
+    @classmethod
+    def from_row_limits(cls, row_limits, name=None):
+        """Creates a `RaggedTensor` with rows partitioned by `row_limits`.
 
     Equivalent to: `from_row_splits(values, concat([0, row_limits]))`.
 
@@ -291,16 +300,16 @@ class RaggedStructure(object):
       <tf.RaggedTensor [[3, 1, 4, 1], [], [5, 9, 2], [6], []]>
       ```
     """
-    with ops.name_scope(name, "RaggedFromRowLimits", [row_limits]):
-      row_limits = ops.convert_to_tensor(row_limits, dtypes.int64, "row_limits")
-      row_limits.shape.assert_has_rank(1)
-      zero = array_ops.zeros([1], dtypes.int64)
-      row_splits = array_ops.concat([zero, row_limits], axis=0)
-      return cls(row_splits=row_splits, internal=True)
+        with ops.name_scope(name, "RaggedFromRowLimits", [row_limits]):
+            row_limits = ops.convert_to_tensor(row_limits, dtypes.int64, "row_limits")
+            row_limits.shape.assert_has_rank(1)
+            zero = array_ops.zeros([1], dtypes.int64)
+            row_splits = array_ops.concat([zero, row_limits], axis=0)
+            return cls(row_splits=row_splits, internal=True)
 
-  @property
-  def row_splits(self):
-    """The row-split indices for this ragged tensor's `values`.
+    @property
+    def row_splits(self):
+        """The row-split indices for this ragged tensor's `values`.
 
     `rt.row_splits` specifies where the values for each row begin and end in
     `rt.values`.  In particular, the values for row `rt[i]` are stored in
@@ -319,10 +328,10 @@ class RaggedStructure(object):
       tf.Tensor([0, 4, 4, 7, 8, 8])
       ```
     """
-    return self._row_splits
+        return self._row_splits
 
-  def value_rowids(self, name=None):
-    """Returns the row indices for the `values` in this ragged tensor.
+    def value_rowids(self, name=None):
+        """Returns the row indices for the `values` in this ragged tensor.
 
     `rt.value_rowids()` corresponds one-to-one with the outermost dimension of
     `rt.values`, and specifies the row containing each value.  In particular,
@@ -345,15 +354,15 @@ class RaggedStructure(object):
       tf.Tensor([0, 0, 0, 0, 2, 2, 2, 3])  # corresponds 1:1 with rt.values
       ```
     """
-    if self._cached_value_rowids is None:
-      with ops.name_scope(name, "RaggedValueRowIds", [self]):
-        self._cached_value_rowids = segment_id_ops.row_splits_to_segment_ids(self.row_splits)
-    return self._cached_value_rowids
+        if self._cached_value_rowids is None:
+            with ops.name_scope(name, "RaggedValueRowIds", [self]):
+                self._cached_value_rowids = segment_id_ops.row_splits_to_segment_ids(
+                    self.row_splits
+                )
+        return self._cached_value_rowids
 
-
-
-  def nrows(self, out_type=dtypes.int64, name=None):
-    """Returns the number of rows in this ragged tensor.
+    def nrows(self, out_type=dtypes.int64, name=None):
+        """Returns the number of rows in this ragged tensor.
 
     I.e., the size of the outermost dimension of the tensor.
 
@@ -371,14 +380,15 @@ class RaggedStructure(object):
       5
       ```
     """
-    if self._cached_nrows is None:
-      with ops.name_scope(name, "RaggedNRows", [self]):
-        self._cached_nrows = array_ops.shape(
-            self.row_splits, out_type=out_type)[0] - 1
-    return self._cached_nrows
+        if self._cached_nrows is None:
+            with ops.name_scope(name, "RaggedNRows", [self]):
+                self._cached_nrows = (
+                    array_ops.shape(self.row_splits, out_type=out_type)[0] - 1
+                )
+        return self._cached_nrows
 
-  def row_starts(self, name=None):
-    """Returns the start indices for rows in this ragged tensor.
+    def row_starts(self, name=None):
+        """Returns the start indices for rows in this ragged tensor.
 
     These indices specify where the values for each row begin in
     `self.values`.  `rt.row_starts()` is equal to `rt.row_splits[:-1]`.
@@ -399,11 +409,11 @@ class RaggedStructure(object):
       tf.Tensor([0, 4, 4, 7, 8])
       ```
     """
-    with ops.name_scope(name, "RaggedRowStarts", [self]):
-      return self.row_splits[:-1]
+        with ops.name_scope(name, "RaggedRowStarts", [self]):
+            return self.row_splits[:-1]
 
-  def row_limits(self, name=None):
-    """Returns the limit indices for rows in this ragged tensor.
+    def row_limits(self, name=None):
+        """Returns the limit indices for rows in this ragged tensor.
 
     These indices specify where the values for each row end in
     `self.values`.  `rt.row_limits(self)` is equal to `rt.row_splits[:-1]`.
@@ -424,11 +434,11 @@ class RaggedStructure(object):
       tf.Tensor([4, 4, 7, 8, 8])
       ```
     """
-    with ops.name_scope(name, "RaggedRowLimits", [self]):
-      return self.row_splits[1:]
+        with ops.name_scope(name, "RaggedRowLimits", [self]):
+            return self.row_splits[1:]
 
-  def row_lengths(self, name=None):
-    """Returns the lengths of the rows in this ragged tensor.
+    def row_lengths(self, name=None):
+        """Returns the lengths of the rows in this ragged tensor.
 
     `rt.row_lengths()[i]` indicates the number of values in the
     `i`th row of `rt`.
@@ -451,14 +461,14 @@ class RaggedStructure(object):
       <tf.RaggedTensor [[3, 1], [], [2, 1], [1], []]>
       ```
     """
-    if self._cached_row_lengths is None:
-      with ops.name_scope(name, "RaggedRowLengths", [self]):
-        splits = self.row_splits
-        self._cached_row_lengths = splits[1:] - splits[:-1]
-    return self._cached_row_lengths
+        if self._cached_row_lengths is None:
+            with ops.name_scope(name, "RaggedRowLengths", [self]):
+                splits = self.row_splits
+                self._cached_row_lengths = splits[1:] - splits[:-1]
+        return self._cached_row_lengths
 
-  def __str__(self):
-    return "<tf.RaggedStructure %s>" % self.row_splits
+    def __str__(self):
+        return "<tf.RaggedStructure %s>" % self.row_splits
 
-  def __repr__(self):
-    return "tf.RaggedStructure( %s)" % self._row_splits
+    def __repr__(self):
+        return "tf.RaggedStructure( %s)" % self._row_splits

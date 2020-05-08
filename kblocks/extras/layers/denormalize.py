@@ -8,13 +8,11 @@ from kblocks.extras.layers import Scale
 import gin
 
 
-@gin.configurable(module='kb.extras.layers')
+@gin.configurable(module="kb.extras.layers")
 class Denormalization(tf.keras.layers.Layer):
-
-    def __init__(self,
-                 bias: Optional[BiasAdd] = None,
-                 scale: Optional[Scale] = None,
-                 **kwargs):
+    def __init__(
+        self, bias: Optional[BiasAdd] = None, scale: Optional[Scale] = None, **kwargs
+    ):
         super(Denormalization, self).__init__(**kwargs)
         if bias is None:
             bias = BiasAdd()
@@ -24,8 +22,8 @@ class Denormalization(tf.keras.layers.Layer):
             scale = Scale()
         elif isinstance(scale, dict):
             scale = Scale.from_config(scale)
-        assert (isinstance(scale, Scale))
-        assert (isinstance(bias, BiasAdd))
+        assert isinstance(scale, Scale)
+        assert isinstance(bias, BiasAdd)
         self.bias = bias
         self.scale = scale
 
@@ -40,8 +38,8 @@ class Denormalization(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super(Denormalization, self).get_config()
-        config['scale'] = self.scale.get_config()
-        config['bias'] = self.bias.get_config()
+        config["scale"] = self.scale.get_config()
+        config["bias"] = self.bias.get_config()
         return config
 
 

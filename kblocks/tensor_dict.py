@@ -4,34 +4,36 @@ import collections
 from kblocks.tf_typing import TensorLike
 from typing import MutableMapping
 
-RaggedComponents = collections.namedtuple('RaggedComponents',
-                                          ['flat_values', 'nested_row_splits'])
+RaggedComponents = collections.namedtuple(
+    "RaggedComponents", ["flat_values", "nested_row_splits"]
+)
 
-SparseComponents = collections.namedtuple('SparseComponents',
-                                          ['indices', 'values'])
+SparseComponents = collections.namedtuple("SparseComponents", ["indices", "values"])
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 def _tensor_key(x):
     if isinstance(x, tf.RaggedTensor):
         return RaggedComponents(
             x.flat_values.experimental_ref(),
-            tuple(rs.experimental_ref() for rs in x.nested_row_splits))
+            tuple(rs.experimental_ref() for rs in x.nested_row_splits),
+        )
     elif isinstance(x, tf.SparseTensor):
-        return SparseComponents(x.indices.experimental_ref(),
-                                x.values.experimental_ref())
+        return SparseComponents(
+            x.indices.experimental_ref(), x.values.experimental_ref()
+        )
     elif isinstance(x, (tf.Tensor, tf.Variable)):
         return x.experimental_ref()
     else:
         raise KeyError(
-            'x must be a Tensor, Variable, SparseTensor or RaggedTensor, got {}'
-            .format(x))
+            "x must be a Tensor, Variable, SparseTensor or RaggedTensor, got {}".format(
+                x
+            )
+        )
 
 
-class TensorDict(Generic[T], MutableMapping[TensorLike, T],
-                 collections.MutableMapping):
-
+class TensorDict(Generic[T], MutableMapping[TensorLike, T], collections.MutableMapping):
     def __init__(self, **kwargs):
         self._base = {}
         self._compounds = {}
@@ -55,7 +57,6 @@ class TensorDict(Generic[T], MutableMapping[TensorLike, T],
             del self._compounds[key_ref]
 
     def __iter__(self):
-
         def gen():
             for k in self._base:
                 if isinstance(k, (RaggedComponents, SparseComponents)):

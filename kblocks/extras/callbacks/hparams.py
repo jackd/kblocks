@@ -7,7 +7,6 @@ from kblocks.scope import Scope
 
 
 class HParamsBuilder(object):
-
     def __init__(self):
         self._hparams = {}
 
@@ -22,7 +21,7 @@ class HParamsBuilder(object):
         return hp.KerasCallback(log_dir, self.hparams)
 
 
-scope = Scope[HParamsBuilder](HParamsBuilder(), name='hparams')
+scope = Scope[HParamsBuilder](HParamsBuilder(), name="hparams")
 get_default = scope.get_default
 
 
@@ -34,7 +33,7 @@ def get_hparams():
     return get_default().hparams
 
 
-@gin.configurable(module='kb.callbacks')
+@gin.configurable(module="kb.callbacks")
 def hp_callback(log_dir, hparams=None):
     return get_default().keras_callback(log_dir)
 

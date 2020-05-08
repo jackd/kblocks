@@ -11,7 +11,7 @@ from kblocks.gin_utils.config import fix_bindings
 
 from typing import Union, Iterable, Mapping
 
-_GIN_SUMMARY = '''
+_GIN_SUMMARY = """
 # --cwd={cwd}
 # --incl_rel={incl_rel}
 # --expand_vars={expand_vars}
@@ -23,7 +23,7 @@ _GIN_SUMMARY = '''
 # -------------------
 # BINDINGS
 {bindings}
-'''
+"""
 
 
 class GinSummary(object):
@@ -39,12 +39,14 @@ class GinSummary(object):
         bindings: additional bindings to be set after files are parsed.
     """
 
-    def __init__(self,
-                 cwd: Optional[str] = None,
-                 incl_rel: bool = True,
-                 expand_vars: bool = True,
-                 config_files: Union[str, Iterable[str]] = [],
-                 bindings: Union[str, Iterable[str]] = []):
+    def __init__(
+        self,
+        cwd: Optional[str] = None,
+        incl_rel: bool = True,
+        expand_vars: bool = True,
+        config_files: Union[str, Iterable[str]] = [],
+        bindings: Union[str, Iterable[str]] = [],
+    ):
         self.cwd = os.getcwd() if cwd is None else cwd
         self.incl_rel = incl_rel
         self.expand_vars = expand_vars
@@ -68,9 +70,9 @@ class GinSummary(object):
     def pretty_format(self):
         """Multi-line human readable string representation."""
         config = self.get_config()
-        files = config['config_files']
-        assert (isinstance(files, list))
-        config['config_files'] = '\n'.join(files)
+        files = config["config_files"]
+        assert isinstance(files, list)
+        config["config_files"] = "\n".join(files)
         return _GIN_SUMMARY.format(**config)
 
     def enable_path_options(self):
@@ -82,6 +84,6 @@ class GinSummary(object):
 
     def parse(self, finalize: bool = True):
         """Parse files/bindings provided in constructor."""
-        gin.parse_config_files_and_bindings(self.config_files,
-                                            self.bindings,
-                                            finalize_config=finalize)
+        gin.parse_config_files_and_bindings(
+            self.config_files, self.bindings, finalize_config=finalize
+        )

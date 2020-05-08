@@ -6,10 +6,10 @@ from kblocks.extras.losses.lovasz import lovasz
 from kblocks.extras.losses.lovasz import Lovasz
 
 __all__ = [
-    'continuous_binary_iou_loss',
-    'continuous_mean_iou_loss',
-    'ContinuousBinaryIouLoss',
-    'ContinuousMeanIouLoss',
-    'lovasz',
-    'Lovasz',
+    "continuous_binary_iou_loss",
+    "continuous_mean_iou_loss",
+    "ContinuousBinaryIouLoss",
+    "ContinuousMeanIouLoss",
+    "lovasz",
+    "Lovasz",
 ]

@@ -7,54 +7,60 @@ import gin
 from absl import logging
 from typing import Optional, Any
 
-DEFAULT = '__default__'
+DEFAULT = "__default__"
 
 
 class UpdateFrequency(object):
-    BATCH = 'batch'
-    EPOCH = 'epoch'
+    BATCH = "batch"
+    EPOCH = "epoch"
 
     @classmethod
     def validate(cls, freq):
         if freq not in (cls.BATCH, cls.EPOCH):
             raise ValueError(
                 'Invalid frequency "{}" - must be one of {}'.format(
-                    freq, (cls.BATCH, cls.EPOCH)))
+                    freq, (cls.BATCH, cls.EPOCH)
+                )
+            )
 
 
-@gin.configurable(module='kb.utils')
+@gin.configurable(module="kb.utils")
 def identity(x):
     return x
 
 
-@gin.configurable(module='kb.utils')
-def ray_init(redis_address: Optional[str] = DEFAULT,
-             num_cpus: Optional[int] = None,
-             num_gpus: Optional[int] = None,
-             local_mode: bool = False,
-             **kwargs):
+@gin.configurable(module="kb.utils")
+def ray_init(
+    redis_address: Optional[str] = DEFAULT,
+    num_cpus: Optional[int] = None,
+    num_gpus: Optional[int] = None,
+    local_mode: bool = False,
+    **kwargs
+):
     try:
         import ray
     except ImportError:
-        raise ImportError('Failed to import optional dependency ray')
+        raise ImportError("Failed to import optional dependency ray")
     if redis_address == DEFAULT:
-        redis_address = os.environ.get('REDIS_ADDRESS')
-    return ray.init(redis_address,
-                    num_cpus=num_cpus,
-                    num_gpus=num_gpus,
-                    local_mode=local_mode,
-                    **kwargs)
+        redis_address = os.environ.get("REDIS_ADDRESS")
+    return ray.init(
+        redis_address,
+        num_cpus=num_cpus,
+        num_gpus=num_gpus,
+        local_mode=local_mode,
+        **kwargs
+    )
 
 
-@gin.configurable(module='kb.utils')
-def proc(title: str = 'kblocks'):
+@gin.configurable(module="kb.utils")
+def proc(title: str = "kblocks"):
     if title is not None:
         try:
             import setproctitle
+
             setproctitle.setproctitle(title)
         except ImportError:
-            logging.warning(
-                'Failed to import `setproctitle` - cannot change title.')
+            logging.warning("Failed to import `setproctitle` - cannot change title.")
 
 
 class memoized_property(property):  # pylint: disable=invalid-name

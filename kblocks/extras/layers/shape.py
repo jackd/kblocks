@@ -24,21 +24,22 @@ def size(x: tf.Tensor, out_type=tf.int64):
 
 
 def dimension(x: TensorLike, axis=0, out_type=tf.int64) -> tf.Tensor:
-    return Lambda(shape_ops.dimension,
-                  arguments=dict(axis=axis, out_type=out_type))(x)
+    return Lambda(shape_ops.dimension, arguments=dict(axis=axis, out_type=out_type))(x)
 
 
-def flatten_leading_dims(x: TensorLike,
-                         num_dims: int = 2,
-                         leading_dim: Dimension = -1):
-    assert (isinstance(num_dims, int))
+def flatten_leading_dims(x: TensorLike, num_dims: int = 2, leading_dim: Dimension = -1):
+    assert isinstance(num_dims, int)
     if isinstance(leading_dim, int):
-        return Lambda(shape_ops.flatten_leading_dims,
-                      arguments=dict(num_dims=num_dims,
-                                     leading_dim=leading_dim))(x)
+        return Lambda(
+            shape_ops.flatten_leading_dims,
+            arguments=dict(num_dims=num_dims, leading_dim=leading_dim),
+        )(x)
     else:
-        return Lambda(lambda args: shape_ops.flatten_leading_dims(
-            args[0], num_dims=num_dims, leading_dim=args[1]))([x, leading_dim])
+        return Lambda(
+            lambda args: shape_ops.flatten_leading_dims(
+                args[0], num_dims=num_dims, leading_dim=args[1]
+            )
+        )([x, leading_dim])
 
 
 def reshape_leading_dim(x: TensorLike, dims: Iterable[Dimension]):
@@ -66,11 +67,12 @@ def reshape_leading_dim(x: TensorLike, dims: Iterable[Dimension]):
     return Lambda(f, arguments=dict(rest=rest))(args)
 
 
-def as_batched(x: TensorLike,
-               batch_size: Dimension = -1,
-               element_size: Dimension = -1):
-    if isinstance(element_size, int) and element_size == -1 and isinstance(
-            batch_size, int) and batch_size == -1:
-        raise ValueError(
-            'At most one of `batch_size` and `element_size` can be -1')
+def as_batched(x: TensorLike, batch_size: Dimension = -1, element_size: Dimension = -1):
+    if (
+        isinstance(element_size, int)
+        and element_size == -1
+        and isinstance(batch_size, int)
+        and batch_size == -1
+    ):
+        raise ValueError("At most one of `batch_size` and `element_size` can be -1")
     return reshape_leading_dim(x, (batch_size, element_size))

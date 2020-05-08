@@ -4,7 +4,6 @@ from kblocks.extras.layers import wrapper as wr
 
 
 class WrapperTest(tf.test.TestCase):
-
     def test_partition(self):
         data = np.arange(5)
         partitions = [0, 0, 1, 1, 0]
@@ -22,5 +21,5 @@ class WrapperTest(tf.test.TestCase):
         np.testing.assert_equal(actual, np.arange(5))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tf.test.main()

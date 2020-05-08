@@ -19,15 +19,15 @@ def mean_iou(cm: tf.Tensor, dtype: tf.DType = tf.float32):
     # label or prediction tensor. If the denominator is 0, we need to
     # ignore the class.
     num_valid_entries = tf.math.reduce_sum(
-        tf.cast(tf.not_equal(denominator, 0), dtype=dtype))
+        tf.cast(tf.not_equal(denominator, 0), dtype=dtype)
+    )
 
     iou = tf.math.divide_no_nan(true_positives, denominator)
 
-    return tf.math.divide_no_nan(tf.reduce_sum(iou, name='mean_iou'),
-                                 num_valid_entries)
+    return tf.math.divide_no_nan(tf.reduce_sum(iou, name="mean_iou"), num_valid_entries)
 
 
-@gin.configurable(module='kb.metrics')
+@gin.configurable(module="kb.metrics")
 class BlockMeanIoU(tf.keras.metrics.MeanIoU):
     """
     Calculate MeanIoU averaged over blocks.
@@ -42,17 +42,15 @@ class BlockMeanIoU(tf.keras.metrics.MeanIoU):
         row_splits: iterable of ints
     """
 
-    def __init__(self,
-                 row_splits: Iterable[int],
-                 take_argmax=True,
-                 name=None,
-                 dtype=None):
+    def __init__(
+        self, row_splits: Iterable[int], take_argmax=True, name=None, dtype=None
+    ):
         self.take_argmax = True
         self.row_splits = tuple(row_splits)
         self.num_blocks = len(self.row_splits) - 1
-        super(BlockMeanIoU, self).__init__(num_classes=self.row_splits[-1],
-                                           name=name,
-                                           dtype=dtype)
+        super(BlockMeanIoU, self).__init__(
+            num_classes=self.row_splits[-1], name=name, dtype=dtype
+        )
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         if self.take_argmax:
@@ -62,7 +60,7 @@ class BlockMeanIoU(tf.keras.metrics.MeanIoU):
     def result(self):
         out = []
         for i in range(self.num_blocks):
-            start, end = self.row_splits[i:i + 2]
+            start, end = self.row_splits[i : i + 2]
             block_cm = self.total_cm[start:end, start:end]
             out.append(mean_iou(block_cm, self.dtype))
         out.append(tf.reduce_mean(out))
@@ -71,5 +69,5 @@ class BlockMeanIoU(tf.keras.metrics.MeanIoU):
 
     def get_config(self):
         config = super(BlockMeanIoU, self).get_config()
-        config['row_splits'] = self.row_splits
+        config["row_splits"] = self.row_splits
         return config

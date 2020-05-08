@@ -40,5 +40,5 @@ def cli_main(argv):
     cli.summary_main(cli.get_gin_summary(argv))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(cli_main)

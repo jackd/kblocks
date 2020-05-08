@@ -8,23 +8,25 @@ import gin
 from typing import Sequence, Optional
 
 
-@gin.configurable(module='kb')
-def get_optimizer_options(layout_optimizer=True,
-                          constant_folder=True,
-                          shape_optimization=True,
-                          remapping=True,
-                          arithmetic_optimization=True,
-                          dependency_optimization=True,
-                          loop_optimization=True,
-                          function_optimization=True,
-                          debug_stripper=True,
-                          disable_model_pruning=False,
-                          scoped_allocator_optimization=True,
-                          pin_to_host_optimization=True,
-                          implementaion_selector=True,
-                          auto_mixed_precision=False,
-                          disable_meta_optimizer=False,
-                          min_graph_nodes=0):
+@gin.configurable(module="kb")
+def get_optimizer_options(
+    layout_optimizer=True,
+    constant_folder=True,
+    shape_optimization=True,
+    remapping=True,
+    arithmetic_optimization=True,
+    dependency_optimization=True,
+    loop_optimization=True,
+    function_optimization=True,
+    debug_stripper=True,
+    disable_model_pruning=False,
+    scoped_allocator_optimization=True,
+    pin_to_host_optimization=True,
+    implementaion_selector=True,
+    auto_mixed_precision=False,
+    disable_meta_optimizer=False,
+    min_graph_nodes=0,
+):
     return dict(
         layout_optimizer=layout_optimizer,
         constant_folder=constant_folder,
@@ -45,15 +47,16 @@ def get_optimizer_options(layout_optimizer=True,
     )
 
 
-@gin.configurable(module='kb')
+@gin.configurable(module="kb")
 class TfConfig(object):
-
-    def __init__(self,
-                 allow_growth: bool = True,
-                 visible_devices: Optional[Sequence[int]] = None,
-                 jit: Optional[bool] = None,
-                 optimizer_options: Optional[dict] = None,
-                 log_device_placement: Optional[bool] = None):
+    def __init__(
+        self,
+        allow_growth: bool = True,
+        visible_devices: Optional[Sequence[int]] = None,
+        jit: Optional[bool] = None,
+        optimizer_options: Optional[dict] = None,
+        log_device_placement: Optional[bool] = None,
+    ):
         self.optimizer_options = optimizer_options
         self.allow_growth = allow_growth
         self.visible_devices = visible_devices
@@ -62,18 +65,15 @@ class TfConfig(object):
 
     def configure(self):
         if self.visible_devices is not None:
-            devices = tf.config.experimental.get_visible_devices('GPU')
-            devices = {d.name.split(':')[-1]: d for d in devices}
+            devices = tf.config.experimental.get_visible_devices("GPU")
+            devices = {d.name.split(":")[-1]: d for d in devices}
             devices = [devices[str(d)] for d in self.visible_devices]
-            tf.config.experimental.set_visible_devices(devices,
-                                                       device_type='GPU')
+            tf.config.experimental.set_visible_devices(devices, device_type="GPU")
         try:
-            for device in tf.config.experimental.get_visible_devices('GPU'):
-                tf.config.experimental.set_memory_growth(
-                    device, self.allow_growth)
+            for device in tf.config.experimental.get_visible_devices("GPU"):
+                tf.config.experimental.set_memory_growth(device, self.allow_growth)
         except Exception:
-            logging.info('Failed to set memory growth to {}'.format(
-                self.allow_growth))
+            logging.info("Failed to set memory growth to {}".format(self.allow_growth))
         if self.optimizer_options is not None:
             tf.config.optimizer.set_experimental_options(self.optimizer_options)
         if self.jit is not None:

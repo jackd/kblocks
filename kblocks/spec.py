@@ -3,27 +3,36 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-from kblocks.tf_typing import TensorLike, TensorLikeSpec, NestedTensorSpec, NestedTensorLike
+from kblocks.tf_typing import (
+    TensorLike,
+    TensorLikeSpec,
+    NestedTensorSpec,
+    NestedTensorLike,
+)
 from typing import Callable
 
 
 def to_input(spec: TensorLikeSpec) -> TensorLike:
     if isinstance(spec, tf.TensorSpec):
-        return tf.keras.Input(shape=spec.shape[1:],
-                              batch_size=spec.shape[0],
-                              dtype=spec.dtype)
+        return tf.keras.Input(
+            shape=spec.shape[1:], batch_size=spec.shape[0], dtype=spec.dtype
+        )
     elif isinstance(spec, tf.RaggedTensorSpec):
-        return tf.keras.Input(shape=spec._shape[1:],
-                              batch_size=spec._shape[0],
-                              dtype=spec._dtype,
-                              ragged=True)
+        return tf.keras.Input(
+            shape=spec._shape[1:],
+            batch_size=spec._shape[0],
+            dtype=spec._dtype,
+            ragged=True,
+        )
     elif isinstance(spec, tf.SparseTensorSpec):
-        return tf.keras.Input(shape=spec.shape[1:],
-                              batch_size=spec.shape[0],
-                              dtype=spec.dtype,
-                              sparse=True)
+        return tf.keras.Input(
+            shape=spec.shape[1:],
+            batch_size=spec.shape[0],
+            dtype=spec.dtype,
+            sparse=True,
+        )
     else:
-        raise TypeError('Unrecognized spec type {}'.format(type(spec)))
+        raise TypeError("Unrecognized spec type {}".format(type(spec)))
 
 
 def to_spec(tensor: TensorLike) -> TensorLikeSpec:
@@ -35,11 +44,12 @@ def to_spec(tensor: TensorLike) -> TensorLikeSpec:
     elif isinstance(tensor, tf.SparseTensor):
         return tf.SparseTensorSpec.from_value(tensor)
     else:
-        raise TypeError('Expected TensorLikeSpec, got {}'.format(tensor))
+        raise TypeError("Expected TensorLikeSpec, got {}".format(tensor))
 
 
-def map_spec(map_fn: Callable[[NestedTensorLike], NestedTensorLike],
-             spec: NestedTensorSpec) -> NestedTensorSpec:
+def map_spec(
+    map_fn: Callable[[NestedTensorLike], NestedTensorLike], spec: NestedTensorSpec
+) -> NestedTensorSpec:
     """
     Get the specification corresponding to a spec transformation.
 
@@ -56,8 +66,10 @@ def map_spec(map_fn: Callable[[NestedTensorLike], NestedTensorLike],
         raise NotImplementedError()
 
     dataset = tf.data.Dataset.from_generator(
-        gen, tf.nest.map_structure(lambda spec: spec.dtype),
-        tf.nest.map_structure(lambda spec: spec.shape))
+        gen,
+        tf.nest.map_structure(lambda spec: spec.dtype),
+        tf.nest.map_structure(lambda spec: spec.shape),
+    )
     dataset = dataset.map(map_fn)
     return dataset.spec
 

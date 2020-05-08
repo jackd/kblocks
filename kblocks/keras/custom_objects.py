@@ -23,7 +23,6 @@ from collections import MutableMapping
 
 
 class CustomObjectRegister(MutableMapping):
-
     def __init__(self):
         self._objects = {}
 
@@ -40,12 +39,11 @@ class CustomObjectRegister(MutableMapping):
         return key in self._objects
 
     def __delitem__(self, key):
-        raise NotImplementedError(
-            'Cannot delete items from CustomObjectRegister')
+        raise NotImplementedError("Cannot delete items from CustomObjectRegister")
 
     def _validate_not_present(self, key):
         if key in self._objects:
-            raise KeyError(f'Value already exists at key {key}')
+            raise KeyError(f"Value already exists at key {key}")
 
     def __setitem__(self, key, value):
         self._validate_not_present(key)
@@ -56,9 +54,8 @@ class CustomObjectRegister(MutableMapping):
 
     def register(self, fn_or_name: Union[Callable, str]):
         if callable(fn_or_name):
-            if not hasattr(fn_or_name, '__name__'):
-                raise ValueError(
-                    'Cannot register callable without a __name__ attr')
+            if not hasattr(fn_or_name, "__name__"):
+                raise ValueError("Cannot register callable without a __name__ attr")
             name = fn_or_name.__name__
             fn = fn_or_name
             self[name] = fn
@@ -73,8 +70,7 @@ class CustomObjectRegister(MutableMapping):
 
             return f
         else:
-            raise ValueError(
-                f'fn_or_name must be a callable or str, got {fn_or_name}')
+            raise ValueError(f"fn_or_name must be a callable or str, got {fn_or_name}")
 
 
 _objects = CustomObjectRegister()

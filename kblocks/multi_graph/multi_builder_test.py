@@ -14,12 +14,12 @@ def pre_batch_map(xy, label):
 
 
 def post_batch_map(z, label):
-    f = z**2
+    f = z ** 2
     return (f,), label
 
 
 def model_fn(z):
-    return tf.keras.layers.Dense(2, kernel_initializer='ones')(z)
+    return tf.keras.layers.Dense(2, kernel_initializer="ones")(z)
 
 
 def build_fn(xy, label):
@@ -37,7 +37,6 @@ def build_fn(xy, label):
 
 
 class MultiBuilderTest(tf.test.TestCase):
-
     def test_debug_builder(self):
         batch_size = 3
         x = tf.random.uniform(shape=(5,), dtype=tf.float32)
@@ -46,18 +45,18 @@ class MultiBuilderTest(tf.test.TestCase):
         y = tf.constant(y)
 
         label = tf.zeros((), dtype=tf.int64)
-        actual_out, actual_labels = debug.debug_build_fn(build_fn,
-                                                         ((x, y), label),
-                                                         batch_size=batch_size)
+        actual_out, actual_labels = debug.debug_build_fn(
+            build_fn, ((x, y), label), batch_size=batch_size
+        )
 
         expected_out = tf.tile(tf.expand_dims(x * y, 0), (batch_size, 1))
         expected_labels = tf.zeros((batch_size,), dtype=tf.int64)
         expected_out, expected_labels = post_batch_map(expected_out, label)
         expected_out = model_fn(*expected_out)
 
-        (actual_out, actual_labels, expected_out,
-         expected_labels) = self.evaluate(
-             (actual_out, actual_labels, expected_out, expected_labels))
+        (actual_out, actual_labels, expected_out, expected_labels) = self.evaluate(
+            (actual_out, actual_labels, expected_out, expected_labels)
+        )
         np.testing.assert_allclose(actual_out, expected_out)
         np.testing.assert_allclose(actual_labels, expected_labels)
 
@@ -69,9 +68,9 @@ class MultiBuilderTest(tf.test.TestCase):
         dataset = tf.data.Dataset.from_tensor_slices(((x, y), labels))
 
         # actual
-        built = mb.build_multi_graph(build_fn,
-                                     dataset.element_spec,
-                                     use_model_builders=use_model_builders)
+        built = mb.build_multi_graph(
+            build_fn, dataset.element_spec, use_model_builders=use_model_builders
+        )
         processed = dataset.map(built.pre_cache_map)
         processed = processed.map(built.pre_batch_map)
         processed = processed.batch(batch_size)
@@ -86,8 +85,12 @@ class MultiBuilderTest(tf.test.TestCase):
         actual_out = built.trained_model(actual_z)
 
         # expected
-        processed = dataset.map(pre_cache_map).map(pre_batch_map).batch(
-            batch_size).map(post_batch_map)
+        processed = (
+            dataset.map(pre_cache_map)
+            .map(pre_batch_map)
+            .batch(batch_size)
+            .map(post_batch_map)
+        )
         expected_z = None
         expected_labels = None
         for expected_z, expected_labels in processed.take(1):
@@ -96,7 +99,8 @@ class MultiBuilderTest(tf.test.TestCase):
 
         # compare
         actual_out, actual_label, expected_out, expected_label = self.evaluate(
-            (actual_out, actual_labels, expected_out, expected_labels))
+            (actual_out, actual_labels, expected_out, expected_labels)
+        )
         np.testing.assert_allclose(actual_out, expected_out)
         np.testing.assert_allclose(actual_label, expected_label)
 
@@ -107,6 +111,6 @@ class MultiBuilderTest(tf.test.TestCase):
         self._test_build_multi_graph(use_model_builders=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tf.test.main()
     # MultiBuilderTest().test_build_multi_model()

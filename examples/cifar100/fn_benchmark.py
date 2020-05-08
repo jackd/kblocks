@@ -33,11 +33,9 @@ def test_step(images, labels):
 
 
 batch_size = 16
-train_ds, val_ds = (
-    problem.get_base_dataset(s) for s in ('train', 'validation'))
+train_ds, val_ds = (problem.get_base_dataset(s) for s in ("train", "validation"))
 
-train_ds = train_ds.shuffle(1024).batch(batch_size,
-                                        drop_remainder=True).prefetch(-1)
+train_ds = train_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(-1)
 val_ds = val_ds.batch(batch_size, drop_remainder=True).prefetch(-1)
 EPOCHS = 10
 
@@ -50,7 +48,7 @@ for epoch in tf.range(EPOCHS):
         train_step(images, labels)
 
     dt = time() - t
-    print('Finished epoch {} in {:.3f} s'.format(epoch.numpy(), dt))
+    print("Finished epoch {} in {:.3f} s".format(epoch.numpy(), dt))
     for m in metrics:
         print(m.name, m.result().numpy())
 
@@ -59,6 +57,6 @@ for epoch in tf.range(EPOCHS):
 
     for test_images, test_labels in val_ds:
         test_step(test_images, test_labels)
-    print('Test metrics:')
+    print("Test metrics:")
     for m in metrics:
         print(m.name, m.result().numpy())

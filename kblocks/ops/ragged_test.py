@@ -12,7 +12,6 @@ values = np.random.uniform(size=(total,)).astype(dtype=np.float32)
 
 
 class RaggedTest(tf.test.TestCase):
-
     def test_lengths_to_splits(self):
         rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
         actual = ragged_ops.lengths_to_splits(row_lengths)
@@ -39,15 +38,13 @@ class RaggedTest(tf.test.TestCase):
         np.testing.assert_equal(actual, expected)
 
     def test_lengths_to_mask(self):
-        actual = tf.RaggedTensor.from_row_lengths(values,
-                                                  row_lengths).to_tensor() != 0
+        actual = tf.RaggedTensor.from_row_lengths(values, row_lengths).to_tensor() != 0
         expected = ragged_ops.lengths_to_mask(row_lengths)
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_equal(actual, expected)
 
     def test_mask_to_lengths(self):
-        mask = tf.RaggedTensor.from_row_lengths(values,
-                                                row_lengths).to_tensor() != 0
+        mask = tf.RaggedTensor.from_row_lengths(values, row_lengths).to_tensor() != 0
         rl = ragged_ops.mask_to_lengths(mask)
         np.testing.assert_equal(self.evaluate(rl), row_lengths)
 
@@ -60,11 +57,10 @@ class RaggedTest(tf.test.TestCase):
         total = np.sum(row_lengths)
         values = np.random.uniform(size=(total, num_features))
 
-        actual = ragged_ops.row_max(values, row_lengths, num_segments,
-                                    max_length)
-        expected = tf.reduce_max(tf.RaggedTensor.from_row_lengths(
-            values, row_lengths),
-                                 axis=1)
+        actual = ragged_ops.row_max(values, row_lengths, num_segments, max_length)
+        expected = tf.reduce_max(
+            tf.RaggedTensor.from_row_lengths(values, row_lengths), axis=1
+        )
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_equal(actual, expected)
 
@@ -92,12 +88,12 @@ class RaggedTest(tf.test.TestCase):
             [5, 0, 0, 0, 0],
         ]
         actual = ragged_ops.to_tensor(
-            tf.RaggedTensor.from_row_lengths([2, 3, 1, 1, 3, 4, 2, 5],
-                                             [3, 4, 0, 1]), 5)
+            tf.RaggedTensor.from_row_lengths([2, 3, 1, 1, 3, 4, 2, 5], [3, 4, 0, 1]), 5
+        )
         np.testing.assert_equal(self.evaluate(actual), expected)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tf.test.main()
 
     # RaggedTest().test_row_max()

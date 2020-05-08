@@ -6,13 +6,11 @@ from types import ModuleType
 import gin
 import imp
 
-BLACKLIST = ('serialize', 'deserialize', 'get')
+BLACKLIST = ("serialize", "deserialize", "get")
 
 
 def wrapped_items(
-        src_module: ModuleType,
-        gin_module: str,
-        blacklist: Iterable[str] = BLACKLIST,
+    src_module: ModuleType, gin_module: str, blacklist: Iterable[str] = BLACKLIST,
 ) -> Iterable[Tuple[str, Any]]:
     for k in dir(src_module):
         v = getattr(src_module, k)
@@ -20,10 +18,12 @@ def wrapped_items(
             yield (k, gin.external_configurable(v, name=k, module=gin_module))
 
 
-def wrapped_module(dst_name,
-                   src_module: ModuleType,
-                   gin_module: str,
-                   blacklist: Iterable[str] = BLACKLIST) -> ModuleType:
+def wrapped_module(
+    dst_name,
+    src_module: ModuleType,
+    gin_module: str,
+    blacklist: Iterable[str] = BLACKLIST,
+) -> ModuleType:
     mod = imp.new_module(dst_name)
     for k, v in wrapped_items(src_module, gin_module, blacklist):
         setattr(mod, k, v)
@@ -35,6 +35,7 @@ def renamed(child_mod: ModuleType, root_mod: ModuleType, new_root: str):
     child_name = child_mod.__name__
     if not child_name.startswith(root_name):
         raise ValueError(
-            'child_name should start with root_name, but {} does not start '
-            'with {}'.format(child_name, root_name))
-    return '{}{}'.format(new_root, child_name[len(root_name):])
+            "child_name should start with root_name, but {} does not start "
+            "with {}".format(child_name, root_name)
+        )
+    return "{}{}".format(new_root, child_name[len(root_name) :])

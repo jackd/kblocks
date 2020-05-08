@@ -28,7 +28,7 @@ def _open_from_directory(path: str):
     path = os.path.realpath(path)
     folder = os.path.dirname(path)
     with _change_dir_context(folder):
-        with open(path, 'r') as fp:
+        with open(path, "r") as fp:
             yield fp
 
 
@@ -60,9 +60,9 @@ def enable_variable_expansion(highest_priority: bool = True):
       highest_priority: if True, expanded paths will be attempted first.
       See `register_file_reader`.
     """
-    register_file_reader(_open_with_expand,
-                         _exists_with_expand,
-                         highest_priority=highest_priority)
+    register_file_reader(
+        _open_with_expand, _exists_with_expand, highest_priority=highest_priority
+    )
 
 
 def enable_relative_includes(highest_priority: bool = True):
@@ -72,9 +72,9 @@ def enable_relative_includes(highest_priority: bool = True):
       highest_priority: if True, relative includes will take preferences over
         default behaviour.
     """
-    register_file_reader(_open_from_directory,
-                         os.path.isfile,
-                         highest_priority=highest_priority)
+    register_file_reader(
+        _open_from_directory, os.path.isfile, highest_priority=highest_priority
+    )
 
 
 def register_file_reader(*args, highest_priority: bool = False):
@@ -134,5 +134,5 @@ def register_file_reader(*args, highest_priority: bool = False):
     elif len(args) == 2:
         do_registration(*args)
     else:  # 0 or > 2 arguments supplied.
-        err_str = 'register_file_reader() takes 1 or 2 arguments ({} given)'
+        err_str = "register_file_reader() takes 1 or 2 arguments ({} given)"
         raise TypeError(err_str.format(len(args)))

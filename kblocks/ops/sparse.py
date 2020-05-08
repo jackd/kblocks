@@ -10,7 +10,7 @@ def block_diagonalize_sparse(sparse_indices, dense_shape):
     if isinstance(sparse_indices, tf.Tensor):
         sparse_indices = tf.unstack(sparse_indices, axis=-1)
     batch_dim, *indices = sparse_indices
-    assert (len(indices) == len(offsets))
+    assert len(indices) == len(offsets)
     out_indices = []
     out_shape = []
     for offset, ind in zip(offsets, indices):
@@ -20,8 +20,9 @@ def block_diagonalize_sparse(sparse_indices, dense_shape):
     return tuple(out_indices), tuple(out_shape)
 
 
-def apply_offset(batch_index: tf.Tensor, other_index: tf.Tensor,
-                 offset: Union[int, tf.Tensor]):
+def apply_offset(
+    batch_index: tf.Tensor, other_index: tf.Tensor, offset: Union[int, tf.Tensor]
+):
     if isinstance(offset, int) or offset.shape.ndims == 0:
         return other_index + offset * batch_index
     offset.shape.assert_has_rank(1)
@@ -31,7 +32,7 @@ def apply_offset(batch_index: tf.Tensor, other_index: tf.Tensor,
 def block_diagonalize_sparse_general(sparse_indices, *offsets):
     if isinstance(sparse_indices, tf.Tensor):
         sparse_indices = tf.unstack(sparse_indices, axis=-1)
-    assert (len(sparse_indices) == len(offsets) + 1)
+    assert len(sparse_indices) == len(offsets) + 1
     b, *rest = sparse_indices
     out = []
     for index, offset in zip(rest, offsets):
@@ -40,19 +41,16 @@ def block_diagonalize_sparse_general(sparse_indices, *offsets):
 
 
 def ragged_to_sparse_indices(
-        rt: tf.RaggedTensor,
-        offset: tf.Tensor,
-        dtype=None,
+    rt: tf.RaggedTensor, offset: tf.Tensor, dtype=None,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
     if dtype is None:
         dtype = rt.dtype
-    assert (offset.dtype == dtype)
-    assert (isinstance(rt, tf.RaggedTensor))
+    assert offset.dtype == dtype
+    assert isinstance(rt, tf.RaggedTensor)
     rt.shape.assert_has_rank(3)
-    assert (rt.ragged_rank == 2)
+    assert rt.ragged_rank == 2
     b = tf.ragged.row_splits_to_segment_ids(rt.row_splits, out_type=dtype)
-    i = tf.ragged.row_splits_to_segment_ids(rt.values.row_splits,
-                                            out_type=dtype)
+    i = tf.ragged.row_splits_to_segment_ids(rt.values.row_splits, out_type=dtype)
     b = tf.gather(b, i)
     j = rt.flat_values
     if j.dtype != dtype:
@@ -61,14 +59,16 @@ def ragged_to_sparse_indices(
     return b, i, j
 
 
-def unstack(st: tf.SparseTensor, axis: int = 0,
-            num_partitions=None) -> List[tf.SparseTensor]:
+def unstack(
+    st: tf.SparseTensor, axis: int = 0, num_partitions=None
+) -> List[tf.SparseTensor]:
     ndims = st.dense_shape.shape[0]
     if axis < 0:
         axis = axis + ndims
     if not (0 <= axis < ndims):
-        raise ValueError('Invalid axis value {} for st with ndims {}'.format(
-            axis, ndims))
+        raise ValueError(
+            "Invalid axis value {} for st with ndims {}".format(axis, ndims)
+        )
     indices = tf.unstack(st.indices, axis=-1)
     dense_shape = st.dense_shape
     if isinstance(dense_shape, tf.Tensor):
@@ -79,8 +79,8 @@ def unstack(st: tf.SparseTensor, axis: int = 0,
         num_partitions = tf.get_static_value(dense_shape[axis])
         if num_partitions is None:
             raise ValueError(
-                'num_partitions must be given or be convertible to a static '
-                'value')
+                "num_partitions must be given or be convertible to a static " "value"
+            )
     del dense_shape[axis]
 
     partitions = tf.cast(indices[axis], tf.int32)

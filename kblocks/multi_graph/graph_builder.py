@@ -2,29 +2,27 @@ from typing import TypeVar, Union, Callable, Optional, Tuple, Sequence
 import tensorflow as tf
 from kblocks.tf_typing import TensorLike, TensorLikeSpec
 
-T = TypeVar('T')
+T = TypeVar("T")
 NameLike = Union[str, tf.Tensor]
 
 
 def _spec_to_placeholder(spec, name=None):
     if isinstance(spec, tf.TensorSpec):
-        return tf.keras.backend.placeholder(shape=spec.shape,
-                                            dtype=spec.dtype,
-                                            name=name)
+        return tf.keras.backend.placeholder(
+            shape=spec.shape, dtype=spec.dtype, name=name
+        )
     elif isinstance(spec, tf.SparseTensorSpec):
-        return tf.keras.backend.placeholder(shape=spec.shape,
-                                            dtype=spec.dtype,
-                                            sparse=True,
-                                            name=name)
+        return tf.keras.backend.placeholder(
+            shape=spec.shape, dtype=spec.dtype, sparse=True, name=name
+        )
     elif isinstance(spec, tf.RaggedTensorSpec):
-        return tf.keras.backend.placeholder(shape=spec._shape,
-                                            dtype=spec._dtype,
-                                            ragged=True,
-                                            name=name)
+        return tf.keras.backend.placeholder(
+            shape=spec._shape, dtype=spec._dtype, ragged=True, name=name
+        )
     else:
         raise TypeError(
-            'Invalid type for spec: must be TensorSpecLike, got {}'.format(
-                spec))
+            "Invalid type for spec: must be TensorSpecLike, got {}".format(spec)
+        )
 
 
 def _spec_to_input(spec, name=None):
@@ -34,14 +32,16 @@ def _spec_to_input(spec, name=None):
     else:
         shape = spec.shape
         dtype = spec.dtype
-    inp = tf.keras.Input(shape=shape[1:],
-                         batch_size=shape[0],
-                         ragged=isinstance(spec, tf.RaggedTensorSpec),
-                         sparse=isinstance(spec, tf.SparseTensorSpec),
-                         dtype=dtype,
-                         name=name)
+    inp = tf.keras.Input(
+        shape=shape[1:],
+        batch_size=shape[0],
+        ragged=isinstance(spec, tf.RaggedTensorSpec),
+        sparse=isinstance(spec, tf.SparseTensorSpec),
+        dtype=dtype,
+        name=name,
+    )
     if isinstance(spec, tf.RaggedTensorSpec):
-        assert (isinstance(inp, tf.RaggedTensor))
+        assert isinstance(inp, tf.RaggedTensor)
     return inp
 
 
@@ -51,24 +51,28 @@ def _batched_placeholder_like(x, batch_size=None, name=None):
         for i in range(x.ragged_rank):
             shape[i + 2] = None
 
-    out = tf.keras.backend.placeholder(shape=shape,
-                                       dtype=x.dtype,
-                                       sparse=isinstance(x, tf.SparseTensor),
-                                       ragged=isinstance(x, tf.RaggedTensor),
-                                       name=name)
+    out = tf.keras.backend.placeholder(
+        shape=shape,
+        dtype=x.dtype,
+        sparse=isinstance(x, tf.SparseTensor),
+        ragged=isinstance(x, tf.RaggedTensor),
+        name=name,
+    )
     if isinstance(x, tf.RaggedTensor):
-        assert (isinstance(out, tf.RaggedTensor))
+        assert isinstance(out, tf.RaggedTensor)
     return out
 
 
 def _placeholder_like(x, name=None):
-    out = tf.keras.backend.placeholder(shape=x.shape,
-                                       dtype=x.dtype,
-                                       sparse=isinstance(x, tf.SparseTensor),
-                                       ragged=isinstance(x, tf.RaggedTensor),
-                                       name=name)
+    out = tf.keras.backend.placeholder(
+        shape=x.shape,
+        dtype=x.dtype,
+        sparse=isinstance(x, tf.SparseTensor),
+        ragged=isinstance(x, tf.RaggedTensor),
+        name=name,
+    )
     if isinstance(x, tf.RaggedTensor):
-        assert (isinstance(out, tf.RaggedTensor))
+        assert isinstance(out, tf.RaggedTensor)
     return out
 
 
@@ -88,9 +92,9 @@ def flatten_inputs(fn, input_structure, expand_composites=False):
     """
 
     def flat_fn(*inputs):
-        tf.nest.assert_same_structure(inputs,
-                                      input_structure,
-                                      expand_composites=expand_composites)
+        tf.nest.assert_same_structure(
+            inputs, input_structure, expand_composites=expand_composites
+        )
         flat_args = tf.nest.flatten(inputs, expand_composites=expand_composites)
         return fn(*flat_args)
 
@@ -114,9 +118,9 @@ def repack_outputs(fn, output_structure, expand_composites=False):
 
     def flat_fn(*args, **kwargs):
         out = fn(*args, **kwargs)
-        return tf.nest.pack_sequence_as(output_structure,
-                                        out,
-                                        expand_composites=expand_composites)
+        return tf.nest.pack_sequence_as(
+            output_structure, out, expand_composites=expand_composites
+        )
 
     return flat_fn
 
@@ -135,32 +139,32 @@ def subgraph(graph_def, inputs, outputs) -> Callable:
     """
     input_op_names = tuple(
         t if isinstance(t, str) else t.op.name
-        for t in tf.nest.flatten(inputs, expand_composites=True))
+        for t in tf.nest.flatten(inputs, expand_composites=True)
+    )
     output_names = tuple(
         t if isinstance(t, str) else t.name
-        for t in tf.nest.flatten(outputs, expand_composites=True))
+        for t in tf.nest.flatten(outputs, expand_composites=True)
+    )
 
     @tf.function()
     def graph_fn(*args, **kwargs):
         args = tf.nest.flatten((args, kwargs), expand_composites=True)
         if len(args) != len(input_op_names):
             raise ValueError(
-                f'Expected {len(input_op_names)} args, got {len(args)}: {args}')
-        assert (len(args) == len(input_op_names))
+                f"Expected {len(input_op_names)} args, got {len(args)}: {args}"
+            )
+        assert len(args) == len(input_op_names)
         input_map = dict(zip(input_op_names, args))
-        flat_out = tf.graph_util.import_graph_def(graph_def,
-                                                  input_map=input_map,
-                                                  return_elements=output_names)
-        return tf.nest.pack_sequence_as(outputs,
-                                        flat_out,
-                                        expand_composites=True)
+        flat_out = tf.graph_util.import_graph_def(
+            graph_def, input_map=input_map, return_elements=output_names
+        )
+        return tf.nest.pack_sequence_as(outputs, flat_out, expand_composites=True)
 
     return graph_fn
 
 
 class GraphBuilder(object):
-
-    def __init__(self, name='graph_builder'):
+    def __init__(self, name="graph_builder"):
         self._graph = tf.Graph()
         self._outputs = []
         self._inputs = []
@@ -175,14 +179,13 @@ class GraphBuilder(object):
     def graph(self):
         return self._graph
 
-    def _validate_graph(self, x, name='x'):
+    def _validate_graph(self, x, name="x"):
         if isinstance(x, tf.RaggedTensor):
             return self._validate_graph(x.flat_values, name=name)
         elif isinstance(x, tf.SparseTensor):
             return self._validate_graph(x.indices, name=name)
         if x.graph is not self._graph:
-            raise ValueError(
-                'x is from a different graph - cannot add as input')
+            raise ValueError("x is from a different graph - cannot add as input")
 
     def __enter__(self: T) -> T:
         ctx = self.graph.as_default()
@@ -196,7 +199,7 @@ class GraphBuilder(object):
 
     def input(self, spec: TensorLikeSpec, name=None) -> TensorLike:
         if name is None:
-            name = self.graph.unique_name(f'{self.name}/input')
+            name = self.graph.unique_name(f"{self.name}/input")
         with self._graph.as_default():
             out = _spec_to_placeholder(spec, name=name)
             self._inputs.append(out)
@@ -204,34 +207,36 @@ class GraphBuilder(object):
 
     def input_like(self, x: TensorLike, name=None) -> TensorLike:
         if name is None:
-            name = self.graph.unique_name(f'{self.name}/input')
+            name = self.graph.unique_name(f"{self.name}/input")
         with self._graph.as_default():
             out = _placeholder_like(x, name=name)
         self._inputs.append(out)
         return out
 
-    def batched_input_like(self, x: TensorLike, batch_size=None,
-                           name=None) -> TensorLike:
+    def batched_input_like(
+        self, x: TensorLike, batch_size=None, name=None
+    ) -> TensorLike:
         if name is None:
-            name = self.graph.unique_name(f'{self.name}/input')
+            name = self.graph.unique_name(f"{self.name}/input")
         with self._graph.as_default():
             out = _batched_placeholder_like(x, batch_size=batch_size, name=name)
             self._inputs.append(out)
         return out
 
     def add_output(self, x) -> None:
-        self._validate_graph(x, 'output')
+        self._validate_graph(x, "output")
         self._outputs.append(x)
 
-    def build(self,
-              inputs_structure=None,
-              extra_outputs: Optional[Sequence[TensorLike]] = None
-             ) -> Optional[Callable]:
+    def build(
+        self,
+        inputs_structure=None,
+        extra_outputs: Optional[Sequence[TensorLike]] = None,
+    ) -> Optional[Callable]:
         inputs = self._inputs
         if inputs_structure is not None:
-            inputs = tf.nest.pack_sequence_as(inputs_structure,
-                                              inputs,
-                                              expand_composites=True)
+            inputs = tf.nest.pack_sequence_as(
+                inputs_structure, inputs, expand_composites=True
+            )
 
         outputs = self.outputs
         if extra_outputs is not None:
@@ -243,8 +248,7 @@ class GraphBuilder(object):
         if len(tf.nest.flatten(outputs, expand_composites=True)) == 0:
             return None
 
-        return subgraph(self.graph.as_graph_def(add_shapes=True), inputs,
-                        outputs)
+        return subgraph(self.graph.as_graph_def(add_shapes=True), inputs, outputs)
 
     @property
     def outputs(self) -> Tuple[TensorLike, ...]:
@@ -256,22 +260,18 @@ class GraphBuilder(object):
 
 
 def _model_fn(
-        model,
-        inputs_structure,
-        outputs_structure,
-        squeezed,
+    model, inputs_structure, outputs_structure, squeezed,
 ):
-
     def f(*inputs):
         if inputs_structure is not None:
             tf.nest.assert_same_structure(inputs, inputs_structure)
         inputs = tf.nest.flatten(inputs)
-        assert (len(inputs) == len(squeezed))
+        assert len(inputs) == len(squeezed)
         inputs = [
             tf.expand_dims(inp, axis=0) if sq else inp
             for inp, sq in zip(inputs, squeezed)
         ]
-        assert (len(inputs) == len(model.inputs))
+        assert len(inputs) == len(model.inputs)
         outputs = model(inputs)
         if outputs_structure is not None:
             outputs = tf.nest.pack_sequence_as(outputs_structure, outputs)
@@ -281,7 +281,6 @@ def _model_fn(
 
 
 class GraphModelBuilder(GraphBuilder):
-
     def __init__(self, *args, **kwargs):
         self._squeezed = []
         super().__init__(*args, **kwargs)
@@ -294,54 +293,63 @@ class GraphModelBuilder(GraphBuilder):
             else:
                 shape = spec.shape
                 dtype = spec.dtype
-            out = tf.keras.Input(shape=shape,
-                                 batch_size=1,
-                                 ragged=isinstance(spec, tf.RaggedTensorSpec),
-                                 sparse=isinstance(spec, tf.SparseTensorSpec),
-                                 dtype=dtype,
-                                 name=name)
+            out = tf.keras.Input(
+                shape=shape,
+                batch_size=1,
+                ragged=isinstance(spec, tf.RaggedTensorSpec),
+                sparse=isinstance(spec, tf.SparseTensorSpec),
+                dtype=dtype,
+                name=name,
+            )
             self._inputs.append(out)
             out = tf.squeeze(out, axis=0)
         self._squeezed.append(True)
         if isinstance(spec, tf.RaggedTensorSpec):
-            assert (isinstance(out, tf.RaggedTensor))
+            assert isinstance(out, tf.RaggedTensor)
         elif isinstance(spec, tf.SparseTensorSpec):
-            assert (isinstance(out, tf.SparseTensor))
+            assert isinstance(out, tf.SparseTensor)
         else:
-            assert (isinstance(out, tf.Tensor))
+            assert isinstance(out, tf.Tensor)
         return out
 
     def input_like(self, x: TensorLike, name=None) -> TensorLike:
         with self._graph.as_default():
-            out = tf.keras.Input(shape=x.shape,
-                                 batch_size=1,
-                                 ragged=isinstance(x, tf.RaggedTensor),
-                                 sparse=isinstance(x, tf.SparseTensor),
-                                 dtype=x.dtype,
-                                 name=name)
+            out = tf.keras.Input(
+                shape=x.shape,
+                batch_size=1,
+                ragged=isinstance(x, tf.RaggedTensor),
+                sparse=isinstance(x, tf.SparseTensor),
+                dtype=x.dtype,
+                name=name,
+            )
             self._inputs.append(out)
             out = tf.squeeze(out, axis=0)
         self._squeezed.append(True)
-        assert (type(x) == type(out))
+        assert type(x) == type(out)
         return out
 
-    def batched_input_like(self, x: TensorLike, batch_size=None,
-                           name=None) -> TensorLike:
+    def batched_input_like(
+        self, x: TensorLike, batch_size=None, name=None
+    ) -> TensorLike:
         with self._graph.as_default():
-            out = tf.keras.Input(shape=x.shape,
-                                 batch_size=batch_size,
-                                 ragged=isinstance(x, tf.RaggedTensor),
-                                 sparse=isinstance(x, tf.SparseTensor),
-                                 dtype=x.dtype,
-                                 name=name)
+            out = tf.keras.Input(
+                shape=x.shape,
+                batch_size=batch_size,
+                ragged=isinstance(x, tf.RaggedTensor),
+                sparse=isinstance(x, tf.SparseTensor),
+                dtype=x.dtype,
+                name=name,
+            )
             self._inputs.append(out)
             # out = tf.squeeze(out, axis=0)
         self._squeezed.append(False)
         return out
 
-    def build(self,
-              inputs_structure=None,
-              extra_outputs: Optional[Sequence[TensorLike]] = None):
+    def build(
+        self,
+        inputs_structure=None,
+        extra_outputs: Optional[Sequence[TensorLike]] = None,
+    ):
         inputs = self._inputs
         outputs = self.outputs
 
@@ -356,11 +364,10 @@ class GraphModelBuilder(GraphBuilder):
         with self._graph.as_default():
             model = tf.keras.Model(inputs, outputs)
         if len(model.trainable_weights) != 0:
-            raise RuntimeError('Model had trainable variables.')
-        return _model_fn(model,
-                         inputs_structure,
-                         outputs_structure,
-                         squeezed=self._squeezed)
+            raise RuntimeError("Model had trainable variables.")
+        return _model_fn(
+            model, inputs_structure, outputs_structure, squeezed=self._squeezed
+        )
 
 
 class ModelBuilder(object):
@@ -377,34 +384,38 @@ class ModelBuilder(object):
         return out
 
     def input_like(self, x: TensorLike, name=None) -> TensorLike:
-        out = tf.keras.Input(shape=x.shape[1:],
-                             batch_size=x.shape[0],
-                             ragged=isinstance(x, tf.RaggedTensor),
-                             sparse=isinstance(x, tf.SparseTensor),
-                             dtype=x.dtype,
-                             name=name)
+        out = tf.keras.Input(
+            shape=x.shape[1:],
+            batch_size=x.shape[0],
+            ragged=isinstance(x, tf.RaggedTensor),
+            sparse=isinstance(x, tf.SparseTensor),
+            dtype=x.dtype,
+            name=name,
+        )
         self._inputs.append(out)
-        assert (type(x) == type(out))
+        assert type(x) == type(out)
         if isinstance(x, tf.RaggedTensor):
-            assert (x.ragged_rank == out.ragged_rank)
+            assert x.ragged_rank == out.ragged_rank
             print(x.shape)
             print(x.ragged_rank)
         return out
 
     def batched_input_like(self, x: TensorLike, name=None) -> TensorLike:
-        out = tf.keras.Input(shape=x.shape,
-                             batch_size=self._batch_size,
-                             ragged=isinstance(x, tf.RaggedTensor),
-                             sparse=isinstance(x, tf.SparseTensor),
-                             dtype=x.dtype,
-                             name=name)
+        out = tf.keras.Input(
+            shape=x.shape,
+            batch_size=self._batch_size,
+            ragged=isinstance(x, tf.RaggedTensor),
+            sparse=isinstance(x, tf.SparseTensor),
+            dtype=x.dtype,
+            name=name,
+        )
         self._inputs.append(out)
-        assert (type(x) == type(out))
+        assert type(x) == type(out)
         return out
 
     def build(self, outputs) -> tf.keras.Model:
         if isinstance(outputs, (list, tuple)) and len(outputs) == 1:
-            outputs, = outputs
+            (outputs,) = outputs
         return tf.keras.Model(self._inputs, outputs)
 
     @property

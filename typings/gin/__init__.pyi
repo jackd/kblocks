@@ -5,7 +5,7 @@ from gin.config import operative_config_str
 from gin.config import query_parameter
 from gin.config import REQUIRED
 
-_FuncT = TypeVar('_FuncT', bound=Callable[..., Any])
+_FuncT = TypeVar("_FuncT", bound=Callable[..., Any])
 
 # this is the correct one, but the incorrect one below makes things work better
 # it requires use as `@configurable()` i.e. it requires the brackets
@@ -17,18 +17,16 @@ _FuncT = TypeVar('_FuncT', bound=Callable[..., Any])
 #                 ) -> Union[Callable[[_FuncT], _FuncT], _FuncT]:
 #     ...
 
-
-def configurable(name: Optional[str] = None,
-                 module: Optional[str] = None,
-                 whitelist: Optional[List[str]] = None,
-                 blacklist: Optional[List[str]] = None
-                ) -> Callable[[_FuncT], _FuncT]:
-    ...
-
-
-def external_configurable(fn_or_cls: _FuncT,
-                          name: Optional[str] = None,
-                          module: Optional[str] = None,
-                          whitelist: Optional[List[str]] = None,
-                          blacklist: Optional[List[str]] = None) -> _FuncT:
-    ...
+def configurable(
+    name: Optional[str] = None,
+    module: Optional[str] = None,
+    whitelist: Optional[List[str]] = None,
+    blacklist: Optional[List[str]] = None,
+) -> Callable[[_FuncT], _FuncT]: ...
+def external_configurable(
+    fn_or_cls: _FuncT,
+    name: Optional[str] = None,
+    module: Optional[str] = None,
+    whitelist: Optional[List[str]] = None,
+    blacklist: Optional[List[str]] = None,
+) -> _FuncT: ...

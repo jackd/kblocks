@@ -7,7 +7,6 @@ import tensorflow as tf
 
 
 class SideEffect(tf.keras.layers.Layer):
-
     def __init__(self, fn: Callable, **kwargs):
         self._fn = fn
         super(SideEffect, self).__init__(**kwargs)

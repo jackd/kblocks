@@ -5,8 +5,9 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def get_linear_coords_and_factors(coords: tf.Tensor,
-                                  name: str = 'linear_coords_and_factors'):
+def get_linear_coords_and_factors(
+    coords: tf.Tensor, name: str = "linear_coords_and_factors"
+):
     """
     Get coordinates and factors used in linear interpolation.
 
@@ -40,8 +41,7 @@ def get_linear_coords_and_factors(coords: tf.Tensor,
             n_points = shape[0]
             batch_size = None
 
-        di = tf.stack(tf.meshgrid(*([tf.range(2)] * n_dims), indexing='ij'),
-                      axis=-1)
+        di = tf.stack(tf.meshgrid(*([tf.range(2)] * n_dims), indexing="ij"), axis=-1)
         di = tf.reshape(di, (-1, n_dims))
 
         floor_coords = tf.floor(coords)
@@ -57,17 +57,18 @@ def get_linear_coords_and_factors(coords: tf.Tensor,
         # batch-wise meshgrid - maybe map_fn instead?
         # n_dim explicit loops here, as opposed to presumably n_points?
         for i, delta in enumerate(deltas):
-            deltas[i] = tf.reshape(delta, (-1,) + (1,) * i + (2,) + (1,) *
-                                   (n_dims - i - 1))
+            deltas[i] = tf.reshape(
+                delta, (-1,) + (1,) * i + (2,) + (1,) * (n_dims - i - 1)
+            )
 
         factors = deltas[0]
         for d in deltas[1:]:
             factors = factors * d
 
         if batch_size is not None:
-            factors = tf.reshape(factors, (batch_size, n_points, 2**n_dims))
+            factors = tf.reshape(factors, (batch_size, n_points, 2 ** n_dims))
         else:
-            factors = tf.reshape(factors, (n_points, 2**n_dims))
+            factors = tf.reshape(factors, (n_points, 2 ** n_dims))
     return corner_coords, factors
 
 
@@ -89,8 +90,9 @@ def fix_coords_for_gather(coords, value_rank):
         return fix_batched_indices_for_gather(coords)
     else:
         raise ValueError(
-            'coords must have rank %d or %d for value_rank %d, got %d' %
-            (value_rank - 1, value_rank, value_rank, n_dim))
+            "coords must have rank %d or %d for value_rank %d, got %d"
+            % (value_rank - 1, value_rank, value_rank, n_dim)
+        )
 
 
 def gather_scale_sum(values, coords, factors):
@@ -107,7 +109,7 @@ def gather_scale_sum(values, coords, factors):
     Returns:
         (num_points,)
     """
-    with tf.name_scope('gather_scale_sum'):
+    with tf.name_scope("gather_scale_sum"):
         n_dims = len(values.shape)
         coords = fix_coords_for_gather(coords, n_dims)
         corner_vals = tf.gather_nd(values, coords)
@@ -119,12 +121,13 @@ def _assert_shapes_consistent(grid_vals, coords):
     n_dims = coords.shape.as_list()[-1]
     batched = len(coords.shape) == 3
     if len(grid_vals.shape) != (n_dims + batched):
-        raise ValueError('Inconsistent shapes for interpolation. \n'
-                         'grid_vals: %s, coords: %s' %
-                         (str(grid_vals.shape), str(coords.shape)))
+        raise ValueError(
+            "Inconsistent shapes for interpolation. \n"
+            "grid_vals: %s, coords: %s" % (str(grid_vals.shape), str(coords.shape))
+        )
 
 
-def linear_interp(grid_vals, coords, name='linear_interp'):
+def linear_interp(grid_vals, coords, name="linear_interp"):
     """
     Perform linear interpolation to approximate grid_vals between indices.
 

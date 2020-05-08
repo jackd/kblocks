@@ -10,7 +10,6 @@ StepFn = Callable[[tf.Tensor], Any]
 
 
 class StepFnCallback(tf.keras.callbacks.Callback):
-
     def __init__(self):
         self._summary_fns = OrderedDict()
         super(StepFnCallback, self).__init__()
@@ -29,7 +28,7 @@ class StepFnCallback(tf.keras.callbacks.Callback):
             fn(step)
 
 
-scope = Scope[StepFnCallback](name='step_fn_callback')
+scope = Scope[StepFnCallback](name="step_fn_callback")
 get_default = scope.get_default
 
 

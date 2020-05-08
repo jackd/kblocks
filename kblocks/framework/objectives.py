@@ -2,10 +2,9 @@ from typing import Dict, Any, Optional
 import gin
 
 
-@gin.configurable(module='kb.framework')
+@gin.configurable(module="kb.framework")
 class Objective(object):
-
-    def __init__(self, name: str, split='validation', mode: str = 'max'):
+    def __init__(self, name: str, split="validation", mode: str = "max"):
         self._name = name
         self._mode = mode
         self._split = split
@@ -30,7 +29,7 @@ class Objective(object):
         return Objective(**config)
 
     @classmethod
-    def get(cls, identifier) -> Optional['Objective']:
+    def get(cls, identifier) -> Optional["Objective"]:
         if identifier is None:
             return identifier
         elif isinstance(identifier, Objective):
@@ -43,5 +42,5 @@ class Objective(object):
             return Objective(identifier)
         else:
             raise TypeError(
-                'Cannot convert identifier {} into an Objective'.format(
-                    identifier))
+                "Cannot convert identifier {} into an Objective".format(identifier)
+            )

@@ -6,7 +6,8 @@ from absl import logging
 from typing import Union, Iterable, List
 
 KB_CONFIG_DIR = os.path.realpath(
-    os.path.join(os.path.dirname(__file__), '..', 'configs'))
+    os.path.join(os.path.dirname(__file__), "..", "configs")
+)
 
 
 def try_register_config_dir(key, path):
@@ -28,13 +29,15 @@ def try_register_config_dir(key, path):
         print(path)
         print(os.environ[key])
         if os.environ[key] != path:
-            logging.warning('{} environment variable already defined. '
-                            'Config parsing may act surprisingly'.format(key))
+            logging.warning(
+                "{} environment variable already defined. "
+                "Config parsing may act surprisingly".format(key)
+            )
     else:
         os.environ[key] = path
 
 
-try_register_config_dir('KB_CONFIG', KB_CONFIG_DIR)
+try_register_config_dir("KB_CONFIG", KB_CONFIG_DIR)
 
 
 def fix_paths(config_files: Union[str, Iterable[str]]) -> List[str]:
@@ -47,17 +50,19 @@ def fix_paths(config_files: Union[str, Iterable[str]]) -> List[str]:
         - filters out empty strings
     """
     import numpy as np
+
     if config_files == 0:
         return list(config_files)
     if isinstance(config_files, str):
         config_files = [config_files]
-    config_files = np.concatenate([c.split('\n') for c in config_files])
-    config_files = np.concatenate([c.split(',') for c in config_files])
+    config_files = np.concatenate([c.split("\n") for c in config_files])
+    config_files = np.concatenate([c.split(",") for c in config_files])
     config_files = (c.strip() for c in config_files)
-    config_files = (c for c in config_files if c != '')
+    config_files = (c for c in config_files if c != "")
     config_files = (  # add missing .gin extension
-        p if p.endswith('.gin') else '{}.gin'.format(p) for p in config_files)
-    return [p for p in config_files if p.strip() != '']
+        p if p.endswith(".gin") else "{}.gin".format(p) for p in config_files
+    )
+    return [p for p in config_files if p.strip() != ""]
 
 
 def fix_bindings(bindings: Union[str, Iterable[str]]) -> str:
@@ -65,4 +70,4 @@ def fix_bindings(bindings: Union[str, Iterable[str]]) -> str:
     if isinstance(bindings, str):
         return bindings
     else:
-        return '\n'.join(bindings)
+        return "\n".join(bindings)

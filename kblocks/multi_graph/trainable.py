@@ -12,31 +12,35 @@ from kblocks.framework.trainable import Trainable
 from . import multi_builder as mb
 
 
-@gin.configurable(module='kb.framework')
+@gin.configurable(module="kb.framework")
 def multi_graph_trainable(
-        build_fn: Callable,
-        base_source: DataSource,
-        batch_size: int,
-        compiler: Callable[[tf.keras.Model], None],
-        model_dir: Optional[str] = None,
-        build_with_batch_size: bool = True,
-        #   rebuild_model_with_xla: bool = False,
-        use_model_builders: bool = False,
-        **pipeline_kwargs):
-    logging.info('Building multi graph...')
-    built = mb.build_multi_graph(functools.partial(build_fn,
-                                                   **base_source.meta),
-                                 base_source.example_spec,
-                                 batch_size if build_with_batch_size else None,
-                                 use_model_builders=use_model_builders)
+    build_fn: Callable,
+    base_source: DataSource,
+    batch_size: int,
+    compiler: Callable[[tf.keras.Model], None],
+    model_dir: Optional[str] = None,
+    build_with_batch_size: bool = True,
+    #   rebuild_model_with_xla: bool = False,
+    use_model_builders: bool = False,
+    **pipeline_kwargs
+):
+    logging.info("Building multi graph...")
+    built = mb.build_multi_graph(
+        functools.partial(build_fn, **base_source.meta),
+        base_source.example_spec,
+        batch_size if build_with_batch_size else None,
+        use_model_builders=use_model_builders,
+    )
 
-    logging.info('Successfully built!')
+    logging.info("Successfully built!")
 
-    pipeline = BasePipeline(batch_size,
-                            pre_cache_map=built.pre_cache_map,
-                            pre_batch_map=built.pre_batch_map,
-                            post_batch_map=built.post_batch_map,
-                            **pipeline_kwargs)
+    pipeline = BasePipeline(
+        batch_size,
+        pre_cache_map=built.pre_cache_map,
+        pre_batch_map=built.pre_batch_map,
+        post_batch_map=built.post_batch_map,
+        **pipeline_kwargs
+    )
     source = PipelinedSource(base_source, pipeline)
     model = built.trained_model
     # if rebuild_model_with_xla:

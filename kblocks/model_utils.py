@@ -6,21 +6,23 @@ from typing import Iterable, Optional, Tuple
 import tensorflow as tf
 
 
-def custom_fit(model,
-               x: tf.data.Dataset,
-               epochs: int = 1,
-               verbose: int = 1,
-               callbacks: Iterable[tf.keras.callbacks.Callback] = [],
-               validation_data: Optional[tf.data.Dataset] = None,
-               initial_epoch: int = 0,
-               steps_per_epoch: Optional[int] = None,
-               validation_steps: Optional[int] = None,
-               validation_freq: int = 1,
-               loss=None,
-               metrics=None,
-               optimizer=None):
+def custom_fit(
+    model,
+    x: tf.data.Dataset,
+    epochs: int = 1,
+    verbose: int = 1,
+    callbacks: Iterable[tf.keras.callbacks.Callback] = [],
+    validation_data: Optional[tf.data.Dataset] = None,
+    initial_epoch: int = 0,
+    steps_per_epoch: Optional[int] = None,
+    validation_steps: Optional[int] = None,
+    validation_freq: int = 1,
+    loss=None,
+    metrics=None,
+    optimizer=None,
+):
     if not tf.executing_eagerly():
-        raise RuntimeError('custom_fit should be called in eager mode')
+        raise RuntimeError("custom_fit should be called in eager mode")
 
     if loss is None:
         loss = model.loss
@@ -32,16 +34,16 @@ def custom_fit(model,
         optimizer = model.optimizer
 
     history = tf.keras.callbacks.History()
-    prog_bar = tf.keras.callbacks.ProgbarLogger(count_mode='steps')
+    prog_bar = tf.keras.callbacks.ProgbarLogger(count_mode="steps")
     prog_bar.set_params(
-        dict(verbose=verbose,
-             epochs=epochs,
-             metrics=('loss',) + tuple(m.name for m in metrics),
-             steps=steps_per_epoch))
-    callbacks = [
-        history,
-        prog_bar,
-    ] + list(callbacks)
+        dict(
+            verbose=verbose,
+            epochs=epochs,
+            metrics=("loss",) + tuple(m.name for m in metrics),
+            steps=steps_per_epoch,
+        )
+    )
+    callbacks = [history, prog_bar,] + list(callbacks)
 
     def get_total_loss(labels, preds, weights=None):
         loss_val = loss(labels, preds, weights)
@@ -97,7 +99,7 @@ def custom_fit(model,
                 c.on_train_batch_begin(batch, logs)
             loss_val = train_step(*args)
             logs = {m.name: m.result().numpy() for m in metrics}
-            logs['loss'] = loss_val.numpy()
+            logs["loss"] = loss_val.numpy()
             for c in callbacks:
                 c.on_train_batch_end(batch, logs)
 
@@ -110,7 +112,7 @@ def custom_fit(model,
 
             # add validation metrics
             for m in metrics:
-                logs['val_{}'.format(m.name)] = m.result().numpy()
+                logs["val_{}".format(m.name)] = m.result().numpy()
 
         for c in callbacks:
             c.on_epoch_end(epoch, logs)

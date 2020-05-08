@@ -3,9 +3,8 @@ import tensorflow as tf
 import gin
 
 
-@gin.configurable(module='kb.layers')
+@gin.configurable(module="kb.layers")
 class ChannelDropout(tf.keras.layers.Layer):
-
     def __init__(self, rate: float, **kwargs):
         super().__init__(**kwargs)
         self._rate = rate
@@ -16,7 +15,7 @@ class ChannelDropout(tf.keras.layers.Layer):
 
     def get_config(self):
         config = super().get_config()
-        config['rate'] = self.rate
+        config["rate"] = self.rate
         return config
 
     def __call__(self, features, training=None):
@@ -25,11 +24,10 @@ class ChannelDropout(tf.keras.layers.Layer):
         if isinstance(training, int):
             training = bool(training)
 
-        assert (isinstance(training, bool))
+        assert isinstance(training, bool)
         if training:
             num_channels = features.shape[-1]
             mask = tf.random.uniform(shape=(num_channels,)) > self.rate
-            return tf.where(mask, features / (1 - self.rate),
-                            tf.zeros_like(features))
+            return tf.where(mask, features / (1 - self.rate), tf.zeros_like(features))
         else:
             return features

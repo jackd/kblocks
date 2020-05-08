@@ -8,7 +8,6 @@ value_rowids = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2]
 
 
 class RaggedStructureTest(tf.test.TestCase):
-
     def row_lengths_test(self):
         rs = RaggedStructure.from_row_splits(row_splits)
         actual = self.evaluate(rs.row_lengths())
@@ -30,5 +29,5 @@ class RaggedStructureTest(tf.test.TestCase):
         np.testing.assert_equal(actual, row_splits)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tf.test.main()

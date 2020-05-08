@@ -4,17 +4,17 @@ Lambda = tf.keras.layers.Lambda
 
 
 def indices(st: tf.SparseTensor) -> tf.Tensor:
-    assert (isinstance(st, tf.SparseTensor))
+    assert isinstance(st, tf.SparseTensor)
     return Lambda(lambda x: tf.identity(x.indices))(st)
 
 
 def values(st: tf.SparseTensor) -> tf.Tensor:
-    assert (isinstance(st, tf.SparseTensor))
+    assert isinstance(st, tf.SparseTensor)
     return Lambda(lambda x: tf.identity(x.values))(st)
 
 
 def dense_shape(st: tf.SparseTensor) -> tf.Tensor:
-    assert (isinstance(st, tf.SparseTensor))
+    assert isinstance(st, tf.SparseTensor)
     return Lambda(lambda x: tf.identity(x.dense_shape))(st)
 
 

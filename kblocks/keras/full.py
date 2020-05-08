@@ -8,12 +8,12 @@ from kblocks.keras import regularizers
 from kblocks.keras import optimizers
 
 __all__ = [
-    'applications',
-    'constraints',
-    'initializers',
-    'layers',
-    'losses',
-    'metrics',
-    'regularizers',
-    'optimizers',
+    "applications",
+    "constraints",
+    "initializers",
+    "layers",
+    "losses",
+    "metrics",
+    "regularizers",
+    "optimizers",
 ]

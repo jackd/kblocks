@@ -24,63 +24,70 @@ Lambda = tf.keras.layers.Lambda
 #     return layer
 
 
-def from_row_splits(values: RTensor,
-                    row_splits: tf.Tensor,
-                    name=None,
-                    validate=True) -> tf.RaggedTensor:
-    return Lambda(lambda args: tf.RaggedTensor.from_row_splits(
-        *args, name=name, validate=validate))([values, row_splits])
+def from_row_splits(
+    values: RTensor, row_splits: tf.Tensor, name=None, validate=True
+) -> tf.RaggedTensor:
+    return Lambda(
+        lambda args: tf.RaggedTensor.from_row_splits(
+            *args, name=name, validate=validate
+        )
+    )([values, row_splits])
 
 
-def from_nested_row_splits(flat_values: tf.Tensor,
-                           nested_row_splits: Iterable[tf.Tensor],
-                           name=None,
-                           validate=True) -> tf.RaggedTensor:
-    return Lambda(lambda args: tf.RaggedTensor.from_nested_row_splits(
-        args[0], args[1:], name=name, validate=validate))(
-            [flat_values, *nested_row_splits])
+def from_nested_row_splits(
+    flat_values: tf.Tensor,
+    nested_row_splits: Iterable[tf.Tensor],
+    name=None,
+    validate=True,
+) -> tf.RaggedTensor:
+    return Lambda(
+        lambda args: tf.RaggedTensor.from_nested_row_splits(
+            args[0], args[1:], name=name, validate=validate
+        )
+    )([flat_values, *nested_row_splits])
 
 
-def from_row_lengths(values: tf.Tensor,
-                     row_lengths: tf.Tensor,
-                     name=None,
-                     validate=True) -> tf.RaggedTensor:
-    return Lambda(lambda args: tf.RaggedTensor.from_row_lengths(
-        *args, name=name, validate=validate))([values, row_lengths])
+def from_row_lengths(
+    values: tf.Tensor, row_lengths: tf.Tensor, name=None, validate=True
+) -> tf.RaggedTensor:
+    return Lambda(
+        lambda args: tf.RaggedTensor.from_row_lengths(
+            *args, name=name, validate=validate
+        )
+    )([values, row_lengths])
 
 
-def from_value_rowids(values: tf.Tensor,
-                      rowids: tf.Tensor,
-                      nrows=None,
-                      name=None,
-                      validate=True):
+def from_value_rowids(
+    values: tf.Tensor, rowids: tf.Tensor, nrows=None, name=None, validate=True
+):
 
     args = [values, rowids]
     kwargs = dict(name=name, validate=validate)
     if nrows is not None:
         if isinstance(nrows, int):
-            kwargs['nrows'] = nrows
+            kwargs["nrows"] = nrows
         else:
             args.append(nrows)
-    return Lambda(
-        lambda args: tf.RaggedTensor.from_value_rowids(*args, **kwargs))(args)
+    return Lambda(lambda args: tf.RaggedTensor.from_value_rowids(*args, **kwargs))(args)
 
 
-def from_tensor(tensor: tf.Tensor,
-                lengths: Optional[tf.Tensor] = None,
-                padding: Optional[Union[tf.Tensor, int, float]] = None,
-                ragged_rank: int = 1,
-                name=None,
-                row_splits_dtype=tf.int64):
-    kwargs: Dict[str, Any] = dict(name=name,
-                                  ragged_rank=ragged_rank,
-                                  row_splits_dtype=row_splits_dtype)
+def from_tensor(
+    tensor: tf.Tensor,
+    lengths: Optional[tf.Tensor] = None,
+    padding: Optional[Union[tf.Tensor, int, float]] = None,
+    ragged_rank: int = 1,
+    name=None,
+    row_splits_dtype=tf.int64,
+):
+    kwargs: Dict[str, Any] = dict(
+        name=name, ragged_rank=ragged_rank, row_splits_dtype=row_splits_dtype
+    )
     args = []
     names = []
     for name, value in (
-        ('tensor', tensor),
-        ('lengths', lengths),
-        ('padding', padding),
+        ("tensor", tensor),
+        ("lengths", lengths),
+        ("padding", padding),
     ):
         if isinstance(value, tf.Tensor):
             args.append(value)
@@ -125,15 +132,17 @@ def row_starts(rt: tf.RaggedTensor) -> tf.Tensor:
 
 
 def nested_row_splits(rt: tf.RaggedTensor) -> Tuple[tf.Tensor, ...]:
-    out = Lambda(lambda rt: [tf.identity(rs) for rs in rt.nested_row_splits])(
-        rt)
+    out = Lambda(lambda rt: [tf.identity(rs) for rs in rt.nested_row_splits])(rt)
     return (out,) if isinstance(out, tf.Tensor) else tuple(out)
 
 
 def components(rt: tf.RaggedTensor) -> Tuple[tf.Tensor, Tuple[tf.Tensor, ...]]:
-    out = Lambda(lambda rt: [
-        tf.identity(rt.flat_values), *(tf.identity(rs) for rs in rt.row_splits)
-    ])(rt)
+    out = Lambda(
+        lambda rt: [
+            tf.identity(rt.flat_values),
+            *(tf.identity(rs) for rs in rt.row_splits),
+        ]
+    )(rt)
     return RaggedComponents(out[0], tuple(out[1:]))
 
 
@@ -142,8 +151,7 @@ def with_values(rt: tf.RaggedTensor, values: RTensor):
 
 
 def with_flat_values(rt: tf.RaggedTensor, flat_values: tf.Tensor):
-    return Lambda(lambda args: args[0].with_flat_values(args[1]))(
-        [rt, flat_values])
+    return Lambda(lambda args: args[0].with_flat_values(args[1]))([rt, flat_values])
 
 
 def with_row_splits_dtype(rt: tf.RaggedTensor, dtype: tf.DType):
@@ -155,8 +163,7 @@ def pre_batch_ragged(tensor: tf.Tensor) -> tf.RaggedTensor:
 
 
 def post_batch_ragged(rt: tf.RaggedTensor, validate=True) -> tf.RaggedTensor:
-    return Lambda(ragged_ops.post_batch_ragged,
-                  arguments=dict(validate=validate))(rt)
+    return Lambda(ragged_ops.post_batch_ragged, arguments=dict(validate=validate))(rt)
 
 
 def lengths_to_splits(row_lengths: tf.Tensor) -> tf.Tensor:
@@ -178,63 +185,73 @@ def splits_to_lengths(row_splits: tf.Tensor) -> tf.Tensor:
 
 
 def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
-    return Lambda(ragged_ops.lengths_to_ids,
-                  arguments=dict(dtype=dtype))(row_lengths)
+    return Lambda(ragged_ops.lengths_to_ids, arguments=dict(dtype=dtype))(row_lengths)
 
 
 def lengths_to_mask(row_lengths: tf.Tensor, size: Optional[Dimension] = None):
     if isinstance(size, tf.Tensor):
         return Lambda(lambda args: ragged_ops.lengths_to_mask(*args))(
-            [row_lengths, size])
+            [row_lengths, size]
+        )
     else:
-        return Lambda(ragged_ops.lengths_to_mask,
-                      arguments=dict(size=size))(row_lengths)
+        return Lambda(ragged_ops.lengths_to_mask, arguments=dict(size=size))(
+            row_lengths
+        )
 
 
 def mask_to_lengths(mask: tf.Tensor) -> tf.Tensor:
     return Lambda(ragged_ops.mask_to_lengths)(mask)
 
 
-def row_max(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
-            max_length: Dimension) -> tf.Tensor:
+def row_max(
+    values: tf.Tensor,
+    row_lengths: tf.Tensor,
+    num_segments: Dimension,
+    max_length: Dimension,
+) -> tf.Tensor:
     args = [values, row_lengths]
-    names = ['values', 'row_lengths']
+    names = ["values", "row_lengths"]
     kwargs = dict()
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)
-        names.append('num_segments')
+        names.append("num_segments")
     else:
-        kwargs['num_segments'] = num_segments
+        kwargs["num_segments"] = num_segments
     if isinstance(max_length, tf.Tensor):
         args.append(max_length)
-        names.append('max_length')
+        names.append("max_length")
     else:
-        kwargs['max_length'] = max_length
-    return Lambda(lambda args: ragged_ops.row_max(
-        **{k: v for k, v in zip(names, args)}, **kwargs))(args)
+        kwargs["max_length"] = max_length
+    return Lambda(
+        lambda args: ragged_ops.row_max(**{k: v for k, v in zip(names, args)}, **kwargs)
+    )(args)
 
 
-def row_sum(values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension,
-            max_length: Dimension) -> tf.Tensor:
+def row_sum(
+    values: tf.Tensor,
+    row_lengths: tf.Tensor,
+    num_segments: Dimension,
+    max_length: Dimension,
+) -> tf.Tensor:
     args = [values, row_lengths]
-    names = ['values', 'row_lengths']
+    names = ["values", "row_lengths"]
     kwargs = dict()
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)
-        names.append('num_segments')
+        names.append("num_segments")
     else:
-        kwargs['num_segments'] = num_segments
+        kwargs["num_segments"] = num_segments
     if isinstance(max_length, tf.Tensor):
         args.append(max_length)
-        names.append('max_length')
+        names.append("max_length")
     else:
-        kwargs['max_length'] = max_length
-    return Lambda(lambda args: ragged_ops.row_sum(
-        **{k: v for k, v in zip(names, args)}, **kwargs))(args)
+        kwargs["max_length"] = max_length
+    return Lambda(
+        lambda args: ragged_ops.row_sum(**{k: v for k, v in zip(names, args)}, **kwargs)
+    )(args)
 
 
-def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor,
-                num_segments: Dimension):
+def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor, num_segments: Dimension):
     args = [values, segment_ids]
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)
@@ -244,8 +261,9 @@ def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor,
     return Lambda(lambda args: ragged_ops.segment_sum(*args, **kwargs))(args)
 
 
-def repeat_ranges(row_lengths: tf.Tensor,
-                  maxlen: Optional[Dimension] = None) -> tf.Tensor:
+def repeat_ranges(
+    row_lengths: tf.Tensor, maxlen: Optional[Dimension] = None
+) -> tf.Tensor:
     if isinstance(maxlen, int):
         args = [row_lengths]
         kwargs = dict(maxlen=maxlen)
@@ -255,8 +273,7 @@ def repeat_ranges(row_lengths: tf.Tensor,
     return Lambda(lambda args: ragged_ops.repeat_ranges(*args, **kwargs))(args)
 
 
-def to_tensor(rt: tf.RaggedTensor,
-              ncols: Optional[Dimension] = None) -> tf.Tensor:
+def to_tensor(rt: tf.RaggedTensor, ncols: Optional[Dimension] = None) -> tf.Tensor:
     if isinstance(ncols, int):
         args = [rt]
         kwargs = dict(ncols=ncols)

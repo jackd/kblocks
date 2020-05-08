@@ -22,31 +22,32 @@ import keras_applications
 # pylint: disable=import-error
 from tensorflow.python.keras import backend
 from tensorflow.python.keras import engine
+
 # from tensorflow.python.keras import layers
 from tensorflow.python.keras import models
 from tensorflow.python.keras import utils
 from tensorflow.python.util import tf_inspect
+
 # pylint: enable=import-error
 from kblocks.keras import layers
 
 # `get_submodules_from_kwargs` has been introduced in 1.0.5, but we would
 # like to be able to handle prior versions. Note that prior to 1.0.5,
 # `keras_applications` did not expose a `__version__` attribute.
-if not hasattr(keras_applications, 'get_submodules_from_kwargs'):
+if not hasattr(keras_applications, "get_submodules_from_kwargs"):
     # pylint: disable=no-member
 
-    if 'engine' in tf_inspect.getfullargspec(
-            keras_applications.set_keras_submodules)[0]:
-        keras_applications.set_keras_submodules(backend=backend,
-                                                layers=layers,
-                                                models=models,
-                                                utils=utils,
-                                                engine=engine)
+    if (
+        "engine"
+        in tf_inspect.getfullargspec(keras_applications.set_keras_submodules)[0]
+    ):
+        keras_applications.set_keras_submodules(
+            backend=backend, layers=layers, models=models, utils=utils, engine=engine
+        )
     else:
-        keras_applications.set_keras_submodules(backend=backend,
-                                                layers=layers,
-                                                models=models,
-                                                utils=utils)
+        keras_applications.set_keras_submodules(
+            backend=backend, layers=layers, models=models, utils=utils
+        )
     # pylint: enable=no-member
 
 
@@ -62,12 +63,12 @@ def keras_modules_injection(base_fun):
     """
 
     def wrapper(*args, **kwargs):
-        if hasattr(keras_applications, 'get_submodules_from_kwargs'):
-            kwargs['backend'] = backend
-            if 'layers' not in kwargs:
-                kwargs['layers'] = layers
-            kwargs['models'] = models
-            kwargs['utils'] = utils
+        if hasattr(keras_applications, "get_submodules_from_kwargs"):
+            kwargs["backend"] = backend
+            if "layers" not in kwargs:
+                kwargs["layers"] = layers
+            kwargs["models"] = models
+            kwargs["utils"] = utils
         return base_fun(*args, **kwargs)
 
     return wrapper
@@ -76,37 +77,36 @@ def keras_modules_injection(base_fun):
 loc = locals()
 
 for k, v in (
-    ('DenseNet121', keras_applications.densenet.DenseNet121),
-    ('DenseNet169', keras_applications.densenet.DenseNet169),
-    ('DenseNet201', keras_applications.densenet.DenseNet201),
-    ('InceptionResNetV2',
-     keras_applications.inception_resnet_v2.InceptionResNetV2),
-    ('InceptionV3', keras_applications.inception_v3.InceptionV3),
-    ('MobileNet', keras_applications.mobilenet.MobileNet),
-    ('MobileNetV2', keras_applications.mobilenet_v2.MobileNetV2),
-    ('NASNetLarge', keras_applications.nasnet.NASNetLarge),
-    ('NASNetMobile', keras_applications.nasnet.NASNetMobile),
-    ('ResNet50', keras_applications.resnet50.ResNet50),
-    ('VGG16', keras_applications.vgg16.VGG16),
-    ('VGG19', keras_applications.vgg19.VGG19),
-    ('Xception', keras_applications.xception.Xception),
+    ("DenseNet121", keras_applications.densenet.DenseNet121),
+    ("DenseNet169", keras_applications.densenet.DenseNet169),
+    ("DenseNet201", keras_applications.densenet.DenseNet201),
+    ("InceptionResNetV2", keras_applications.inception_resnet_v2.InceptionResNetV2),
+    ("InceptionV3", keras_applications.inception_v3.InceptionV3),
+    ("MobileNet", keras_applications.mobilenet.MobileNet),
+    ("MobileNetV2", keras_applications.mobilenet_v2.MobileNetV2),
+    ("NASNetLarge", keras_applications.nasnet.NASNetLarge),
+    ("NASNetMobile", keras_applications.nasnet.NASNetMobile),
+    ("ResNet50", keras_applications.resnet50.ResNet50),
+    ("VGG16", keras_applications.vgg16.VGG16),
+    ("VGG19", keras_applications.vgg19.VGG19),
+    ("Xception", keras_applications.xception.Xception),
 ):
     loc[k] = keras_modules_injection(v)
 
 # make linters play nicely
-DenseNet121 = loc['DenseNet121']
-DenseNet169 = loc['DenseNet169']
-DenseNet201 = loc['DenseNet201']
-InceptionResNetV2 = loc['InceptionResNetV2']
-InceptionV3 = loc['InceptionV3']
-MobileNet = loc['MobileNet']
-MobileNetV2 = loc['MobileNetV2']
-NASNetLarge = loc['NASNetLarge']
-NASNetMobile = loc['NASNetMobile']
-ResNet50 = loc['ResNet50']
-VGG16 = loc['VGG16']
-VGG19 = loc['VGG19']
-Xception = loc['Xception']
+DenseNet121 = loc["DenseNet121"]
+DenseNet169 = loc["DenseNet169"]
+DenseNet201 = loc["DenseNet201"]
+InceptionResNetV2 = loc["InceptionResNetV2"]
+InceptionV3 = loc["InceptionV3"]
+MobileNet = loc["MobileNet"]
+MobileNetV2 = loc["MobileNetV2"]
+NASNetLarge = loc["NASNetLarge"]
+NASNetMobile = loc["NASNetMobile"]
+ResNet50 = loc["ResNet50"]
+VGG16 = loc["VGG16"]
+VGG19 = loc["VGG19"]
+Xception = loc["Xception"]
 
 del absolute_import
 del division

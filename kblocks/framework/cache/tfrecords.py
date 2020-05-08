@@ -11,11 +11,12 @@ from tqdm import tqdm
 import gin
 import tensorflow as tf
 from . import core
+
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
 def serialize_example(*args, **kwargs):
-    updater = kwargs.pop('updater')
+    updater = kwargs.pop("updater")
     flat_example = tf.nest.flatten((args, kwargs), expand_composites=True)
     flat_strings = tuple(tf.io.serialize_tensor(x) for x in flat_example)
     tf.py_function(updater, [], [])
@@ -30,39 +31,38 @@ def deserializer(spec):
         flat_strings = tf.io.parse_tensor(example, tf.string)
         unstacked = tf.unstack(flat_strings, len(flat_spec))
         flat_example = tuple(
-            tf.io.parse_tensor(x, s.dtype)
-            for x, s in zip(unstacked, flat_spec))
+            tf.io.parse_tensor(x, s.dtype) for x, s in zip(unstacked, flat_spec)
+        )
         for example, s in zip(flat_example, flat_spec):
             example.set_shape(s.shape)
-        return tf.nest.pack_sequence_as(spec,
-                                        flat_example,
-                                        expand_composites=True)
+        return tf.nest.pack_sequence_as(spec, flat_example, expand_composites=True)
 
     return deserialize_example
 
 
 def _write_dataset(dataset: tf.data.Dataset, path):
     if os.path.isfile(path):
-        logging.info(f'Reusing data found at {path}')
+        logging.info(f"Reusing data found at {path}")
         return
-    logging.info(f'Writing data to {path}')
+    logging.info(f"Writing data to {path}")
     writer = tf.data.experimental.TFRecordWriter(path)
     try:
         return writer.write(dataset)
     except (Exception, KeyboardInterrupt):
         if os.path.isfile(path):
             os.remove(path)
-        logging.info('Error writing tfrecords. '
-                     f'Removing partially written file at {path}')
+        logging.info(
+            "Error writing tfrecords. " f"Removing partially written file at {path}"
+        )
         raise
 
 
 def _cache_dataset(
-        dataset: tf.data.Dataset,
-        cache_dir: str,
-        #    num_shards: int,
-        num_parallel_calls=AUTOTUNE,
-        # num_parallel_reads=None
+    dataset: tf.data.Dataset,
+    cache_dir: str,
+    #    num_shards: int,
+    num_parallel_calls=AUTOTUNE,
+    # num_parallel_reads=None
 ):
     # spec = dataset.element_spec
     # path_format = f'{cache_dir}/shard-{"{}"}-{num_shards}.tfrecords'
@@ -94,31 +94,34 @@ def _cache_dataset(
     #                                    deserializer(spec), num_parallel_calls)
 
     spec = dataset.element_spec
-    path = os.path.join(cache_dir, 'serialized.tfrecords')
+    path = os.path.join(cache_dir, "serialized.tfrecords")
     if not os.path.isfile(path):
         updater = tqdm()
         write_op = _write_dataset(
             dataset.map(
                 functools.partial(serialize_example, updater=updater.update),
-                num_parallel_calls), path)
+                num_parallel_calls,
+            ),
+            path,
+        )
         if not tf.executing_eagerly():
             with tf.compat.v1.Session() as sess:
                 sess.run(write_op)
         updater.close()
-    return tf.data.TFRecordDataset(path,
-                                   #    num_parallel_reads=num_parallel_reads
-                                  ).map(deserializer(spec), num_parallel_calls)
+    return tf.data.TFRecordDataset(
+        path,
+        #    num_parallel_reads=num_parallel_reads
+    ).map(deserializer(spec), num_parallel_calls)
 
 
-@gin.configurable(module='kb.framework')
+@gin.configurable(module="kb.framework")
 class TFRecordsCacheManager(core.BaseCacheManager):
-
     def __init__(
-            self,
-            cache_dir: str,
-            num_parallel_calls: int = AUTOTUNE,
-            #  num_shards: int,
-            #  num_parallel_reads: Optional[int] = None
+        self,
+        cache_dir: str,
+        num_parallel_calls: int = AUTOTUNE,
+        #  num_shards: int,
+        #  num_parallel_reads: Optional[int] = None
     ):
         # if num_shards < 1:
         #     raise ValueError(f'num_shards must be at least 1, got {num_shards}')
