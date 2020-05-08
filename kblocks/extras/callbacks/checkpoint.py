@@ -4,7 +4,6 @@ Callback wrapper around `tf.train.CheckpointManager` / `tf.train.Checkpoint`.
 See also: https://www.tensorflow.org/guide/checkpoint
 """
 
-from __future__ import absolute_import, division, print_function
 
 from typing import Optional, Union
 

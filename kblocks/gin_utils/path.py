@@ -1,5 +1,5 @@
 # PR underway: https://github.com/google/gin-config/pull/25
-from __future__ import absolute_import, division, print_function
+
 
 import contextlib
 import functools

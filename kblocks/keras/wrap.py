@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import imp
 from types import ModuleType
 from typing import Any, Iterable, Tuple

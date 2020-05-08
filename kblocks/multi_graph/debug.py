@@ -33,8 +33,6 @@ class DebugBuilderContext(MultiGraphContext):
             name=name,
         )
 
-    # def learning_phase(self) -> tf.Tensor:
-    #     return tf.keras.backend.learning_phase()
     def cache(self, x: TensorLike, name: Optional[str] = None) -> TensorLike:
         return tf.identity(x, name=name)
 

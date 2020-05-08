@@ -12,7 +12,6 @@ Importing this adds 4 command line args.
 unused positional arguments as additional config files).
 """
 
-from __future__ import absolute_import, division, print_function
 
 import os
 from typing import Callable, Optional

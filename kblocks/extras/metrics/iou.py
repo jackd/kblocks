@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import gin
 import tensorflow as tf
 from tensorflow.python.keras.metrics import (  # pylint: disable=no-name-in-module,import-error
