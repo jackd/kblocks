@@ -1,10 +1,10 @@
 """Ragged utility operations."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from typing import Iterable, Tuple, Optional
+from typing import Iterable, Optional, Tuple
+
 import tensorflow as tf
+
 from kblocks.tf_typing import Dimension
 
 # def splits_to_ids(splits):
@@ -63,10 +63,9 @@ def splits_to_lengths(row_splits: tf.Tensor) -> tf.Tensor:
 
 
 def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
-    from kblocks.ops import repeat
 
     row_lengths = tf.convert_to_tensor(row_lengths, dtype)
-    return repeat(
+    return tf.repeat(
         tf.range(tf.size(row_lengths, out_type=row_lengths.dtype)), row_lengths, axis=0
     )
 

@@ -1,8 +1,9 @@
-from typing import Generic, TypeVar
-import tensorflow as tf
 import collections
+from typing import Generic, MutableMapping, TypeVar
+
+import tensorflow as tf
+
 from kblocks.tf_typing import TensorLike
-from typing import MutableMapping
 
 RaggedComponents = collections.namedtuple(
     "RaggedComponents", ["flat_values", "nested_row_splits"]

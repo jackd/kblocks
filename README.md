@@ -84,13 +84,18 @@ def simple_cnn(image,
     return tf.keras.Model(inputs=image, outputs=logits)
 ```
 
-`kblocks` currently uses a slight generalization of models called [Pipelines](kblocks/framework/pipelines/core.py), which combined a normal keras model with model-specific pre-batch and post-batch dataset mapping functions. In most cases this isn't necessary, in which case `ModelPipeline` works just fine
+`kblocks` currently uses a slight generalization of datasets called [Pipelines](kblocks/framework/pipelines/core.py), which combined a normal keras model with model-specific pre-batch and post-batch dataset mapping functions. In most cases this isn't necessary, in which case `ModelPipeline` works just fine
 
 ### Fit using a [Trainable](kblocks/framework/trainables)
 
 ```python
-from kblocks.framework.trainables import Trainable
+from absl import flags
+
+import kblocks.keras_configurables  # exposes tf.keras.optimizers.Adam to gin
+# in 'simple.gin'
+import simple  # assumes simple.py contains above fns and is in same folder
 from kblocks.framework.pipelines import ModelPipeline
+from kblocks.framework.trainables import Trainable
 
 
 def simple_cnn_pipeline(features_spec, outputs_spec):
@@ -117,7 +122,6 @@ The above is admittedly a fairly compliated way of doing something which is rela
 First, let's consider how we would make a command-line interface to specify the various parameters in `simple_cnn`.
 
 ```python
-from absl import flags
 flags.DEFINE_list(
     'conv_filters', default=[16, 32],
     help='sequence of ints describing number of filters in each '
@@ -151,9 +155,6 @@ def simple_cnn(image,
 We configure with a separate `.gin` file in the same directory. [gin-config](https://github.com/google/gin-config) is a powerful dependency injection
 
 ```gin
-# in 'simple.gin'
-import simple  # assumes simple.py contains above fns and is in same folder
-import kblocks.keras_configurables  # exposes tf.keras.optimizers.Adam to gin
 model_fn = @simple_cnn
 problem = @cifar100_problem()
 optimizer_fn = @tf.keras.optimizers.Adam

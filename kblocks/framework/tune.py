@@ -1,10 +1,12 @@
+import functools
 import os
 from typing import Callable
-import functools
-import tensorflow as tf
-from kblocks.keras.tuner import Hyperband
-from kblocks.framework.sources import DataSource
+
 import gin
+import tensorflow as tf
+
+from kblocks.framework.sources import DataSource
+from kblocks.keras.tuner import Hyperband
 
 
 @gin.configurable(module="kb.framework")

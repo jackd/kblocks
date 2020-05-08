@@ -1,7 +1,8 @@
 import numpy as np
 import tensorflow as tf
-from kblocks.multi_graph import multi_builder as mb
+
 from kblocks.multi_graph import debug
+from kblocks.multi_graph import multi_builder as mb
 
 
 def pre_cache_map(xy, label):

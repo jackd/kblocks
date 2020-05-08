@@ -1,10 +1,10 @@
 # Default configuration for anything using Trainables
 # as a minimum must define model_fn, base_source, batch_size
 
-import kblocks.framework.trainable
-import kblocks.framework.sources
-import kblocks.framework.pipelines
 import kblocks.framework.compilers
+import kblocks.framework.pipelines
+import kblocks.framework.sources
+import kblocks.framework.trainable
 import kblocks.keras.optimizers
 
 trainable = @kb.framework.base_trainable()

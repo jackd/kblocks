@@ -1,11 +1,11 @@
 # PR underway: https://github.com/google/gin-config/pull/25
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from gin.config import _FILE_READERS
-import os
+from __future__ import absolute_import, division, print_function
+
 import contextlib
 import functools
+import os
+
+from gin.config import _FILE_READERS
 
 
 @contextlib.contextmanager

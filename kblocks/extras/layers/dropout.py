@@ -1,6 +1,6 @@
 # https://arxiv.org/abs/1904.03392
-import tensorflow as tf
 import gin
+import tensorflow as tf
 
 
 @gin.configurable(module="kb.layers")

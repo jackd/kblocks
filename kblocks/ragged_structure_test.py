@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+
 from kblocks.ragged_structure import RaggedStructure
 
 row_splits = [0, 5, 10, 12]

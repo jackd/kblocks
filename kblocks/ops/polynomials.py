@@ -1,15 +1,13 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import abc
 import itertools
-import six
-import numpy as np
-import tensorflow as tf
-import gin
+from typing import Optional, Sequence, Tuple, Union
 
-from typing import Optional, Sequence, Union, Tuple
+import gin
+import numpy as np
+import six
+import tensorflow as tf
 
 Num = Union[int, float]
 

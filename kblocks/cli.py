@@ -12,17 +12,15 @@ Importing this adds 4 command line args.
 unused positional arguments as additional config files).
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import os
-from absl import flags
-from absl import logging
+from typing import Callable, Optional
+
 import gin
-from typing import Optional, Callable
-from kblocks import utils
-from kblocks import tf_config
+from absl import flags, logging
+
+from kblocks import tf_config, utils
 
 flags.DEFINE_multi_string(
     "config_files", [], "config files appended to positional args."

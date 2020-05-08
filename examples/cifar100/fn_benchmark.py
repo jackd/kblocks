@@ -1,7 +1,8 @@
+from time import time
+
 import tensorflow as tf
 
 from simple import cifar100_problem, simple_cnn
-from time import time
 
 # tf.config.optimizer.set_jit(True)
 

@@ -1,8 +1,10 @@
 """
 tf.keras.layers.Lambda wrappers around RaggedComponent constructors/components.
 """
-from typing import Any, Iterable, Union, Tuple, NamedTuple, Optional, Dict
+from typing import Any, Dict, Iterable, NamedTuple, Optional, Tuple, Union
+
 import tensorflow as tf
+
 from kblocks.ops import ragged as ragged_ops
 from kblocks.tf_typing import Dimension
 

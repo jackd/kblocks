@@ -1,7 +1,5 @@
 """Utilities for reporting results from `tf.test.Benchmark.run_op_benchmark`."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 
 def summarize(result, print_fn=print):

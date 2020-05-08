@@ -1,9 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import gin
 import tensorflow as tf
+
 from kblocks.extras.losses.lovasz import original as _orig
 
 

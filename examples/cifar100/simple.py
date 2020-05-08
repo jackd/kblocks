@@ -1,10 +1,10 @@
 import gin
 import tensorflow as tf
-from kblocks.framework.sources import TfdsSource
-from kblocks.framework.sources import PipelinedSource
-from kblocks.framework.pipelines import BasePipeline
-from kblocks.framework.trainable import base_trainable, fit
+
 from kblocks.framework.compilers import compile_classification_model
+from kblocks.framework.pipelines import BasePipeline
+from kblocks.framework.sources import PipelinedSource, TfdsSource
+from kblocks.framework.trainable import base_trainable, fit
 
 
 @gin.configurable()

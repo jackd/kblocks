@@ -1,10 +1,9 @@
-from __future__ import print_function
-from __future__ import division
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
+
+from typing import Any, Dict, Iterable, Tuple, Union
 
 import gin
 import tensorflow as tf
-from typing import Iterable, Tuple, Dict, Any, Union
 
 Constraint = tf.keras.constraints.Constraint
 

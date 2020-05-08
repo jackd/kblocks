@@ -1,14 +1,12 @@
-from absl import logging
-from typing import Callable, Dict, Optional, Iterable, Any, Tuple
 import collections
-
-import tensorflow as tf
-import tensorflow_datasets as tfds
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 import gin
+import tensorflow as tf
+import tensorflow_datasets as tfds
+from absl import logging
 
-from kblocks.framework.sources import DataSource
-from kblocks.framework.sources import TfdsSource
+from kblocks.framework.sources import DataSource, TfdsSource
 
 
 class CacheConfig(tfds.core.BuilderConfig):

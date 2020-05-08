@@ -17,9 +17,10 @@ print(activation)
 
 Note there is also the global `tf.keras.utils.get_custom_objects`.
 """
-from typing import Union, Callable
-import tensorflow as tf
 from collections import MutableMapping
+from typing import Callable, Union
+
+import tensorflow as tf
 
 
 class CustomObjectRegister(MutableMapping):

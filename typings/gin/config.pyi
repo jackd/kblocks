@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple, Callable, Callable, Any
+from typing import Any, Callable, List, Tuple, Union
 
 def parse_config_files_and_bindings(
     config_files: List[str],

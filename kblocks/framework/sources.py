@@ -1,13 +1,14 @@
-from typing import Union, Callable, Optional, Dict, Any
 import abc
-from absl import logging
 from copy import deepcopy
+from typing import Any, Callable, Dict, Optional, Union
+
 import gin
-from tqdm import tqdm
 import tensorflow as tf
 import tensorflow_datasets as tfds
+from absl import logging
+from tqdm import tqdm
 
-from .pipelines import DataPipeline
+from kblocks.framework.pipelines import DataPipeline
 
 Split = Union[str, tfds.Split]
 gin.external_configurable(tfds.ReadConfig, module="tfds")

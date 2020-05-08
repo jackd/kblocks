@@ -1,10 +1,10 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from typing import Iterable, Any, Tuple
-from types import ModuleType
-import gin
+from __future__ import absolute_import, division, print_function
+
 import imp
+from types import ModuleType
+from typing import Any, Iterable, Tuple
+
+import gin
 
 BLACKLIST = ("serialize", "deserialize", "get")
 

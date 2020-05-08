@@ -1,12 +1,15 @@
 import abc
-from kblocks.tf_typing import TensorLike, TensorLikeSpec
 from typing import Callable, Optional
+
 import tensorflow as tf
-from .graph_builder import GraphBuilder
-from .graph_builder import GraphModelBuilder
-from .graph_builder import ModelBuilder
 
 import kblocks.extras.layers.ragged as ragged_layers
+from kblocks.multi_graph.graph_builder import (
+    GraphBuilder,
+    GraphModelBuilder,
+    ModelBuilder,
+)
+from kblocks.tf_typing import TensorLike, TensorLikeSpec
 
 
 def get_graph(x: TensorLike) -> tf.Graph:

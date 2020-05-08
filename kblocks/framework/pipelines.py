@@ -1,8 +1,10 @@
 import abc
-from absl import logging
-from typing import Callable, Optional, Mapping
-import tensorflow as tf
+from typing import Callable, Mapping, Optional
+
 import gin
+import tensorflow as tf
+from absl import logging
+
 from kblocks.framework.cache.core import CacheManager
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -88,12 +90,12 @@ class BasePipeline(DataPipeline):
                     if self._cache_managers is None
                     else self._cache_managers.get(split)
                 )
-                use_cache = cache_managers is not None
                 dataset = dataset.map(
-                    self._pre_cache_map, 1 if use_cache else self._num_parallel_calls
+                    self._pre_cache_map,
+                    self._num_parallel_calls if cache_managers is None else 1,
                 )
 
-                if use_cache:
+                if cache_managers is not None:
                     if self._clear_cache:
                         cache_managers.clear()
                     dataset = cache_managers(dataset)

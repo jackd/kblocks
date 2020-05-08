@@ -1,12 +1,10 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import gin
 import tensorflow as tf
-from tensorflow.python.keras.metrics import (
+from tensorflow.python.keras.metrics import (  # pylint: disable=no-name-in-module,import-error
     squeeze_or_expand_dimensions,
-)  # pylint: disable=no-name-in-module,import-error
+)
 
 
 @gin.configurable(module="kb.metrics")

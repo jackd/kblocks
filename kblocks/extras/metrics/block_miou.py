@@ -1,4 +1,5 @@
 from typing import Iterable
+
 import gin
 import numpy as np
 import tensorflow as tf

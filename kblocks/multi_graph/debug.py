@@ -1,8 +1,9 @@
 from typing import Optional
+
 import tensorflow as tf
 
+from kblocks.multi_graph.multi_builder import MultiGraphContext
 from kblocks.tf_typing import TensorLike
-from .multi_builder import MultiGraphContext
 
 
 class DebugBuilderContext(MultiGraphContext):
@@ -23,24 +24,34 @@ class DebugBuilderContext(MultiGraphContext):
     def batch_size(self) -> int:
         return self._batch_size
 
-    def _batch(self, tensor: tf.Tensor, flat=False):
+    def _batch(self, tensor: tf.Tensor, flat: bool = False, name: Optional[str] = None):
         if not flat:
             tensor = tf.expand_dims(tensor, axis=0)
         return tf.tile(
-            tensor, (self.batch_size, *(1 for _ in range(tensor.shape.ndims - 1)))
+            tensor,
+            (self.batch_size, *(1 for _ in range(tensor.shape.ndims - 1))),
+            name=name,
         )
 
     # def learning_phase(self) -> tf.Tensor:
     #     return tf.keras.backend.learning_phase()
-    def cache(self, x: TensorLike) -> TensorLike:
-        return tf.identity(x)
+    def cache(self, x: TensorLike, name: Optional[str] = None) -> TensorLike:
+        return tf.identity(x, name=name)
 
-    def batch(self, tensor: TensorLike):
+    def batch(self, tensor: TensorLike, name: Optional[str] = None):
         if isinstance(tensor, tf.Tensor):
-            return self._batch(tensor)
+            return self._batch(tensor, name=name)
         elif isinstance(tensor, tf.SparseTensor):
-            values = self._batch(tensor.values, flat=True)
-            indices = self._batch(tensor.indices, flat=True)
+            values = self._batch(
+                tensor.values,
+                flat=True,
+                name=None if name is None else f"{name}-values",
+            )
+            indices = self._batch(
+                tensor.indices,
+                flat=True,
+                name=None if name is None else f"{name}-indices",
+            )
             b = tf.expand_dims(tf.range(self.batch_size), axis=-1)
             b = tf.tile(b, (1, tf.shape(values)[0]))
             indices = tf.concat((tf.expand_dims(b, 0), indices), axis=-1)

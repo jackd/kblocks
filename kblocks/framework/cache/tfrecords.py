@@ -4,13 +4,15 @@ Simple re-implementation of tf.data.Dataset.cache.
 I swear there's a memory leak in the official implementation.
 """
 import functools
-from typing import Optional
 import os
-from absl import logging
-from tqdm import tqdm
+from typing import Optional
+
 import gin
 import tensorflow as tf
-from . import core
+from absl import logging
+from tqdm import tqdm
+
+from kblocks.framework.cache import core
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 

@@ -1,10 +1,11 @@
-from typing import Iterable
 import abc
 import os
+from typing import Iterable
+
+import gin
+import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
-import tensorflow as tf
-import gin
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 

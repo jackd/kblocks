@@ -1,11 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
+
 from typing import Optional
-import tensorflow as tf
-from kblocks.extras.layers import BiasAdd
-from kblocks.extras.layers import Scale
+
 import gin
+import tensorflow as tf
+
+from kblocks.extras.layers.bias_add import BiasAdd
+from kblocks.extras.layers.scale import Scale
 
 
 @gin.configurable(module="kb.extras.layers")

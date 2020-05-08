@@ -13,22 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Keras Applications are canned architectures with pre-trained weights."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import keras_applications
-
-# pylint: disable=import-error
-from tensorflow.python.keras import backend
-from tensorflow.python.keras import engine
-
-# from tensorflow.python.keras import layers
-from tensorflow.python.keras import models
-from tensorflow.python.keras import utils
+from tensorflow.python.keras import backend, engine, models, utils
 from tensorflow.python.util import tf_inspect
 
-# pylint: enable=import-error
 from kblocks.keras import layers
 
 # `get_submodules_from_kwargs` has been introduced in 1.0.5, but we would
@@ -107,8 +95,4 @@ ResNet50 = loc["ResNet50"]
 VGG16 = loc["VGG16"]
 VGG19 = loc["VGG19"]
 Xception = loc["Xception"]
-
-del absolute_import
-del division
-del print_function
 del loc

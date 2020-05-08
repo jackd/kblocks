@@ -1,11 +1,11 @@
 #!/usr/bin/python
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import unittest
+
 import numpy as np
 import tensorflow as tf
+
 from kblocks.ops.interp import linear_interp
 
 # from tensorflow_datasets.testing.test_utils import run_in_graph_and_eager_modes

@@ -1,15 +1,14 @@
-from typing import Callable, Optional
-from absl import logging
 import functools
+from typing import Callable, Optional
+
 import gin
 import tensorflow as tf
+from absl import logging
 
-from kblocks.framework.sources import DataSource
-from kblocks.framework.sources import PipelinedSource
+from kblocks import multi_graph as mg
 from kblocks.framework.pipelines import BasePipeline
+from kblocks.framework.sources import DataSource, PipelinedSource
 from kblocks.framework.trainable import Trainable
-
-from . import multi_builder as mb
 
 
 @gin.configurable(module="kb.framework")
@@ -25,7 +24,7 @@ def multi_graph_trainable(
     **pipeline_kwargs
 ):
     logging.info("Building multi graph...")
-    built = mb.build_multi_graph(
+    built = mg.build_multi_graph(
         functools.partial(build_fn, **base_source.meta),
         base_source.example_spec,
         batch_size if build_with_batch_size else None,

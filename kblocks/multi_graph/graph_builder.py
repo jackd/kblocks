@@ -1,5 +1,7 @@
-from typing import TypeVar, Union, Callable, Optional, Tuple, Sequence
+from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union
+
 import tensorflow as tf
+
 from kblocks.tf_typing import TensorLike, TensorLikeSpec
 
 T = TypeVar("T")

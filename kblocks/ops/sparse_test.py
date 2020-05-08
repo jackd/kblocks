@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+
 import kblocks.ops.sparse as sparse_ops
 
 

@@ -1,15 +1,15 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
+
+from typing import Callable
 
 import tensorflow as tf
+
 from kblocks.tf_typing import (
+    NestedTensorLike,
+    NestedTensorSpec,
     TensorLike,
     TensorLikeSpec,
-    NestedTensorSpec,
-    NestedTensorLike,
 )
-from typing import Callable
 
 
 def to_input(spec: TensorLikeSpec) -> TensorLike:

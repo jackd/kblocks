@@ -1,10 +1,12 @@
-from setuptools import setup
 import os
 import sys
 
+from setuptools import setup
+
+from version import __version__  # pylint: disable=no-name-in-module
+
 version_path = os.path.join(os.path.dirname(__file__), "kblocks")
 sys.path.append(version_path)
-from version import __version__  # pylint: disable=no-name-in-module
 
 with open(os.path.join(os.path.dirname(__file__), "requirements.txt")) as fp:
     install_requires = fp.read().split("\n")

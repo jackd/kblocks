@@ -1,14 +1,6 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from typing import Any
-from typing import Mapping
-from typing import NamedTuple
-from typing import Sequence
-from typing import Tuple
-from typing import TypeVar
-from typing import Union
+from typing import Any, Mapping, NamedTuple, Sequence, Tuple, TypeVar, Union
 
 import tensorflow as tf
 

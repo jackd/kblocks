@@ -4,15 +4,13 @@ Callback wrapper around `tf.train.CheckpointManager` / `tf.train.Checkpoint`.
 See also: https://www.tensorflow.org/guide/checkpoint
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from absl import logging
-import gin
-
-import tensorflow as tf
 from typing import Optional, Union
+
+import gin
+import tensorflow as tf
+from absl import logging
 
 
 @gin.configurable(module="kb.callbacks")

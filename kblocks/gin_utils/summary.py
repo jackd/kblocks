@@ -1,15 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from typing import Optional
-import os
-import gin
-from kblocks.gin_utils.path import enable_variable_expansion
-from kblocks.gin_utils.path import enable_relative_includes
-from kblocks.gin_utils.config import fix_paths
-from kblocks.gin_utils.config import fix_bindings
+from __future__ import absolute_import, division, print_function
 
-from typing import Union, Iterable, Mapping
+import os
+from typing import Iterable, Mapping, Optional, Union
+
+import gin
+
+from kblocks.gin_utils.config import fix_bindings, fix_paths
+from kblocks.gin_utils.path import enable_relative_includes, enable_variable_expansion
 
 _GIN_SUMMARY = """
 # --cwd={cwd}

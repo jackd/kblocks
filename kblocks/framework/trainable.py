@@ -1,31 +1,15 @@
-from typing import Optional, Callable, List, Mapping, Any
 import os
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
-from absl import logging
 import gin
+import numpy as np
+import tensorflow as tf
+from absl import logging
 from tqdm import tqdm
 
-import tensorflow as tf
-import numpy as np
-
-from kblocks.extras import callbacks as cb
-from .sources import DataSource
-
-# from kblocks.extras.callbacks import log_updater as log_lib
-# from kblocks.extras.callbacks import value_updater as val_lib
-# from kblocks.extras.callbacks.step import StepFnCallback
 from kblocks.benchmark_utils import summarize
-
-# class DebugCallback(tf.keras.callbacks.Callback):
-
-#     def on_batch_end(self, batch, logs=None):
-#         print('batch end', batch)
-#         print(logs)
-
-#     def on_epoch_end(self, epoch, logs=None):
-#         print('epoch end', epoch)
-#         print(logs)
-# raise Exception()
+from kblocks.extras import callbacks as cb
+from kblocks.framework.sources import DataSource
 
 
 def _flatten_dataset_features(dataset):
@@ -311,7 +295,7 @@ class Trainable(object):
                 #         .with_step(i)
                 #         .with_timeline_output(filename).build())
                 # profiler.profile_graph(options=opts)
-            ALL_ADVICE = {
+            ALL_ADVICE: Dict[str, Dict] = {
                 "ExpensiveOperationChecker": {},
                 "AcceleratorUtilizationChecker": {},
                 "JobChecker": {},  # Only available internally.
@@ -345,8 +329,7 @@ class Trainable(object):
         train_ds, val_ds = (source.get_dataset(s) for s in splits)
         train_steps, val_steps = (source.examples_per_epoch(s) for s in splits)
 
-        epochs = _get_epochs(epochs, total_train_steps, train_steps)
-        for epoch in range(epochs):
+        for epoch in range(_get_epochs(epochs, total_train_steps, train_steps)):
             # train loop
             tf.keras.backend.set_learning_phase(True)
             for metric in metrics:

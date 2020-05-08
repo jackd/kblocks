@@ -1,11 +1,10 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+from typing import Optional, Union
+
+import gin
 import numpy as np
 import tensorflow as tf
-import gin
-from typing import Union, Optional
 
 
 @gin.configurable(module="kb.extras.optimizers.schedules")

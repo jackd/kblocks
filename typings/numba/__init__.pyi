@@ -1,5 +1,6 @@
+from typing import Any, Callable, Iterable, List, Optional, Tuple, TypeVar
+
 import numpy as np
-from typing import TypeVar, Callable, Any, Iterable, Optional, Tuple, List
 
 _FuncT = TypeVar("_FuncT", bound=Callable[..., Any])
 

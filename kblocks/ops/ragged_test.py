@@ -1,9 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
+
 from kblocks.ops import ragged as ragged_ops
 
 row_lengths = np.random.randint(low=0, high=100, size=20)
@@ -22,7 +21,7 @@ class RaggedTest(tf.test.TestCase):
     def test_ids_to_lengths(self):
         rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
         rowids = rt.value_rowids()
-        rl = ragged_ops.ids_to_lengths(rowids)
+        rl = ragged_ops.ids_to_lengths(rowids, nrows=rt.nrows())
         np.testing.assert_equal(self.evaluate(rl), row_lengths)
 
     def test_splits_to_lengths(self):
@@ -73,7 +72,7 @@ class RaggedTest(tf.test.TestCase):
         actual = ragged_ops.segment_sum(values, segment_ids, num_segments)
         expected = tf.reduce_sum(rt, axis=1)
         actual, expected = self.evaluate((actual, expected))
-        np.testing.assert_allclose(actual, expected)
+        np.testing.assert_allclose(actual, expected, rtol=1e-5)
 
     def test_repeat_ranges(self):
         expected = [0, 1, 2, 0, 1, 0, 1, 2, 3, 4, 5]

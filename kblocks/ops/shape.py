@@ -1,9 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
-from typing import Union, Iterable
+from typing import Iterable, Union
+
 import tensorflow as tf
+
 from kblocks.tf_typing import Dimension, TensorLike
 
 

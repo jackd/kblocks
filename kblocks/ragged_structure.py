@@ -1,9 +1,6 @@
 # pylint: disable=import-error,no-name-in-module
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import ops
-from tensorflow.python.framework import tensor_util
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
+from tensorflow.python.framework import dtypes, ops, tensor_util
+from tensorflow.python.ops import array_ops, math_ops
 from tensorflow.python.ops.ragged import segment_id_ops
 
 # pylint: enable=import-error,no-name-in-module

@@ -1,6 +1,7 @@
-import tensorflow as tf
-from kblocks.ops import polynomials as poly
 import matplotlib.pyplot as plt
+import tensorflow as tf
+
+from kblocks.ops import polynomials as poly
 
 keys = [k for k in poly.builder_keys if k not in ("her", "cheb")]
 builders = [poly.deserialize_builder(k) for k in keys]

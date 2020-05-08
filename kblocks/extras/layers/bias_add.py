@@ -1,5 +1,5 @@
-import tensorflow as tf
 import gin
+import tensorflow as tf
 
 
 @gin.configurable(module="kb.extras.layers")

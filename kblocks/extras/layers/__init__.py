@@ -1,7 +1,6 @@
 from kblocks.extras.layers.bias_add import BiasAdd
-from kblocks.extras.layers.scale import Scale, ZeroInit
-from kblocks.extras.layers.scale import ZeroInit
 from kblocks.extras.layers.denormalize import Denormalization
+from kblocks.extras.layers.scale import Scale, ZeroInit
 
 __all__ = [
     "BiasAdd",
