@@ -211,22 +211,7 @@ def row_max(
     num_segments: Dimension,
     max_length: Dimension,
 ) -> tf.Tensor:
-    args = [values, row_lengths]
-    names = ["values", "row_lengths"]
-    kwargs = dict()
-    if isinstance(num_segments, tf.Tensor):
-        args.append(num_segments)
-        names.append("num_segments")
-    else:
-        kwargs["num_segments"] = num_segments
-    if isinstance(max_length, tf.Tensor):
-        args.append(max_length)
-        names.append("max_length")
-    else:
-        kwargs["max_length"] = max_length
-    return Lambda(
-        lambda args: ragged_ops.row_max(**{k: v for k, v in zip(names, args)}, **kwargs)
-    )(args)
+    return Lambda(ragged_ops.row_max)([values, row_lengths, num_segments, max_length])
 
 
 def row_sum(
@@ -235,25 +220,13 @@ def row_sum(
     num_segments: Dimension,
     max_length: Dimension,
 ) -> tf.Tensor:
-    args = [values, row_lengths]
-    names = ["values", "row_lengths"]
-    kwargs = dict()
-    if isinstance(num_segments, tf.Tensor):
-        args.append(num_segments)
-        names.append("num_segments")
-    else:
-        kwargs["num_segments"] = num_segments
-    if isinstance(max_length, tf.Tensor):
-        args.append(max_length)
-        names.append("max_length")
-    else:
-        kwargs["max_length"] = max_length
-    return Lambda(
-        lambda args: ragged_ops.row_sum(**{k: v for k, v in zip(names, args)}, **kwargs)
-    )(args)
+    return Lambda(lambda args: ragged_ops.row_sum(*args))(
+        [values, row_lengths, num_segments, max_length]
+    )
 
 
 def segment_sum(values: tf.Tensor, segment_ids: tf.Tensor, num_segments: Dimension):
+    return Lambda()
     args = [values, segment_ids]
     if isinstance(num_segments, tf.Tensor):
         args.append(num_segments)

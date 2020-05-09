@@ -51,6 +51,7 @@ def _open_with_expand(path: str):
     for reader, exists in _FILE_READERS:
         if reader is not _open_with_expand and exists(path):
             return reader(path)
+    return None
 
 
 def enable_variable_expansion(highest_priority: bool = True):
@@ -131,8 +132,9 @@ def register_file_reader(*args, highest_priority: bool = False):
 
     if len(args) == 1:  # It's a decorator.
         return functools.partial(do_registration, is_readable_fn=args[0])
-    elif len(args) == 2:
+    if len(args) == 2:
         do_registration(*args)
-    else:  # 0 or > 2 arguments supplied.
-        err_str = "register_file_reader() takes 1 or 2 arguments ({} given)"
-        raise TypeError(err_str.format(len(args)))
+    # 0 or > 2 arguments supplied.
+    raise TypeError(
+        f"register_file_reader() takes 1 or 2 arguments ({len(args)} given)"
+    )

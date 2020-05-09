@@ -1,5 +1,5 @@
 import collections
-from typing import Generic, MutableMapping, TypeVar
+from typing import Generic, TypeVar
 
 import tensorflow as tf
 
@@ -20,21 +20,19 @@ def _tensor_key(x):
             x.flat_values.experimental_ref(),
             tuple(rs.experimental_ref() for rs in x.nested_row_splits),
         )
-    elif isinstance(x, tf.SparseTensor):
+    if isinstance(x, tf.SparseTensor):
         return SparseComponents(
             x.indices.experimental_ref(), x.values.experimental_ref()
         )
-    elif isinstance(x, (tf.Tensor, tf.Variable)):
+    if isinstance(x, (tf.Tensor, tf.Variable)):
         return x.experimental_ref()
-    else:
-        raise KeyError(
-            "x must be a Tensor, Variable, SparseTensor or RaggedTensor, got {}".format(
-                x
-            )
-        )
+
+    raise KeyError(
+        "x must be a Tensor, Variable, SparseTensor or RaggedTensor, got {}".format(x)
+    )
 
 
-class TensorDict(Generic[T], MutableMapping[TensorLike, T], collections.MutableMapping):
+class TensorDict(Generic[T], collections.MutableMapping[TensorLike, T]):
     def __init__(self, **kwargs):
         self._base = {}
         self._compounds = {}
@@ -63,7 +61,7 @@ class TensorDict(Generic[T], MutableMapping[TensorLike, T], collections.MutableM
                 if isinstance(k, (RaggedComponents, SparseComponents)):
                     yield self._compounds[k]
                 else:
-                    yield k._wrapped
+                    yield k._wrapped  # pylint:disable=protected-access
 
         return iter(gen())
 

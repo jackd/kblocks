@@ -1,22 +1,14 @@
 """Ragged utility operations."""
 
 
-from typing import Iterable, Optional, Tuple
+from typing import Optional
 
 import tensorflow as tf
 
 from kblocks.tf_typing import Dimension
 
-# def splits_to_ids(splits):
-#     splits = tf.cast(splits, tf.int64)
-#     return lengths_to_ids(splits_to_lengths(splits))
-
 splits_to_ids = tf.ragged.row_splits_to_segment_ids
 ids_to_splits = tf.ragged.segment_ids_to_row_splits
-
-# def ids_to_splits(rowids):
-#     rowids = tf.cast(rowids, tf.int64)
-#     return lengths_to_splits(ids_to_lengths(rowids))
 
 
 def pre_batch_ragged(tensor: tf.Tensor, row_splits_dtype=tf.int64) -> tf.RaggedTensor:
@@ -63,7 +55,6 @@ def splits_to_lengths(row_splits: tf.Tensor) -> tf.Tensor:
 
 
 def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
-
     row_lengths = tf.convert_to_tensor(row_lengths, dtype)
     return tf.repeat(
         tf.range(tf.size(row_lengths, out_type=row_lengths.dtype)), row_lengths, axis=0
@@ -72,19 +63,6 @@ def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
 
 def lengths_to_mask(row_lengths: tf.Tensor, size: Optional[Dimension] = None):
     return tf.sequence_mask(row_lengths, size)
-    # if not isinstance(row_lengths, tf.Tensor):
-    #     row_lengths = tf.convert_to_tensor(row_lengths,
-    #                                        getattr(size, 'dtype', None))
-    # if size is None:
-    #     size = tf.reduce_max(row_lengths)
-    # else:
-    #     size = tf.convert_to_tensor(size, row_lengths.dtype)
-    # size_t: tf.Tensor = size
-    # shape = tf.concat([tf.shape(row_lengths, out_type=size_t.dtype), [size]],
-    #                   axis=-1)
-    # row_lengths = tf.expand_dims(row_lengths, axis=-1)
-    # r = tf.range(size, dtype=row_lengths.dtype)
-    # return tf.broadcast_to(r, shape) < row_lengths
 
 
 def mask_to_lengths(mask: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
@@ -103,68 +81,7 @@ def mask_to_lengths(mask: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
     return tf.math.count_nonzero(mask, axis=-1, dtype=dtype)
 
 
-def _row_reduction(
-    reduction,
-    values: tf.Tensor,
-    row_lengths: tf.Tensor,
-    num_segments: Dimension,
-    max_length: int,
-) -> tf.Tensor:
-    indices = tf.reshape(
-        tf.range(num_segments * max_length), (num_segments, max_length)
-    )
-    mask = lengths_to_mask(row_lengths, max_length)
-    indices = tf.boolean_mask(indices, mask)
-    rest = values.shape[1:]
-    indices = tf.expand_dims(indices, axis=1)
-    dense_values = tf.scatter_nd(indices, values, [num_segments * max_length, *rest])
-    dense_values = tf.reshape(dense_values, (num_segments, max_length, *rest))
-    return reduction(dense_values, axis=1)
-
-
-def row_max(
-    values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension, max_length: int
-) -> tf.Tensor:
-    return _row_reduction(tf.reduce_max, values, row_lengths, num_segments, max_length)
-
-
-def row_sum(
-    values: tf.Tensor, row_lengths: tf.Tensor, num_segments: Dimension, max_length: int
-) -> tf.Tensor:
-    return _row_reduction(tf.reduce_sum, values, row_lengths, num_segments, max_length)
-
-
 def segment_sum(values, segment_ids, num_segments):
     return tf.scatter_nd(
         tf.expand_dims(segment_ids, axis=-1), values, [num_segments, *values.shape[1:]]
     )
-
-
-def repeat_ranges(
-    row_lengths: tf.Tensor, maxlen: Optional[Dimension] = None
-) -> tf.Tensor:
-    row_lengths = tf.convert_to_tensor(row_lengths)
-    assert row_lengths.shape.ndims == 1
-    if maxlen is None:
-        maxlen = tf.reduce_max(row_lengths)
-    else:
-        assert isinstance(maxlen, int) or maxlen.shape.ndims == 0
-    ranges = tf.expand_dims(tf.range(maxlen, dtype=row_lengths.dtype), axis=0)
-    ranges = tf.tile(ranges, (tf.size(row_lengths), 1))
-    return tf.boolean_mask(ranges, ranges < tf.expand_dims(row_lengths, axis=-1))
-
-
-def to_tensor(rt: tf.RaggedTensor, ncols: Optional[Dimension] = None) -> tf.Tensor:
-    if rt.ragged_rank > 1:
-        raise NotImplementedError
-    row_lengths = rt.row_lengths()
-    if ncols is None:
-        ncols = tf.reduce_max(row_lengths)
-    i = rt.value_rowids()
-    j = repeat_ranges(row_lengths, ncols)
-    indices = tf.stack((i, j), axis=-1)
-    updates = rt.values
-    shape = tf.concat(
-        ((rt.nrows(), ncols), tf.shape(rt.values, out_type=tf.int64)[1:]), axis=0
-    )
-    return tf.scatter_nd(indices, updates, shape)

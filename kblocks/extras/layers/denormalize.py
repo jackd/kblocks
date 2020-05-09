@@ -40,12 +40,3 @@ class Denormalization(tf.keras.layers.Layer):
         config["scale"] = self.scale.get_config()
         config["bias"] = self.bias.get_config()
         return config
-
-
-# def Denormalization(bias: Optional[BiasAdd] = None,
-#                     scale: Optional[Scale] = None):
-#     if bias is None:
-#         bias = BiasAdd()
-#     if scale is None:
-#         scale = Scale()
-#     return tf.keras.models.Sequential([scale, bias])

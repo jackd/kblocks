@@ -1,10 +1,13 @@
-# https://arxiv.org/abs/1904.03392
+from typing import Optional, Union
+
 import gin
 import tensorflow as tf
 
 
 @gin.configurable(module="kb.layers")
 class ChannelDropout(tf.keras.layers.Layer):
+    """https://arxiv.org/abs/1904.03392"""
+
     def __init__(self, rate: float, **kwargs):
         super().__init__(**kwargs)
         self._rate = rate
@@ -18,7 +21,8 @@ class ChannelDropout(tf.keras.layers.Layer):
         config["rate"] = self.rate
         return config
 
-    def __call__(self, features, training=None):
+    @tf.function
+    def call(self, features, training: Optional[Union[tf.Tensor, bool]] = None):
         if training is None:
             training = tf.keras.backend.learning_phase()
         if isinstance(training, int):

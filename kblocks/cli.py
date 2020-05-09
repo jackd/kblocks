@@ -20,6 +20,7 @@ import gin
 from absl import flags, logging
 
 from kblocks import tf_config, utils
+from kblocks.gin_utils.summary import GinSummary
 
 flags.DEFINE_multi_string(
     "config_files", [], "config files appended to positional args."
@@ -33,11 +34,6 @@ flags.DEFINE_boolean(
 flags.DEFINE_boolean(
     "expand_vars", default=True, help="Whether or not to enable vars/user in includes"
 )
-
-
-@gin.configurable(module="kb")
-def log_dir(root_dir):
-    return os.path.join(root_dir, "logs")
 
 
 def _unique_prog_name(log_dir, base_prog_name):
@@ -81,7 +77,6 @@ def get_gin_summary(argv):
     Returns:
         GinSummary object
     """
-    from kblocks.gin_utils.summary import GinSummary
 
     FLAGS = flags.FLAGS
     return GinSummary(

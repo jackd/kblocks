@@ -3,7 +3,6 @@ from typing import Callable, Optional
 
 import tensorflow as tf
 
-import kblocks.extras.layers.ragged as ragged_layers
 from kblocks.multi_graph.graph_builder import (
     GraphBuilder,
     GraphModelBuilder,

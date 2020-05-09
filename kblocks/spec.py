@@ -15,34 +15,32 @@ def to_input(spec: TensorLikeSpec) -> TensorLike:
         return tf.keras.Input(
             shape=spec.shape[1:], batch_size=spec.shape[0], dtype=spec.dtype
         )
-    elif isinstance(spec, tf.RaggedTensorSpec):
+    if isinstance(spec, tf.RaggedTensorSpec):
         return tf.keras.Input(
-            shape=spec._shape[1:],
-            batch_size=spec._shape[0],
-            dtype=spec._dtype,
+            shape=spec._shape[1:],  # pylint:disable=protected-access
+            batch_size=spec._shape[0],  # pylint:disable=protected-access
+            dtype=spec._dtype,  # pylint:disable=protected-access
             ragged=True,
         )
-    elif isinstance(spec, tf.SparseTensorSpec):
+    if isinstance(spec, tf.SparseTensorSpec):
         return tf.keras.Input(
             shape=spec.shape[1:],
             batch_size=spec.shape[0],
             dtype=spec.dtype,
             sparse=True,
         )
-    else:
-        raise TypeError("Unrecognized spec type {}".format(type(spec)))
+    raise TypeError("Unrecognized spec type {}".format(type(spec)))
 
 
 def to_spec(tensor: TensorLike) -> TensorLikeSpec:
     """Convert a (Ragged/Sparse)Tensor to the corresponding TensorSpec."""
     if isinstance(tensor, tf.RaggedTensor):
         return tf.RaggedTensorSpec.from_value(tensor)
-    elif isinstance(tensor, tf.Tensor):
+    if isinstance(tensor, tf.Tensor):
         return tf.TensorSpec.from_tensor(tensor)
-    elif isinstance(tensor, tf.SparseTensor):
+    if isinstance(tensor, tf.SparseTensor):
         return tf.SparseTensorSpec.from_value(tensor)
-    else:
-        raise TypeError("Expected TensorLikeSpec, got {}".format(tensor))
+    raise TypeError("Expected TensorLikeSpec, got {}".format(tensor))
 
 
 def map_spec(
@@ -64,23 +62,23 @@ def map_spec(
         raise NotImplementedError()
 
     dataset = tf.data.Dataset.from_generator(
-        gen,
-        tf.nest.map_structure(lambda spec: spec.dtype),
-        tf.nest.map_structure(lambda spec: spec.shape),
+        gen, tf.nest.map_structure(dtype, spec), tf.nest.map_structure(shape, spec),
     )
     dataset = dataset.map(map_fn)
-    return dataset.spec
+    return dataset.element_spec
 
 
 def shape(spec: TensorLikeSpec) -> tf.TensorShape:
     if isinstance(spec, tf.RaggedTensor):
-        return spec._shape
-    else:
+        return spec._shape  # pylint:disable=protected-access
+    if isinstance(spec, (tf.TensorSpec, tf.SparseTensorSpec)):
         return spec.shape
+    raise ValueError(f"Expected TensorLikeSpec, got {spec}")
 
 
 def dtype(spec: TensorLikeSpec) -> tf.DType:
     if isinstance(spec, tf.RaggedTensor):
-        return spec._dtype
-    else:
+        return spec._dtype  # pylint:disable=protected-access
+    if isinstance(spec, (tf.TensorSpec, tf.SparseTensorSpec)):
         return spec.dtype
+    raise ValueError(f"Expected TensorLikeSpec, got {spec}")

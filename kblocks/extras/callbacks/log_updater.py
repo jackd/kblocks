@@ -24,6 +24,7 @@ class LogUpdater(tf.keras.callbacks.Callback):
     def __init__(self):
         self._batch_logs = {}
         self._epoch_logs = {}
+        super().__init__()
 
     def on_batch_end(self, batch, logs=None):
         if logs is not None and self._batch_logs:

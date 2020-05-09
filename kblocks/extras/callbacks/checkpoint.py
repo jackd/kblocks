@@ -11,6 +11,8 @@ import gin
 import tensorflow as tf
 from absl import logging
 
+from kblocks import utils
+
 
 @gin.configurable(module="kb.callbacks")
 class CheckpointCallback(tf.keras.callbacks.Callback):
@@ -31,12 +33,15 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         )
         self._save_freq = save_freq
         self._restore_on_begin = restore_on_begin
-        self._checkpoint = None
-        self._manager = None
         self._restored = False
+
+        self._checkpoint: tf.train.Checkpoint
+        self._manager: tf.train.CheckpointManager
+        super().__init__()
 
     def set_model(self, model: tf.keras.Model):
         self._restored = False
+        utils.init_optimizer_weights(model)
         self._checkpoint = tf.train.Checkpoint(model=model)
         self._manager = tf.train.CheckpointManager(
             self._checkpoint, **self._manager_kwargs
@@ -47,7 +52,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         if epoch is None:
             return self._manager.latest_checkpoint
         else:
-            chkpt = "{}-{:d}".format(self._manager._checkpoint_prefix, epoch)
+            chkpt = f"{self._manager._checkpoint_prefix}-{epoch:d}"  # pylint:disable=protected-access
             chkpts = self._manager.checkpoints
             if chkpt not in chkpts:
                 raise ValueError(
@@ -63,7 +68,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         if isinstance(epoch_or_chkpt, int):
             chkpt = self.checkpoint(epoch_or_chkpt)
         elif epoch_or_chkpt is None:
-            chkpt = self.checkpoint(epoch_or_chkpt)
+            chkpt = self.checkpoint(None)
         else:
             chkpt = epoch_or_chkpt
         if chkpt is None:

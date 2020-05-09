@@ -1,6 +1,7 @@
 import os
 from typing import Iterable, List, Union
 
+import numpy as np
 from absl import logging
 
 KB_CONFIG_DIR = os.path.realpath(
@@ -47,7 +48,6 @@ def fix_paths(config_files: Union[str, Iterable[str]]) -> List[str]:
         - concatenates the result of splitting over new lines and comma
         - filters out empty strings
     """
-    import numpy as np
 
     if config_files == 0:
         return list(config_files)
@@ -67,5 +67,4 @@ def fix_bindings(bindings: Union[str, Iterable[str]]) -> str:
     """Convert a string/list of strings into a single string of bindings."""
     if isinstance(bindings, str):
         return bindings
-    else:
-        return "\n".join(bindings)
+    return "\n".join(bindings)

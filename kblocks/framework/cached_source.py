@@ -1,10 +1,9 @@
 import collections
-from typing import Any, Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, Optional
 
 import gin
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from absl import logging
 
 from kblocks.framework.sources import DataSource, TfdsSource
 

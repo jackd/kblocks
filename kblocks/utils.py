@@ -1,24 +1,24 @@
-import os
+"""Utilities used throughout kblocks."""
 from typing import Any, Optional
 
 import gin
-from absl import logging
+import setproctitle
+import tensorflow as tf
 
-DEFAULT = "__default__"
 
+def init_optimizer_weights(model: tf.keras.Model):
+    """
+    Hack to ensure optimizer variables have been created.
 
-class UpdateFrequency(object):
-    BATCH = "batch"
-    EPOCH = "epoch"
-
-    @classmethod
-    def validate(cls, freq):
-        if freq not in (cls.BATCH, cls.EPOCH):
-            raise ValueError(
-                'Invalid frequency "{}" - must be one of {}'.format(
-                    freq, (cls.BATCH, cls.EPOCH)
-                )
-            )
+    This is normally run on the first optimization step, but various tests save before
+    running a single step. Without running this, if the optimizer state is not stored in
+    a checkpoint then loading from that checkpoint won't reset the optimizer state to
+    default.
+    """
+    optimizer = model.optimizer
+    optimizer._create_slots(model.trainable_weights)  # pylint:disable=protected-access
+    optimizer._create_hypers()  # pylint:disable=protected-access
+    optimizer.iterations  # pylint:disable=pointless-statement
 
 
 @gin.configurable(module="kb.utils")
@@ -27,43 +27,14 @@ def identity(x):
 
 
 @gin.configurable(module="kb.utils")
-def ray_init(
-    redis_address: Optional[str] = DEFAULT,
-    num_cpus: Optional[int] = None,
-    num_gpus: Optional[int] = None,
-    local_mode: bool = False,
-    **kwargs
-):
-    try:
-        import ray
-    except ImportError:
-        raise ImportError("Failed to import optional dependency ray")
-    if redis_address == DEFAULT:
-        redis_address = os.environ.get("REDIS_ADDRESS")
-    return ray.init(
-        redis_address,
-        num_cpus=num_cpus,
-        num_gpus=num_gpus,
-        local_mode=local_mode,
-        **kwargs
-    )
-
-
-@gin.configurable(module="kb.utils")
 def proc(title: str = "kblocks"):
-    if title is not None:
-        try:
-            import setproctitle
-
-            setproctitle.setproctitle(title)
-        except ImportError:
-            logging.warning("Failed to import `setproctitle` - cannot change title.")
+    setproctitle.setproctitle(title)
 
 
 class memoized_property(property):  # pylint: disable=invalid-name
     """Descriptor that mimics @property but caches output in member variable."""
 
-    def __get__(self, obj: Any, type: Optional[type] = ...) -> Any:
+    def __get__(self, obj: Any, objtype: Optional[type] = None) -> Any:
         # See https://docs.python.org/3/howto/descriptor.html#properties
         if obj is None:
             return self

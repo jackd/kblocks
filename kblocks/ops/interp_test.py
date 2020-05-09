@@ -8,12 +8,8 @@ import tensorflow as tf
 
 from kblocks.ops.interp import linear_interp
 
-# from tensorflow_datasets.testing.test_utils import run_in_graph_and_eager_modes
-
 
 class TestInterp(tf.test.TestCase):
-
-    # @run_in_graph_and_eager_modes()
     def test_intercepts3d(self):
         grid = np.array([[0, 1, 2], [10, 11, 12], [20, 21, 22]], dtype=np.float32)
         grid = np.stack([grid, grid + 100, grid + 200, grid + 300])
@@ -21,7 +17,7 @@ class TestInterp(tf.test.TestCase):
         tf_vals = self.evaluate(linear_interp(grid, coords))
         expected = np.array([111, 11])
         np.testing.assert_allclose(tf_vals, expected)
-        shift = np.random.randn(*coords.shape) * 1e-5
+        shift = np.random.randn(*coords.shape) * 1e-5  # pylint:disable=not-an-iterable
         max_shift = 1e-5
         too_big = np.abs(shift) > max_shift
         shift[too_big] *= max_shift / shift[too_big]

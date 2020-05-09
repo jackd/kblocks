@@ -45,7 +45,9 @@ def get_optimizer_options(
 
 
 @gin.configurable(module="kb")
-class TfConfig(object):
+class TfConfig:
+    """GPU and JIT configurations for tensoflow."""
+
     def __init__(
         self,
         allow_growth: bool = True,
@@ -69,7 +71,7 @@ class TfConfig(object):
         try:
             for device in tf.config.experimental.get_visible_devices("GPU"):
                 tf.config.experimental.set_memory_growth(device, self.allow_growth)
-        except Exception:
+        except (ValueError, RuntimeError):
             logging.info("Failed to set memory growth to {}".format(self.allow_growth))
         if self.optimizer_options is not None:
             tf.config.optimizer.set_experimental_options(self.optimizer_options)

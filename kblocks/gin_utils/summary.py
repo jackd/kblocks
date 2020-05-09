@@ -21,7 +21,7 @@ _GIN_SUMMARY = """
 """
 
 
-class GinSummary(object):
+class GinSummary:
     """
     Class for summarizing gin configuration.
 
@@ -39,8 +39,8 @@ class GinSummary(object):
         cwd: Optional[str] = None,
         incl_rel: bool = True,
         expand_vars: bool = True,
-        config_files: Union[str, Iterable[str]] = [],
-        bindings: Union[str, Iterable[str]] = [],
+        config_files: Union[str, Iterable[str]] = (),
+        bindings: Union[str, Iterable[str]] = (),
     ):
         self.cwd = os.getcwd() if cwd is None else cwd
         self.incl_rel = incl_rel

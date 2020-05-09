@@ -5,7 +5,6 @@ I swear there's a memory leak in the official implementation.
 """
 import functools
 import os
-from typing import Optional
 
 import gin
 import tensorflow as tf

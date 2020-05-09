@@ -45,22 +45,6 @@ class RaggedTest(tf.test.TestCase):
         rl = ragged_ops.mask_to_lengths(mask)
         np.testing.assert_equal(self.evaluate(rl), row_lengths)
 
-    def test_row_max(self):
-        max_length = 100
-        num_segments = 10
-        num_features = 13
-        np.random.seed(123)
-        row_lengths = np.random.randint(0, max_length, size=(num_segments,))
-        total = np.sum(row_lengths)
-        values = np.random.uniform(size=(total, num_features))
-
-        actual = ragged_ops.row_max(values, row_lengths, num_segments, max_length)
-        expected = tf.reduce_max(
-            tf.RaggedTensor.from_row_lengths(values, row_lengths), axis=1
-        )
-        actual, expected = self.evaluate((actual, expected))
-        np.testing.assert_equal(actual, expected)
-
     def test_segment_sum(self):
         values = tf.random.normal(shape=(100, 5), dtype=tf.float32)
         row_lengths = tf.constant([50, 30, 20])
@@ -72,25 +56,6 @@ class RaggedTest(tf.test.TestCase):
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_allclose(actual, expected, rtol=1e-5)
 
-    def test_repeat_ranges(self):
-        expected = [0, 1, 2, 0, 1, 0, 1, 2, 3, 4, 5]
-        actual = ragged_ops.repeat_ranges([3, 2, 6])
-        np.testing.assert_equal(self.evaluate(actual), expected)
-
-    def test_to_tensor(self):
-        expected = [
-            [2, 3, 1, 0, 0],
-            [1, 3, 4, 2, 0],
-            [0, 0, 0, 0, 0],
-            [5, 0, 0, 0, 0],
-        ]
-        actual = ragged_ops.to_tensor(
-            tf.RaggedTensor.from_row_lengths([2, 3, 1, 1, 3, 4, 2, 5], [3, 4, 0, 1]), 5
-        )
-        np.testing.assert_equal(self.evaluate(actual), expected)
-
 
 if __name__ == "__main__":
     tf.test.main()
-
-    # RaggedTest().test_row_max()

@@ -1,3 +1,4 @@
 gin-config
 tensorflow-datasets
+setproctitle
 scipy

@@ -40,6 +40,6 @@ class Scoped(Generic[T]):
         self._scope._stack.append(self)
         return self._instance
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, traceback):  # pylint:disable=redefined-builtin
         out = self._scope._stack.pop()
         assert out is self
