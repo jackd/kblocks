@@ -28,7 +28,7 @@ def tune(
     )
     splits = ("train", "validation")
     train_ds, val_ds = (source.get_dataset(split) for split in splits)
-    train_steps, val_steps = (source.examples_per_epoch(split) for split in splits)
+    train_steps, val_steps = (source.epoch_length(split) for split in splits)
     tuner.search(
         x=train_ds,
         steps_per_epoch=train_steps,

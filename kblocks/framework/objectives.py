@@ -4,7 +4,7 @@ import gin
 
 
 @gin.configurable(module="kb.framework")
-class Objective(object):
+class Objective:
     def __init__(self, name: str, split="validation", mode: str = "max"):
         self._name = name
         self._mode = mode
@@ -33,15 +33,14 @@ class Objective(object):
     def get(cls, identifier) -> Optional["Objective"]:
         if identifier is None:
             return identifier
-        elif isinstance(identifier, Objective):
+        if isinstance(identifier, Objective):
             return identifier
         if isinstance(identifier, (list, tuple)):
             return Objective(*identifier)
-        elif isinstance(identifier, dict):
+        if isinstance(identifier, dict):
             return Objective(**identifier)
-        elif isinstance(identifier, str):
+        if isinstance(identifier, str):
             return Objective(identifier)
-        else:
-            raise TypeError(
-                "Cannot convert identifier {} into an Objective".format(identifier)
-            )
+        raise TypeError(
+            "Cannot convert identifier {} into an Objective".format(identifier)
+        )

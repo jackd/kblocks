@@ -11,7 +11,7 @@ import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
 
-from kblocks.framework.cache import core
+from kblocks.extras.cache import core
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
@@ -59,40 +59,8 @@ def _write_dataset(dataset: tf.data.Dataset, path):
 
 
 def _cache_dataset(
-    dataset: tf.data.Dataset,
-    cache_dir: str,
-    #    num_shards: int,
-    num_parallel_calls=AUTOTUNE,
-    # num_parallel_reads=None
+    dataset: tf.data.Dataset, cache_dir: str, num_parallel_calls=AUTOTUNE,
 ):
-    # spec = dataset.element_spec
-    # path_format = f'{cache_dir}/shard-{"{}"}-{num_shards}.tfrecords'
-    # paths = [path_format.format(i) for i in range(num_shards)]
-    # if all(os.path.isfile(p) for p in paths):
-    #     dataset = paths
-    # else:
-    #     updater = tqdm()
-    #     dataset = dataset.map(
-    #         functools.partial(serialize_example, updater=updater.update))
-
-    #     def reduce_func(key, dataset):
-    #         filename = tf.strings.format(path_format, tf.strings.as_string(key))
-    #         tf.print(tf.strings.format('Writing to {}', filename))
-    #         writer = tf.data.experimental.TFRecordWriter(filename)
-    #         writer.write(dataset.map(lambda _, x: x))
-    #         return tf.data.Dataset.from_tensors(filename)
-
-    #     dataset = dataset.enumerate()
-    #     dataset = dataset.apply(
-    #         tf.data.experimental.group_by_window(lambda i, _: i % num_shards,
-    #                                              reduce_func, tf.int64.max))
-    # # force creation
-    # # for _ in core.dataset_iterator(dataset):
-    # #     pass
-    # # updater.close()
-    # return tf.data.TFRecordDataset(dataset,
-    #                                num_parallel_reads=num_parallel_reads).map(
-    #                                    deserializer(spec), num_parallel_calls)
 
     spec = dataset.element_spec
     path = os.path.join(cache_dir, "serialized.tfrecords")
@@ -109,35 +77,18 @@ def _cache_dataset(
             with tf.compat.v1.Session() as sess:
                 sess.run(write_op)
         updater.close()
-    return tf.data.TFRecordDataset(
-        path,
-        #    num_parallel_reads=num_parallel_reads
-    ).map(deserializer(spec), num_parallel_calls)
+    return tf.data.TFRecordDataset(path,).map(deserializer(spec), num_parallel_calls)
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 class TFRecordsCacheManager(core.BaseCacheManager):
     def __init__(
-        self,
-        cache_dir: str,
-        num_parallel_calls: int = AUTOTUNE,
-        #  num_shards: int,
-        #  num_parallel_reads: Optional[int] = None
+        self, cache_dir: str, num_parallel_calls: int = AUTOTUNE,
     ):
-        # if num_shards < 1:
-        #     raise ValueError(f'num_shards must be at least 1, got {num_shards}')
         super().__init__(cache_dir=cache_dir)
-        # self._num_shards = num_shards
         self._num_parallel_calls = num_parallel_calls
-        # if num_parallel_reads is None:
-        #     num_parallel_reads = num_shards
-        # self._num_parallel_reads = num_parallel_reads
 
     def __call__(self, dataset):
         return _cache_dataset(
-            dataset,
-            self.cache_dir,
-            num_parallel_calls=self._num_parallel_calls,
-            # self._num_shards,
-            # num_parallel_reads=self._num_parallel_reads,
+            dataset, self.cache_dir, num_parallel_calls=self._num_parallel_calls,
         )

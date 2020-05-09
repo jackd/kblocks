@@ -24,10 +24,9 @@ def _flatten_dataset_features(dataset):
 def _updated(base: Optional[Mapping], **kwargs):
     if base is None:
         return kwargs
-    else:
-        base = base.copy()
-        base.update(kwargs)
-        return base
+    base = dict(**base)
+    base.update(kwargs)
+    return base
 
 
 @gin.configurable(module="kb.framework")
@@ -37,14 +36,14 @@ def base_trainable(
     compiler: Optional[Callable[[tf.keras.Model], Any]],
     model_dir: Optional[str] = None,
 ):
-    model = model_fn(source.example_spec[0], **source.meta)
+    model = model_fn(source.element_spec[0], **source.meta)
     if compiler is not None:
         compiler(model)
     return Trainable(source, model, model_dir)
 
 
 @gin.configurable(module="kb.framework")
-class Trainable(object):
+class Trainable:
     def __init__(
         self, source: DataSource, model: tf.keras.Model, model_dir: Optional[str] = None
     ):
@@ -137,10 +136,9 @@ class Trainable(object):
         kwargs = dict(burn_iters=burn_iters, min_iters=min_iters)
         if dataset_only:
             return self.benchmark_dataset(**kwargs)
-        else:
-            return self.benchmark_pipeline(
-                forward_only=forward_only, fixed_inputs=fixed_inputs, **kwargs
-            )
+        return self.benchmark_pipeline(
+            forward_only=forward_only, fixed_inputs=fixed_inputs, **kwargs
+        )
 
     def benchmark_dataset(self, burn_iters: int, min_iters: int):
         dataset = self._source.get_dataset("train")
@@ -212,7 +210,7 @@ class Trainable(object):
         split = "validation"
 
         ds = source.get_dataset(split)
-        steps = source.examples_per_epoch(split)
+        steps = source.epoch_length(split)
 
         if model_dir is None:
             logging.warning("No model_dir provided - evaluating without restoration")
@@ -253,7 +251,7 @@ class Trainable(object):
             train_ds, val_ds = (
                 _flatten_dataset_features(ds) for ds in (train_ds, val_ds)
             )
-        train_steps, val_steps = (source.examples_per_epoch(s) for s in splits)
+        train_steps, val_steps = (source.epoch_length(s) for s in splits)
 
         used_callbacks = [
             cb.AbslLogger(),
@@ -320,7 +318,7 @@ class Trainable(object):
 
             if build_only:
                 logging.info("Built successfully")
-                return
+                return None
             return model.fit(**kwargs)
 
         if tf.executing_eagerly():
@@ -398,23 +396,19 @@ class Trainable(object):
 @gin.configurable(module="kb.framework")
 def fit(
     trainable: Trainable,
-    epochs: Optional[int] = None,
-    total_train_steps: Optional[int] = None,
+    epochs: int,
     verbose: bool = True,
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     chkpt_kwargs: Optional[Mapping[str, Any]] = None,
     validation_freq: int = 1,
-    use_custom: bool = False,
     build_only: bool = False,
 ):
     return trainable.fit(
         epochs=epochs,
-        total_train_steps=total_train_steps,
         verbose=verbose,
         callbacks=callbacks,
         chkpt_kwargs=chkpt_kwargs,
         validation_freq=validation_freq,
-        use_custom=use_custom,
         build_only=build_only,
     )
 
@@ -431,14 +425,9 @@ def run_dataset(
     min_iters: int = 10,
     split="train",
     callback: Optional[Callable[[Any, Any], None]] = None,
-    num_parallel_calls=1,
 ):
     return trainable.run_dataset(
-        burn_iters=burn_iters,
-        min_iters=min_iters,
-        split=split,
-        callback=callback,
-        num_parallel_calls=num_parallel_calls,
+        burn_iters=burn_iters, min_iters=min_iters, split=split, callback=callback,
     )
 
 

@@ -6,8 +6,8 @@ import tensorflow as tf
 from absl import logging
 
 from kblocks import multi_graph as mg
-from kblocks.framework.pipelines import BasePipeline
-from kblocks.framework.sources import DataSource, PipelinedSource
+from kblocks.framework.sources import DataSource
+from kblocks.framework.sources.pipelined import PipelinedSource, batch_dataset
 from kblocks.framework.trainable import Trainable
 
 
@@ -26,26 +26,22 @@ def multi_graph_trainable(
     logging.info("Building multi graph...")
     built = mg.build_multi_graph(
         functools.partial(build_fn, **base_source.meta),
-        base_source.example_spec,
+        base_source.element_spec,
         batch_size if build_with_batch_size else None,
         use_model_builders=use_model_builders,
     )
 
     logging.info("Successfully built!")
 
-    pipeline = BasePipeline(
-        batch_size,
+    source = PipelinedSource(
+        base_source,
+        batch_fn=functools.partial(batch_dataset, batch_size=batch_size),
         pre_cache_map=built.pre_cache_map,
         pre_batch_map=built.pre_batch_map,
         post_batch_map=built.post_batch_map,
         **pipeline_kwargs
     )
-    source = PipelinedSource(base_source, pipeline)
     model = built.trained_model
-    # if rebuild_model_with_xla:
-    #     with tf.xla.experimental.jit_scope():
-    #         model = tf.keras.models.clone_model(model)
-
     if compiler is not None:
         compiler(model)
     return Trainable(source, model, model_dir)

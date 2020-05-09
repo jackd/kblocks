@@ -58,13 +58,11 @@ class CacheManager(abc.ABC):
         raise NotImplementedError("Abstract method")
 
     @abc.abstractmethod
-    def __call__(
-        self, dataset: tf.data.Dataset, preprocess: bool = False
-    ) -> tf.data.Dataset:
+    def __call__(self, dataset: tf.data.Dataset,) -> tf.data.Dataset:
         raise NotImplementedError("Abstract method")
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 class BaseCacheManager(object):
     def __init__(self, cache_dir: str, preprocess: bool = False):
         self._cache_dir = cache_dir
@@ -95,7 +93,7 @@ def _identity(x):
     return x
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 class ParentManager(CacheManager):
     def __init__(
         self,
@@ -129,7 +127,7 @@ class ParentManager(CacheManager):
     def _children(self, dataset: tf.data.Dataset) -> Iterable[tf.data.Dataset]:
         raise NotImplementedError()
 
-    def __call__(self, dataset):
+    def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         datasets = [
             manager(dataset)
             for (manager, dataset) in zip(self._managers, self._children(dataset))
@@ -139,7 +137,7 @@ class ParentManager(CacheManager):
         )
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 class ShardedCacheManager(ParentManager):
     def __init__(self, cache_dir: str, num_shards: int, **kwargs):
         self._num_shards = num_shards
@@ -149,7 +147,7 @@ class ShardedCacheManager(ParentManager):
         return [dataset.shard(self._num_shards, i) for i in range(self._num_shards)]
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 class RepeatCacheManager(ParentManager):
     def __init__(self, cache_dir: str, num_repeats: int, **kwargs):
         self._num_repeats = num_repeats
@@ -159,7 +157,7 @@ class RepeatCacheManager(ParentManager):
         return [dataset] * self._num_repeats
 
 
-@gin.configurable(module="kb.framework")
+@gin.configurable(module="kb.cache")
 def cache_managers(
     root_dir, train_impl=BaseCacheManager, validation_impl=BaseCacheManager
 ):
