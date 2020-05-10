@@ -21,7 +21,7 @@ def get_graph(x: TensorLike) -> tf.Graph:
     return x.graph
 
 
-class BuiltMultiGraph(object):
+class BuiltMultiGraph:
     def __init__(
         self,
         pre_cache_map: Optional[Callable],
@@ -51,7 +51,7 @@ class BuiltMultiGraph(object):
         return self._trained_model
 
 
-class MultiGraphContext(object):
+class MultiGraphContext:
     _stack = []
 
     @staticmethod
@@ -64,7 +64,7 @@ class MultiGraphContext(object):
         MultiGraphContext._stack.append(self)
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *args, **kwargs):
         top = MultiGraphContext._stack.pop()
         assert top is self
 
@@ -174,7 +174,7 @@ class MultiGraphBuilder(MultiGraphContext):
         graph = get_graph(x)
         if graph is self.pre_batch_graph:
             raise ValueError("x is part of pre_batch_graph")
-        elif graph is self.post_batch_graph:
+        if graph is self.post_batch_graph:
             raise ValueError("x is part of post_batch_graph")
 
     def pre_cache_input(self, spec: TensorLikeSpec) -> tf.Tensor:
@@ -184,7 +184,7 @@ class MultiGraphBuilder(MultiGraphContext):
     def _cache(self, x: tf.Tensor, name=None):
         self._pre_cache_builder.add_output(x)
         assert x.shape is not None
-        out = self._pre_batch_builder.input_like(x)
+        out = self._pre_batch_builder.input_like(x, name=name)
         return out
 
     def cache(self, x: TensorLike, name=None) -> TensorLike:

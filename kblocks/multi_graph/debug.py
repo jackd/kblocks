@@ -11,6 +11,15 @@ class DebugBuilderContext(MultiGraphContext):
         self._batch_size = batch_size
         self._model_inputs = []
 
+    def is_pre_cache(self, x: TensorLike):
+        return None
+
+    def is_pre_batch(self, x: TensorLike):
+        return None
+
+    def is_post_batch(self, x: TensorLike):
+        return None
+
     def pre_cache_context(self):
         return self
 
@@ -24,48 +33,39 @@ class DebugBuilderContext(MultiGraphContext):
     def batch_size(self) -> int:
         return self._batch_size
 
-    def _batch(self, tensor: tf.Tensor, flat: bool = False, name: Optional[str] = None):
+    def _batch(self, x: TensorLike, flat: bool = False, name: Optional[str] = None):
         if not flat:
-            tensor = tf.expand_dims(tensor, axis=0)
+            x = tf.expand_dims(x, axis=0)
         return tf.tile(
-            tensor,
-            (self.batch_size, *(1 for _ in range(tensor.shape.ndims - 1))),
-            name=name,
+            x, (self.batch_size, *(1 for _ in range(x.shape.ndims - 1))), name=name,
         )
 
     def cache(self, x: TensorLike, name: Optional[str] = None) -> TensorLike:
         return tf.identity(x, name=name)
 
-    def batch(self, tensor: TensorLike, name: Optional[str] = None):
-        if isinstance(tensor, tf.Tensor):
-            return self._batch(tensor, name=name)
-        elif isinstance(tensor, tf.SparseTensor):
+    def batch(self, x: TensorLike, name: Optional[str] = None):
+        if isinstance(x, tf.Tensor):
+            return self._batch(x, name=name)
+        if isinstance(x, tf.SparseTensor):
             values = self._batch(
-                tensor.values,
-                flat=True,
-                name=None if name is None else f"{name}-values",
+                x.values, flat=True, name=None if name is None else f"{name}-values",
             )
             indices = self._batch(
-                tensor.indices,
-                flat=True,
-                name=None if name is None else f"{name}-indices",
+                x.indices, flat=True, name=None if name is None else f"{name}-indices",
             )
             b = tf.expand_dims(tf.range(self.batch_size), axis=-1)
             b = tf.tile(b, (1, tf.shape(values)[0]))
             indices = tf.concat((tf.expand_dims(b, 0), indices), axis=-1)
-            dense_shape = tf.concat([(self.batch_size,), tensor.dense_shape], axis=0)
+            dense_shape = tf.concat([(self.batch_size,), x.dense_shape], axis=0)
             return tf.SparseTensor(indices, values, dense_shape)
-        elif isinstance(tensor, tf.RaggedTensor):
-            values = self._batch(tensor.values, flat=True)
-            row_lengths = self._batch(tensor.row_lengths(), flat=True)
-            rl2 = tf.tile(tf.expand_dims(tensor.nrows(), 0), self.batch_size)
+        if isinstance(x, tf.RaggedTensor):
+            values = self._batch(x.values, flat=True)
+            row_lengths = self._batch(x.row_lengths(), flat=True)
+            rl2 = tf.tile(tf.expand_dims(x.nrows(), 0), self.batch_size)
             return tf.RaggedTensor.from_row_lengths(
                 tf.RaggedTensor.from_row_lengths(values, row_lengths), rl2
             )
-        else:
-            raise TypeError(
-                "Invalid type `tensor`: must be TensorLike, got {}".format(tensor)
-            )
+        raise TypeError(f"Invalid type for `x`: must be TensorLike, got {x}")
 
     def model_input(self, x: TensorLike, name: Optional[str] = None):
         assert x.shape[0] == self.batch_size

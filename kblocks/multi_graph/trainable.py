@@ -19,7 +19,6 @@ def multi_graph_trainable(
     compiler: Callable[[tf.keras.Model], None],
     model_dir: Optional[str] = None,
     build_with_batch_size: bool = True,
-    #   rebuild_model_with_xla: bool = False,
     use_model_builders: bool = False,
     **pipeline_kwargs
 ):

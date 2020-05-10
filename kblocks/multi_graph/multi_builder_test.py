@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from absl.testing import parameterized
 
 from kblocks.multi_graph import debug
 from kblocks.multi_graph import multi_builder as mb
@@ -37,7 +38,7 @@ def build_fn(xy, label):
     return model_out, labels
 
 
-class MultiBuilderTest(tf.test.TestCase):
+class MultiBuilderTest(tf.test.TestCase, parameterized.TestCase):
     def test_debug_builder(self):
         batch_size = 3
         x = tf.random.uniform(shape=(5,), dtype=tf.float32)
@@ -61,7 +62,8 @@ class MultiBuilderTest(tf.test.TestCase):
         np.testing.assert_allclose(actual_out, expected_out)
         np.testing.assert_allclose(actual_labels, expected_labels)
 
-    def _test_build_multi_graph(self, use_model_builders: bool):
+    @parameterized.named_parameters(("multi-model", True), ("multi-graph", False))
+    def test_build_multi_graph(self, use_model_builders: bool):
         batch_size = 3
         x = tf.random.uniform(shape=(100, 5), dtype=tf.float32)
         y = tf.random.uniform(shape=(100, 5), dtype=tf.float32)
@@ -104,12 +106,6 @@ class MultiBuilderTest(tf.test.TestCase):
         )
         np.testing.assert_allclose(actual_out, expected_out)
         np.testing.assert_allclose(actual_label, expected_label)
-
-    def test_build_multi_graph(self):
-        self._test_build_multi_graph(use_model_builders=False)
-
-    def test_build_multi_model(self):
-        self._test_build_multi_graph(use_model_builders=True)
 
 
 if __name__ == "__main__":

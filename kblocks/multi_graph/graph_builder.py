@@ -1,3 +1,4 @@
+# pylint:disable=protected-access
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, Union
 
 import tensorflow as tf
@@ -13,18 +14,15 @@ def _spec_to_placeholder(spec, name=None):
         return tf.keras.backend.placeholder(
             shape=spec.shape, dtype=spec.dtype, name=name
         )
-    elif isinstance(spec, tf.SparseTensorSpec):
+    if isinstance(spec, tf.SparseTensorSpec):
         return tf.keras.backend.placeholder(
             shape=spec.shape, dtype=spec.dtype, sparse=True, name=name
         )
-    elif isinstance(spec, tf.RaggedTensorSpec):
+    if isinstance(spec, tf.RaggedTensorSpec):
         return tf.keras.backend.placeholder(
-            shape=spec._shape, dtype=spec._dtype, ragged=True, name=name
+            shape=spec._shape, dtype=spec._dtype, ragged=True, name=name,
         )
-    else:
-        raise TypeError(
-            "Invalid type for spec: must be TensorSpecLike, got {}".format(spec)
-        )
+    raise TypeError(f"Invalid type for spec: must be TensorSpecLike, got {spec}")
 
 
 def _spec_to_input(spec, name=None):
@@ -165,7 +163,7 @@ def subgraph(graph_def, inputs, outputs) -> Callable:
     return graph_fn
 
 
-class GraphBuilder(object):
+class GraphBuilder:
     def __init__(self, name="graph_builder"):
         self._graph = tf.Graph()
         self._outputs = []
@@ -181,23 +179,24 @@ class GraphBuilder(object):
     def graph(self):
         return self._graph
 
-    def _validate_graph(self, x, name="x"):
+    def _validate_graph(self, x: TensorLike, name="x"):
         if isinstance(x, tf.RaggedTensor):
-            return self._validate_graph(x.flat_values, name=name)
-        elif isinstance(x, tf.SparseTensor):
-            return self._validate_graph(x.indices, name=name)
+            self._validate_graph(x.flat_values, name=name)
+        if isinstance(x, tf.SparseTensor):
+            self._validate_graph(x.indices, name=name)
+        assert isinstance(x, tf.Tensor)
         if x.graph is not self._graph:
             raise ValueError("x is from a different graph - cannot add as input")
 
     def __enter__(self: T) -> T:
         ctx = self.graph.as_default()
         self._ctxs.append(ctx)
-        ctx.__enter__()
+        ctx.__enter__()  # pylint:disable=no-member
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, *args, **kwargs):
         ctx = self._ctxs.pop()
-        ctx.__exit__(type, value, traceback)
+        ctx.__exit__(*args, **kwargs)
 
     def input(self, spec: TensorLikeSpec, name=None) -> TensorLike:
         if name is None:
@@ -327,7 +326,7 @@ class GraphModelBuilder(GraphBuilder):
             self._inputs.append(out)
             out = tf.squeeze(out, axis=0)
         self._squeezed.append(True)
-        assert type(x) == type(out)
+        assert type(x) is type(out)
         return out
 
     def batched_input_like(
@@ -343,7 +342,6 @@ class GraphModelBuilder(GraphBuilder):
                 name=name,
             )
             self._inputs.append(out)
-            # out = tf.squeeze(out, axis=0)
         self._squeezed.append(False)
         return out
 
@@ -372,7 +370,7 @@ class GraphModelBuilder(GraphBuilder):
         )
 
 
-class ModelBuilder(object):
+class ModelBuilder:
     """Similar to GraphModelBuilder, but without the graph."""
 
     def __init__(self, batch_size: Optional[int] = None):
@@ -395,7 +393,7 @@ class ModelBuilder(object):
             name=name,
         )
         self._inputs.append(out)
-        assert type(x) == type(out)
+        assert type(x) is type(out)
         if isinstance(x, tf.RaggedTensor):
             assert x.ragged_rank == out.ragged_rank
             print(x.shape)
@@ -412,12 +410,12 @@ class ModelBuilder(object):
             name=name,
         )
         self._inputs.append(out)
-        assert type(x) == type(out)
+        assert type(x) is type(out)
         return out
 
     def build(self, outputs) -> tf.keras.Model:
         if isinstance(outputs, (list, tuple)) and len(outputs) == 1:
-            (outputs,) = outputs
+            outputs = outputs[0]
         return tf.keras.Model(self._inputs, outputs)
 
     @property
