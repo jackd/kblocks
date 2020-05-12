@@ -1,11 +1,11 @@
 # Default configuration for anything using Trainables
 # as a minimum must define model_fn, base_source, batch_size
-
 import kblocks.framework.compilers
-import kblocks.framework.pipelines
 import kblocks.framework.sources
+import kblocks.framework.sources.pipelined
 import kblocks.framework.trainable
 import kblocks.keras.optimizers
+import kblocks.path
 
 trainable = @kb.framework.base_trainable()
 
@@ -15,18 +15,14 @@ kb.framework.base_trainable.compiler = %compiler
 kb.framework.base_trainable.model_dir = %model_dir
 
 kb.framework.PipelinedSource.source = %base_source
-kb.framework.PipelinedSource.pipeline = %pipeline
-
-kb.framework.BasePipeline.batch_size = %batch_size
 
 kb.framework.compile_model.optimizer = %optimizer
 
 source = @kb.framework.PipelinedSource()
-pipeline = @kb.framework.BasePipeline()
 compiler = @kb.framework.compile_model
 
-kb.logging_config.log_dir = @kb.log_dir()
-kb.log_dir.root_dir = %model_dir
+kb.logging_config.log_dir = @kb.path.log_dir()
+kb.path.log_dir.root_dir = %model_dir
 
 batch_size = None
 base_source = None

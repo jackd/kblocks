@@ -1,6 +1,6 @@
 # Default configuration for anything using PipelineBuilder
-
 import kblocks.framework.problems.pipelines.builder.pipeline_builder
+import kblocks.path
 
 trainable = @kb.framework.built_trainable()
 built_trainable.builder_fn = %builder_fn
@@ -8,5 +8,5 @@ built_trainable.optimizer_fn = %optimizer_fn
 built_trainable.model_dir = %model_dir
 built_trainable.problem = %problem
 
-kb.logging_config.log_dir = @kb.log_dir()
+kb.logging_config.log_dir = @kb.path.log_dir()
 kb.log_dir.root_dir = %model_dir

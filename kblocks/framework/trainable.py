@@ -401,6 +401,7 @@ def fit(
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     chkpt_kwargs: Optional[Mapping[str, Any]] = None,
     validation_freq: int = 1,
+    profile_batch: Union[int, str, Tuple[int, int]] = 2,
     build_only: bool = False,
 ):
     return trainable.fit(
@@ -409,6 +410,7 @@ def fit(
         callbacks=callbacks,
         chkpt_kwargs=chkpt_kwargs,
         validation_freq=validation_freq,
+        profile_batch=profile_batch,
         build_only=build_only,
     )
 

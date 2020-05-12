@@ -103,8 +103,10 @@ class TfdsSource(DataSource):
 
     def get_dataset(self, split) -> tf.data.Dataset:
         mapped_split = self._split(split)
-        if shuffle_files is None:
+        if self._shuffle_files is None:
             shuffle_files = split == "train"
+        else:
+            shuffle_files = self._shuffle_files
         dataset = self.builder.as_dataset(
             split=mapped_split,
             as_supervised=self.as_supervised,

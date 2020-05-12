@@ -182,11 +182,12 @@ class GraphBuilder:
     def _validate_graph(self, x: TensorLike, name="x"):
         if isinstance(x, tf.RaggedTensor):
             self._validate_graph(x.flat_values, name=name)
-        if isinstance(x, tf.SparseTensor):
+        elif isinstance(x, tf.SparseTensor):
             self._validate_graph(x.indices, name=name)
-        assert isinstance(x, tf.Tensor)
-        if x.graph is not self._graph:
-            raise ValueError("x is from a different graph - cannot add as input")
+        else:
+            assert isinstance(x, tf.Tensor)
+            if x.graph is not self._graph:
+                raise ValueError("x is from a different graph - cannot add as input")
 
     def __enter__(self: T) -> T:
         ctx = self.graph.as_default()

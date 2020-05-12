@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from kblocks.framework.cache import TFRecordsCacheManager
-from kblocks.framework.cache.core import dataset_iterator
+from kblocks.extras.cache import TFRecordsCacheManager
+from kblocks.extras.cache.core import dataset_iterator
 
 
 def main():

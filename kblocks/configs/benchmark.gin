@@ -5,7 +5,7 @@
 # problem
 # pipeline_fn
 # optimizer_fn
-# epochs or total_train_steps
+# epochs
 # model_dir
 
 import kblocks.cli

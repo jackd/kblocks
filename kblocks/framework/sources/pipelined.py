@@ -1,4 +1,4 @@
-from typing import Any, Callable, Mapping, Optional, Union
+from typing import Any, Callable, Mapping, Optional
 
 import gin
 import tensorflow as tf
@@ -6,16 +6,10 @@ from absl import logging
 
 from kblocks.extras.cache import CacheManager
 from kblocks.framework.sources import core
+from kblocks.framework.sources.batcher import Batcher
 from kblocks.utils import memoized_property
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
-
-
-@gin.configurable(module="kb.framework")
-def batch_dataset(
-    dataset: tf.data.Dataset, batch_size: int, drop_remainder: bool = False
-) -> tf.data.Dataset:
-    return dataset.batch(batch_size, drop_remainder)
 
 
 @gin.configurable(module="kb.framework")
@@ -23,7 +17,7 @@ class PipelinedSource(core.DataSource):
     def __init__(
         self,
         source: core.DataSource,
-        batch_fn: Callable[[tf.data.Dataset], tf.data.Dataset],
+        batcher: Batcher,
         pre_cache_map: Optional[Callable] = None,
         pre_batch_map: Optional[Callable] = None,
         post_batch_map: Optional[Callable] = None,
@@ -33,11 +27,11 @@ class PipelinedSource(core.DataSource):
         num_parallel_calls: int = AUTOTUNE,
         clear_cache: bool = False,
         meta: Optional[Mapping[str, Any]] = None,
-        epoch_lengths: Optional[Union[Callable, Mapping[core.Split, int]]] = None,
+        repeats: int = 1,
     ):
         assert isinstance(source, core.DataSource)
         self._base_source = source
-        self._batch_fn = batch_fn
+        self._batcher = batcher
         self._pre_cache_map = pre_cache_map
         self._pre_batch_map = pre_batch_map
         self._post_batch_map = post_batch_map
@@ -46,7 +40,7 @@ class PipelinedSource(core.DataSource):
         self._prefetch_buffer = prefetch_buffer
         self._num_parallel_calls = num_parallel_calls
         self._clear_cache = clear_cache
-        self._epoch_lengths = epoch_lengths
+        self._repeats = repeats
         if meta is None:
             meta = source.meta
         self._meta = meta
@@ -82,7 +76,10 @@ class PipelinedSource(core.DataSource):
             if self._pre_batch_map is not None:
                 dataset = dataset.map(self._pre_batch_map, self._num_parallel_calls)
 
-            dataset = self._batch_fn(dataset)
+            dataset = self._batcher(dataset)
+            # repeat after batching so we get accurate `epoch_length`s.
+            if self._repeats != 1:
+                dataset = dataset.repeat(self._repeats)
             if self._post_batch_map is not None:
                 dataset = dataset.map(self._post_batch_map, self._num_parallel_calls)
             if self._prefetch_buffer is not None:
@@ -90,13 +87,7 @@ class PipelinedSource(core.DataSource):
         return dataset
 
     def epoch_length(self, split: core.Split) -> Optional[int]:
-        return (
-            None
-            if self._epoch_lengths is None
-            else self._epoch_lengths(split)
-            if callable(self._epoch_lengths)
-            else self._epoch_lengths.get(split)
-        )
+        return self._batcher.epoch_length(self._base_source.epoch_length(split))
 
     @memoized_property
     def element_spec(self):
@@ -112,7 +103,7 @@ class PipelinedSource(core.DataSource):
         for m in self._pre_cache_map, self._pre_batch_map:
             if m is not None:
                 dataset = dataset.map(m)
-        dataset = self._batch_fn(dataset)
+        dataset = self._batcher(dataset)
         if self._post_batch_map is not None:
             dataset = dataset.map(self._post_batch_map)
         return dataset.element_spec

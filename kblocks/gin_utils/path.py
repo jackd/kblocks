@@ -134,6 +134,7 @@ def register_file_reader(*args, highest_priority: bool = False):
         return functools.partial(do_registration, is_readable_fn=args[0])
     if len(args) == 2:
         do_registration(*args)
+        return None
     # 0 or > 2 arguments supplied.
     raise TypeError(
         f"register_file_reader() takes 1 or 2 arguments ({len(args)} given)"

@@ -85,8 +85,7 @@ class BaseCacheManager(object):
         path = os.path.join(self.cache_dir, "cache")
         if self._preprocess:
             return preprocessed_cache(dataset, path)
-        else:
-            return dataset.cache(path)
+        return dataset.cache(path)
 
 
 def _identity(x):

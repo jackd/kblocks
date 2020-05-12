@@ -6,8 +6,7 @@ import tensorflow as tf
 from absl import logging
 
 from kblocks import multi_graph as mg
-from kblocks.framework.sources import DataSource
-from kblocks.framework.sources.pipelined import PipelinedSource, batch_dataset
+from kblocks.framework.sources import DataSource, PipelinedSource, RectBatcher
 from kblocks.framework.trainable import Trainable
 
 
@@ -34,7 +33,7 @@ def multi_graph_trainable(
 
     source = PipelinedSource(
         base_source,
-        batch_fn=functools.partial(batch_dataset, batch_size=batch_size),
+        batcher=RectBatcher(batch_size=batch_size),
         pre_cache_map=built.pre_cache_map,
         pre_batch_map=built.pre_batch_map,
         post_batch_map=built.post_batch_map,
