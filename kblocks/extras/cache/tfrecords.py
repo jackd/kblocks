@@ -7,6 +7,7 @@ import functools
 import os
 
 import gin
+import numpy as np
 import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
@@ -17,10 +18,17 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
 def serialize_example(*args, **kwargs):
-    updater = kwargs.pop("updater")
+    callback = kwargs.pop("callback", None)
     flat_example = tf.nest.flatten((args, kwargs), expand_composites=True)
     flat_strings = tuple(tf.io.serialize_tensor(x) for x in flat_example)
-    tf.py_function(updater, [], [])
+
+    if callback is not None:
+
+        def fn():
+            callback()
+            return np.zeros((0,), dtype=np.float32)
+
+        tf.py_function(fn, [], tf.float32)  # needs a dtype in tf 2.3
     flat_strings = tf.stack(flat_strings)
     return tf.io.serialize_tensor(flat_strings)
 
@@ -34,19 +42,19 @@ def deserializer(spec):
         flat_example = tuple(
             tf.io.parse_tensor(x, s.dtype) for x, s in zip(unstacked, flat_spec)
         )
-        for example, s in zip(flat_example, flat_spec):
-            example.set_shape(s.shape)
+        for el, s in zip(flat_example, flat_spec):
+            el.set_shape(s.shape)
         return tf.nest.pack_sequence_as(spec, flat_example, expand_composites=True)
 
     return deserialize_example
 
 
-def _write_dataset(dataset: tf.data.Dataset, path):
+def _write_dataset(dataset: tf.data.Dataset, path: str, compression: str = "NONE"):
     if os.path.isfile(path):
         logging.info(f"Reusing data found at {path}")
-        return
+        return None
     logging.info(f"Writing data to {path}")
-    writer = tf.data.experimental.TFRecordWriter(path)
+    writer = tf.data.experimental.TFRecordWriter(path, compression_type=compression)
     try:
         return writer.write(dataset)
     except (Exception, KeyboardInterrupt):
@@ -59,36 +67,58 @@ def _write_dataset(dataset: tf.data.Dataset, path):
 
 
 def _cache_dataset(
-    dataset: tf.data.Dataset, cache_dir: str, num_parallel_calls=AUTOTUNE,
+    dataset: tf.data.Dataset,
+    cache_dir: str,
+    num_parallel_calls=AUTOTUNE,
+    compression: str = "NONE",
 ):
 
-    spec = dataset.element_spec
     path = os.path.join(cache_dir, "serialized.tfrecords")
+    spec = dataset.element_spec
     if not os.path.isfile(path):
-        updater = tqdm()
-        write_op = _write_dataset(
-            dataset.map(
-                functools.partial(serialize_example, updater=updater.update),
-                num_parallel_calls,
-            ),
-            path,
-        )
-        if not tf.executing_eagerly():
-            with tf.compat.v1.Session() as sess:
-                sess.run(write_op)
-        updater.close()
-    return tf.data.TFRecordDataset(path,).map(deserializer(spec), num_parallel_calls)
+        # logging.info(f"Writing dataset to {path}")
+        with tqdm(desc=f"Writing dataset to {path}") as updater:
+            write_op = _write_dataset(
+                dataset.map(
+                    functools.partial(serialize_example, callback=updater.update),
+                    # functools.partial(serialize_example),
+                    num_parallel_calls,
+                ),
+                path,
+                compression=compression,
+            )
+            if not tf.executing_eagerly():
+                assert write_op is not None
+                with tf.compat.v1.Session() as sess:
+                    sess.run(write_op)
+    return tf.data.TFRecordDataset(path, compression_type=compression).map(
+        deserializer(spec), num_parallel_calls
+    )
 
 
 @gin.configurable(module="kb.cache")
 class TFRecordsCacheManager(core.BaseCacheManager):
     def __init__(
-        self, cache_dir: str, num_parallel_calls: int = AUTOTUNE,
+        self,
+        cache_dir: str,
+        num_parallel_calls: int = AUTOTUNE,
+        compression: str = "NONE",
     ):
         super().__init__(cache_dir=cache_dir)
         self._num_parallel_calls = num_parallel_calls
+        self._compression = compression
+
+    @property
+    def compression(self) -> str:
+        return self._compression
+
+    def num_parallel_calls(self) -> int:
+        return self._num_parallel_calls
 
     def __call__(self, dataset):
         return _cache_dataset(
-            dataset, self.cache_dir, num_parallel_calls=self._num_parallel_calls,
+            dataset,
+            self.cache_dir,
+            num_parallel_calls=self._num_parallel_calls,
+            compression=self._compression,
         )

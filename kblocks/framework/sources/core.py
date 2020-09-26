@@ -21,15 +21,39 @@ class DataSource(abc.ABC):
     def get_dataset(self, split: Split) -> tf.data.Dataset:
         raise NotImplementedError("Abstract method")
 
-    def epoch_length(  # pylint:disable=no-self-use,useless-return
-        self, split: Split
-    ) -> Optional[int]:
-        del split
-        return None
+    def epoch_length(self, split: Split) -> Optional[int]:
+        cardinality = tf.data.experimental.cardinality(self.get_dataset(split)).numpy()
+        return None if cardinality < 0 else cardinality
 
     @property
     def meta(self) -> Mapping[str, Any]:
         return {}
+
+
+class DelegatingSource(DataSource):
+    """
+    DataSource implementation that delegates implementations to a base DataSource.
+
+    While this class can be instantiated directly, it's primary purpose is as a base
+    class.
+    """
+
+    def __init__(self, base: DataSource):
+        self._base = base
+
+    def get_dataset(self, split: Split) -> tf.data.Dataset:
+        return self._base.get_dataset
+
+    def epoch_length(self, split: Split) -> int:
+        return self._base.epoch_length(split)
+
+    @property
+    def meta(self) -> Mapping[str, Any]:
+        return self._base.meta
+
+    @property
+    def element_spec(self):
+        return self._base.element_spec
 
 
 @gin.configurable(module="kb.framework")
@@ -41,7 +65,7 @@ class BaseSource(DataSource):
         meta: Optional[Mapping[str, Any]] = None,
     ):
         self._dataset_fn = dataset_fn
-        self._epoch_lengths = epoch_lengths
+        self._epoch_lengths = epoch_lengths or {}
         self._meta = meta
 
     @property
@@ -52,9 +76,11 @@ class BaseSource(DataSource):
         return self._dataset_fn(split)
 
     def epoch_length(self, split: Split) -> Optional[int]:
-        if self._epoch_lengths is None:
-            return None
-        return self._epoch_lengths[split]
+        length = self._epoch_lengths.get(split)
+        if length is None:
+            length = tf.data.experimental.cardinality(self.get_dataset(split)).numpy()
+            self._epoch_lengths[split] = length
+        return None if length < 0 else length
 
 
 @gin.configurable(module="kb.framework")

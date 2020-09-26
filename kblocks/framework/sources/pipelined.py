@@ -68,7 +68,7 @@ class PipelinedSource(core.DataSource):
                 dataset = cache_manager(dataset)
             else:
                 logging.warning(
-                    "`pre_cache_map` supplied byt no `cache_manager` - not caching."
+                    "`pre_cache_map` supplied but no `cache_manager` - not caching."
                 )
 
             if self._shuffle_buffer is not None:

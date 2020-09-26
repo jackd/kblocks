@@ -38,7 +38,7 @@ def cache_exists(path: str):
     return os.path.isfile(f"{path}.index")
 
 
-def create_cache_data(dataset, desc="Creating cache..."):
+def iterate_over(dataset, desc=None):
     for _ in tqdm(dataset_iterator(dataset), desc=desc):
         pass
 
@@ -48,7 +48,7 @@ def preprocessed_cache(dataset, path, desc="Creating cache..."):
     if cache_exists(path):
         logging.info(f"Reusing cache data at {path}")
     else:
-        create_cache_data(dataset, desc)
+        iterate_over(dataset, desc=desc)
     return dataset
 
 
@@ -58,12 +58,12 @@ class CacheManager(abc.ABC):
         raise NotImplementedError("Abstract method")
 
     @abc.abstractmethod
-    def __call__(self, dataset: tf.data.Dataset,) -> tf.data.Dataset:
+    def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         raise NotImplementedError("Abstract method")
 
 
 @gin.configurable(module="kb.cache")
-class BaseCacheManager(object):
+class BaseCacheManager(CacheManager):
     def __init__(self, cache_dir: str, preprocess: bool = False):
         self._cache_dir = cache_dir
         self._preprocess = preprocess
@@ -81,11 +81,69 @@ class BaseCacheManager(object):
         tf.io.gfile.rmtree(self.cache_dir)
         os.makedirs(self.cache_dir)
 
-    def __call__(self, dataset):
+    def __call__(self, dataset: tf.data.Dataset):
         path = os.path.join(self.cache_dir, "cache")
         if self._preprocess:
             return preprocessed_cache(dataset, path)
         return dataset.cache(path)
+
+
+@gin.configurable(module="kb.cache")
+class SnapshotManager(CacheManager):
+    def __init__(self, path: str, compression: str = "GZIP"):
+        self._path = path
+        self._compression = compression
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @property
+    def compression(self) -> str:
+        return self._compression
+
+    def clear(self):
+        """Clear the cache."""
+        tf.io.gfile.remove(self._path)
+
+    def __call__(self, dataset: tf.data.Dataset):
+        return dataset.apply(
+            tf.data.experimental.snapshot(self.path, compression=self.compression)
+        )
+
+
+@gin.configurable(module="kb.cache")
+class SaveLoadManager(CacheManager):
+    """CacheManager implementation that uses `tf.data.experimental.save/load`."""
+
+    def __init__(self, path: str, compression: str = "GZIP"):
+        self._path = path
+        self._compression = compression
+
+    @property
+    def path(self) -> str:
+        return self._path
+
+    @property
+    def compression(self) -> str:
+        return self._compression
+
+    def clear(self):
+        """Clear the cache."""
+        tf.io.gfile.remove(self.path)
+
+    def __call__(self, dataset: tf.data.Dataset):
+        if not os.path.exists(self.path):
+            try:
+                print(f"Saving dataset to {self.path}")
+                tf.data.experimental.save(dataset, self.path, self.compression)
+            except (Exception, KeyboardInterrupt):
+                if os.path.exists(self.path):
+                    self.clear()
+                raise
+        return tf.data.experimental.load(
+            self.path, dataset.element_spec, compression=self.compression
+        )
 
 
 def _identity(x):
@@ -95,20 +153,9 @@ def _identity(x):
 @gin.configurable(module="kb.cache")
 class ParentManager(CacheManager):
     def __init__(
-        self,
-        cache_dir: str,
-        num_children: int,
-        cycle_length=1,
-        block_length=32,
-        num_parallel_calls=AUTOTUNE,
-        manager_impl=BaseCacheManager,
+        self, cache_dir: str, num_children: int, manager_impl=BaseCacheManager,
     ):
         self._cache_dir = cache_dir
-        self._interleave_kwargs = dict(
-            cycle_length=cycle_length,
-            block_length=block_length,
-            num_parallel_calls=num_parallel_calls,
-        )
         self._managers = tuple(
             manager_impl(os.path.join(cache_dir, f"repeat-{i:04d}-{num_children:04d}"),)
             for i in range(num_children)
@@ -131,9 +178,7 @@ class ParentManager(CacheManager):
             manager(dataset)
             for (manager, dataset) in zip(self._managers, self._children(dataset))
         ]
-        return tf.data.Dataset.from_tensor_slices(datasets).interleave(
-            _identity, **self._interleave_kwargs
-        )
+        return tf.data.Dataset.from_tensor_slices(datasets).flat_map(_identity)
 
 
 @gin.configurable(module="kb.cache")

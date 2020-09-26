@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 import gin
 import numpy as np
@@ -236,7 +236,7 @@ class Trainable:
         callbacks: Sequence[tf.keras.callbacks.Callback] = (),
         chkpt_kwargs: Optional[Mapping[str, Any]] = None,
         validation_freq: int = 1,
-        profile_batch: Union[int, str, Tuple[int, int]] = 2,
+        profile_batch: str = "2,12",
         build_only: bool = False,
     ):
         source = self.source
@@ -401,7 +401,7 @@ def fit(
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     chkpt_kwargs: Optional[Mapping[str, Any]] = None,
     validation_freq: int = 1,
-    profile_batch: Union[int, str, Tuple[int, int]] = 2,
+    profile_batch: str = "2,12",
     build_only: bool = False,
 ):
     return trainable.fit(
