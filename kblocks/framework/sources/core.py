@@ -42,7 +42,7 @@ class DelegatingSource(DataSource):
         self._base = base
 
     def get_dataset(self, split: Split) -> tf.data.Dataset:
-        return self._base.get_dataset
+        return self._base.get_dataset(split)
 
     def epoch_length(self, split: Split) -> int:
         return self._base.epoch_length(split)
@@ -124,8 +124,10 @@ class TfdsSource(DataSource):
         return self._split_map.get(split, split)
 
     def epoch_length(self, split: Split) -> int:
-        split = self._split(split)
-        return self.builder.info.splits[split].num_examples
+        try:
+            return self.builder.info.splits[self._split(split)].num_examples
+        except KeyError:
+            return super().epoch_length(split)
 
     def get_dataset(self, split) -> tf.data.Dataset:
         mapped_split = self._split(split)

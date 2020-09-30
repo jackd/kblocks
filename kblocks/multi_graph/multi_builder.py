@@ -209,25 +209,9 @@ class MultiGraphBuilder(MultiGraphContext):
         out = self._post_batch_builder.batched_input_like(x, name=name)
         return out
 
-    def _model_input(self, x, name=None) -> tf.Tensor:
+    def model_input(self, x: TensorLike, name=None) -> TensorLike:
         self._post_batch_builder.add_output(x)
         return self._model_builder.input_like(x, name=name)
-
-    def model_input(self, x, name=None) -> TensorLike:
-        self.assert_is_post_batch(x)
-        if isinstance(x, tf.Tensor):
-            return self._model_input(x, name=name)
-        # composite tensor
-        if self._batch_size is not None:
-            raise NotImplementedError()
-        with self.post_batch_context():
-            flat_x = tf.nest.flatten(x, expand_composites=True)
-        flat_x = [
-            self._model_input(xi, name=None if name is None else f"{name}-{i}")
-            for i, xi in enumerate(flat_x)
-        ]
-        out = tf.nest.pack_sequence_as(x, flat_x, expand_composites=True)
-        return out
 
     def build(
         self, model_outputs, labels, weights=None, inputs_structure=None
@@ -319,4 +303,6 @@ def build_multi_graph(
             weights = None
         else:
             model_outputs, labels, weights = args
-        return builder.build(model_outputs, labels, weights, inputs_spec)
+        return builder.build(
+            model_outputs, labels, weights, inputs_structure=inputs_spec
+        )

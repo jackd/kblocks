@@ -264,7 +264,9 @@ class GraphBuilder:
 def _model_fn(
     model, inputs_structure, outputs_structure, squeezed,
 ):
-    def f(*inputs):
+    default_training = False  # required in tf 2.3
+
+    def f(*inputs, training=None):
         if inputs_structure is not None:
             tf.nest.assert_same_structure(inputs, inputs_structure)
         inputs = tf.nest.flatten(inputs)
@@ -274,7 +276,7 @@ def _model_fn(
             for inp, sq in zip(inputs, squeezed)
         ]
         assert len(inputs) == len(model.inputs)
-        outputs = model(inputs)
+        outputs = model(inputs, training=training or default_training)
         if outputs_structure is not None:
             outputs = tf.nest.pack_sequence_as(outputs_structure, outputs)
         return outputs
@@ -394,11 +396,6 @@ class ModelBuilder:
             name=name,
         )
         self._inputs.append(out)
-        assert type(x) is type(out)
-        if isinstance(x, tf.RaggedTensor):
-            assert x.ragged_rank == out.ragged_rank
-            print(x.shape)
-            print(x.ragged_rank)
         return out
 
     def batched_input_like(self, x: TensorLike, name=None) -> TensorLike:

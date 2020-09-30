@@ -135,7 +135,7 @@ class SaveLoadManager(CacheManager):
     def __call__(self, dataset: tf.data.Dataset):
         if not os.path.exists(self.path):
             try:
-                print(f"Saving dataset to {self.path}")
+                logging.info(f"Saving dataset to {self.path}")
                 tf.data.experimental.save(dataset, self.path, self.compression)
             except (Exception, KeyboardInterrupt):
                 if os.path.exists(self.path):

@@ -5,6 +5,7 @@ I swear there's a memory leak in the official implementation.
 """
 import functools
 import os
+from typing import Optional
 
 import gin
 import numpy as np
@@ -49,7 +50,9 @@ def deserializer(spec):
     return deserialize_example
 
 
-def _write_dataset(dataset: tf.data.Dataset, path: str, compression: str = "NONE"):
+def _write_dataset(
+    dataset: tf.data.Dataset, path: str, compression: Optional[str] = None
+):
     if os.path.isfile(path):
         logging.info(f"Reusing data found at {path}")
         return None
@@ -70,7 +73,7 @@ def _cache_dataset(
     dataset: tf.data.Dataset,
     cache_dir: str,
     num_parallel_calls=AUTOTUNE,
-    compression: str = "NONE",
+    compression: Optional[str] = None,
 ):
 
     path = os.path.join(cache_dir, "serialized.tfrecords")
@@ -102,7 +105,7 @@ class TFRecordsCacheManager(core.BaseCacheManager):
         self,
         cache_dir: str,
         num_parallel_calls: int = AUTOTUNE,
-        compression: str = "NONE",
+        compression: Optional[str] = None,
     ):
         super().__init__(cache_dir=cache_dir)
         self._num_parallel_calls = num_parallel_calls

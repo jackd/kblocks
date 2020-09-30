@@ -110,4 +110,3 @@ class MultiBuilderTest(tf.test.TestCase, parameterized.TestCase):
 
 if __name__ == "__main__":
     tf.test.main()
-    # MultiBuilderTest().test_build_multi_model()

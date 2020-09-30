@@ -27,7 +27,7 @@ class PipelinedSource(core.DataSource):
         num_parallel_calls: int = AUTOTUNE,
         clear_cache: bool = False,
         meta: Optional[Mapping[str, Any]] = None,
-        repeats: int = 1,
+        repeats: Optional[int] = None,
     ):
         assert isinstance(source, core.DataSource)
         self._base_source = source
@@ -51,7 +51,8 @@ class PipelinedSource(core.DataSource):
 
     def get_dataset(self, split: core.Split):
         dataset = self._base_source.get_dataset(split)
-        with tf.keras.backend.learning_phase_scope(split == "train"):
+        training = split == "train"
+        with tf.keras.backend.learning_phase_scope(training):
             cache_manager = (
                 None
                 if self._cache_managers is None
@@ -71,14 +72,14 @@ class PipelinedSource(core.DataSource):
                     "`pre_cache_map` supplied but no `cache_manager` - not caching."
                 )
 
-            if self._shuffle_buffer is not None:
+            if training and self._shuffle_buffer is not None:
                 dataset = dataset.shuffle(self._shuffle_buffer)
             if self._pre_batch_map is not None:
                 dataset = dataset.map(self._pre_batch_map, self._num_parallel_calls)
 
             dataset = self._batcher(dataset)
             # repeat after batching so we get accurate `epoch_length`s.
-            if self._repeats != 1:
+            if training and self._repeats != 1:
                 dataset = dataset.repeat(self._repeats)
             if self._post_batch_map is not None:
                 dataset = dataset.map(self._post_batch_map, self._num_parallel_calls)
