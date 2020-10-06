@@ -5,7 +5,7 @@ import gin
 import tensorflow as tf
 from absl import logging
 
-from kblocks import multi_graph as mg
+import multi_graph as mg
 from kblocks.framework.sources import DataSource, PipelinedSource, RectBatcher
 from kblocks.framework.trainable import Trainable
 
@@ -14,18 +14,18 @@ from kblocks.framework.trainable import Trainable
 def multi_graph_trainable(
     build_fn: Callable,
     base_source: DataSource,
-    batch_size: int,
+    batch_size: Optional[int],
     compiler: Callable[[tf.keras.Model], None],
     model_dir: Optional[str] = None,
-    build_with_batch_size: bool = True,
     use_model_builders: bool = False,
+    rebuild_model_with_xla: bool = False,
     **pipeline_kwargs
 ):
     logging.info("Building multi graph...")
     built = mg.build_multi_graph(
         functools.partial(build_fn, **base_source.meta),
         base_source.element_spec,
-        batch_size if build_with_batch_size else None,
+        batch_size,
         use_model_builders=use_model_builders,
     )
 
@@ -40,6 +40,10 @@ def multi_graph_trainable(
         **pipeline_kwargs
     )
     model = built.trained_model
+    if rebuild_model_with_xla:
+        with tf.xla.experimental.jit_scope():
+            model = tf.keras.models.clone_model(model)
+
     if compiler is not None:
         compiler(model)
     return Trainable(source, model, model_dir)

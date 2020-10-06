@@ -2,3 +2,4 @@ gin-config
 tensorflow-datasets
 setproctitle
 scipy
+git+git://github.com/jackd/multi-graph.git
