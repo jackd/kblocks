@@ -14,8 +14,9 @@ from kblocks.framework.trainable import Trainable
 def multi_graph_trainable(
     build_fn: Callable,
     base_source: DataSource,
-    batch_size: Optional[int],
+    batch_size: int,
     compiler: Callable[[tf.keras.Model], None],
+    build_with_batch_size: bool = False,
     model_dir: Optional[str] = None,
     use_model_builders: bool = False,
     rebuild_model_with_xla: bool = False,
@@ -25,7 +26,7 @@ def multi_graph_trainable(
     built = mg.build_multi_graph(
         functools.partial(build_fn, **base_source.meta),
         base_source.element_spec,
-        batch_size,
+        batch_size if build_with_batch_size else None,
         use_model_builders=use_model_builders,
     )
 

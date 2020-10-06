@@ -5,6 +5,14 @@ This package provides a rapid prototyping environment for running deep learning 
 - Injectable keras components - "blocks" - which are just regular `keras` classes wrapped in `gin.configurable`, including some custom ones I feel are missing from core `keras`; and
 - a [framework](kblocks/framework/) submodule which provides various even-higher-than-keras-level interfaces for common tasks.
 
+## Installation
+
+```bash
+pip install tensorflow  # not included in requirements.txt - could be tf-nightly
+git clone https://github.com/jackd/kblocks.git
+pip install -e kblocks
+```
+
 ## Quick Start - without Injection
 
 The following is an example of training a model without using dependency injection. It isn't the point of this package, but in order to appreciate the point you need to go through this process first.
@@ -301,6 +309,12 @@ Note that using the objects output by `external_cofigurable` from code is differ
 ## Further Reading
 
 Go check out the [gin user guide](https://github.com/google/gin-config/blob/master/docs/index.md) for more examples of how best to use this powerful framework. Happy configuring!
+
+## Projects using `kblocks`
+
+- Implementations from [Sparse Convolutions on Continuous Domains](https://github.com/jackd/sccd.git):
+  - [Point Cloud Network](https://github.com/jackd/pcn.git)
+  - [Event Stream Network](https://github.com/jackd/esn.git)
 
 ## TODO
 

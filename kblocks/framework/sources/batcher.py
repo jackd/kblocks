@@ -20,6 +20,7 @@ class Batcher(abc.ABC):
 @gin.configurable(module="kb.framework")
 class RectBatcher(Batcher):
     def __init__(self, batch_size: int, drop_remainder: bool = False):
+        assert isinstance(batch_size, int)
         self._batch_size = batch_size
         self._drop_remainder = drop_remainder
 

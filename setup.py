@@ -13,7 +13,7 @@ with open(os.path.join(os.path.dirname(__file__), "requirements.txt")) as fp:
 setup(
     name="kblocks",
     description="gin-configured keras blocks for rapid prototyping and benchmarking",
-    url="https://github.com/jackd",
+    url="https://github.com/jackd/kblocks",
     author="Dominic Jack",
     author_email="thedomjack@gmail.com",
     license="MIT",
