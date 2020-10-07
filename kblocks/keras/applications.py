@@ -13,10 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Keras Applications are canned architectures with pre-trained weights."""
-import keras_applications
 from tensorflow.python.keras import backend, engine, models, utils
 from tensorflow.python.util import tf_inspect
 
+import keras_applications
 from kblocks.keras import layers
 
 # `get_submodules_from_kwargs` has been introduced in 1.0.5, but we would
