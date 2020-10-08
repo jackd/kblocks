@@ -25,12 +25,10 @@ def try_register_config_dir(key, path):
         path: path to configuration dir.
     """
     if key in os.environ:
-        print(path)
-        print(os.environ[key])
         if os.environ[key] != path:
             logging.warning(
-                "{} environment variable already defined. "
-                "Config parsing may act surprisingly".format(key)
+                f"{key} environment variable already defined. "
+                "Config parsing may act surprisingly"
             )
     else:
         os.environ[key] = path
