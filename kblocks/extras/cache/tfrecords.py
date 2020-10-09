@@ -84,8 +84,8 @@ def _cache_dataset(
             write_op = _write_dataset(
                 dataset.map(
                     functools.partial(serialize_example, callback=updater.update),
-                    # functools.partial(serialize_example),
-                    num_parallel_calls,
+                    num_parallel_calls=1,  # data corruptions with value > 1
+                    # https://github.com/tensorflow/tensorflow/issues/13463
                 ),
                 path,
                 compression=compression,
@@ -122,6 +122,6 @@ class TFRecordsCacheManager(core.BaseCacheManager):
         return _cache_dataset(
             dataset,
             self.cache_dir,
-            num_parallel_calls=self._num_parallel_calls,
+            num_parallel_calls=self.num_parallel_calls,
             compression=self._compression,
         )
