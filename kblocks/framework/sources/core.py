@@ -124,14 +124,9 @@ class TfdsSource(DataSource):
         return self._split_map.get(split, split)
 
     def epoch_length(self, split: Split) -> int:
-        used_split = self._split(split)
         try:
-            return self.builder.info.splits[used_split].num_examples
+            return self.builder.info.splits[self._split(split)].num_examples
         except KeyError:
-            if used_split[-2] == "%":
-                key, rest = used_split.split("[")
-                percent = int(rest[:-2])
-                return int(self.builder.info.splits[key].num_examples * percent / 100)
             return super().epoch_length(split)
 
     def get_dataset(self, split) -> tf.data.Dataset:
