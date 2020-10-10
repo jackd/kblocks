@@ -115,6 +115,7 @@ class TFRecordsCacheManager(core.BaseCacheManager):
     def compression(self) -> str:
         return self._compression
 
+    @property
     def num_parallel_calls(self) -> int:
         return self._num_parallel_calls
 
