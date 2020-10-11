@@ -252,6 +252,11 @@ class Trainable:
                 _flatten_dataset_features(ds) for ds in (train_ds, val_ds)
             )
         train_steps, val_steps = (source.epoch_length(s) for s in splits)
+        # possible memory leak with re-initializing datasets in fit?
+        if train_steps is not None:
+            train_ds = train_ds.repeat()
+        if val_steps is not None:
+            val_ds = val_ds.repeat()
 
         used_callbacks = [
             cb.AbslLogger(),

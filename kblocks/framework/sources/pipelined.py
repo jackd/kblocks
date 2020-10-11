@@ -23,11 +23,10 @@ class PipelinedSource(core.DataSource):
         post_batch_map: Optional[Callable] = None,
         cache_managers: Optional[Mapping[str, CacheManager]] = None,
         shuffle_buffer: Optional[int] = None,
-        prefetch_buffer: int = AUTOTUNE,
+        prefetch_buffer: Optional[int] = AUTOTUNE,
         num_parallel_calls: int = AUTOTUNE,
         clear_cache: bool = False,
         meta: Optional[Mapping[str, Any]] = None,
-        repeats: Optional[int] = None,
     ):
         assert isinstance(source, core.DataSource)
         self._base_source = source
@@ -40,7 +39,6 @@ class PipelinedSource(core.DataSource):
         self._prefetch_buffer = prefetch_buffer
         self._num_parallel_calls = num_parallel_calls
         self._clear_cache = clear_cache
-        self._repeats = repeats
         if meta is None:
             meta = source.meta
         self._meta = meta
@@ -78,9 +76,6 @@ class PipelinedSource(core.DataSource):
                 dataset = dataset.map(self._pre_batch_map, self._num_parallel_calls)
 
             dataset = self._batcher(dataset)
-            # repeat after batching so we get accurate `epoch_length`s.
-            if training and self._repeats != 1:
-                dataset = dataset.repeat(self._repeats)
             if self._post_batch_map is not None:
                 dataset = dataset.map(self._post_batch_map, self._num_parallel_calls)
             if self._prefetch_buffer is not None:
