@@ -46,7 +46,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         self._manager = tf.train.CheckpointManager(
             self._checkpoint, **self._manager_kwargs
         )
-        super(CheckpointCallback, self).set_model(model)
+        super().set_model(model)
 
     def checkpoint(self, epoch: Optional[int] = None) -> Optional[str]:
         if epoch is None:

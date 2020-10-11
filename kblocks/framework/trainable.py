@@ -261,6 +261,7 @@ class Trainable:
         used_callbacks = [
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
+            cb.GarbageCollector(),
         ]
 
         utils.init_optimizer_weights(model)
