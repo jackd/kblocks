@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import tensorflow as tf
 
@@ -9,36 +11,44 @@ def inp(shape):
 
 
 class ShapeTest(tf.test.TestCase):
-    def assertShapeEqual(self, x, expected):
+    def assertTensorShapeEquals(self, x: tf.Tensor, expected: Tuple[int, ...]):
         return self.assertEqual(tuple(x.shape), expected)
 
     def test_flatten_leading_dims(self):
         x = inp((2, 3, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 1), (2, 3, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 2), (6, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 3), (24,))
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 1), (2, 3, 4))
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 2), (6, 4))
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 3), (24,))
         with self.assertRaises(ValueError) as context:
             shape_layers.flatten_leading_dims(x, 2, 8)
         self.assertTrue("Cannot reshape a tensor with" in str(context.exception))
 
         x = inp((None, None, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 1), (None, None, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 2), (None, 4))
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 3), (None,))
+        self.assertTensorShapeEquals(
+            shape_layers.flatten_leading_dims(x, 1), (None, None, 4)
+        )
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 2), (None, 4))
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 3), (None,))
 
         x = tf.RaggedTensor.from_row_lengths([2, 3, 4], [2, 1])
-        self.assertShapeEqual(shape_layers.flatten_leading_dims(x, 2), (3,))
+        self.assertTensorShapeEquals(shape_layers.flatten_leading_dims(x, 2), (3,))
 
     def test_reshape_leading_dim(self):
         x = inp((10, 3))
-        self.assertShapeEqual(shape_layers.reshape_leading_dim(x, (2, 5)), (2, 5, 3))
-        self.assertShapeEqual(shape_layers.reshape_leading_dim(x, (5, -1)), (5, 2, 3))
+        self.assertTensorShapeEquals(
+            shape_layers.reshape_leading_dim(x, (2, 5)), (2, 5, 3)
+        )
+        self.assertTensorShapeEquals(
+            shape_layers.reshape_leading_dim(x, (5, -1)), (5, 2, 3)
+        )
 
         x = inp((None, 3))
-        self.assertShapeEqual(
+        self.assertTensorShapeEquals(
             shape_layers.reshape_leading_dim(x, (-1, 2)), (None, 2, 3)
         )
-        self.assertShapeEqual(shape_layers.reshape_leading_dim(x, (5, 2)), (5, 2, 3))
+        self.assertTensorShapeEquals(
+            shape_layers.reshape_leading_dim(x, (5, 2)), (5, 2, 3)
+        )
 
     def test_reshape_ragged_leading_dim(self):
         x = tf.zeros((100,), dtype=tf.float32)
@@ -54,16 +64,18 @@ class ShapeTest(tf.test.TestCase):
 
     def test_as_batched(self):
         x = inp((10, 3))
-        self.assertShapeEqual(shape_layers.as_batched(x, 5), (5, 2, 3))
-        self.assertShapeEqual(shape_layers.as_batched(x, 5, 2), (5, 2, 3))
-        self.assertShapeEqual(shape_layers.as_batched(x, element_size=2), (5, 2, 3))
+        self.assertTensorShapeEquals(shape_layers.as_batched(x, 5), (5, 2, 3))
+        self.assertTensorShapeEquals(shape_layers.as_batched(x, 5, 2), (5, 2, 3))
+        self.assertTensorShapeEquals(
+            shape_layers.as_batched(x, element_size=2), (5, 2, 3)
+        )
 
     def test_as_batched_tensors(self):
-        x = inp((10, 3))
-        ld = shape_layers.dimension(x, 0)
-        self.assertShapeEqual(shape_layers.as_batched(x, ld // 2), (5, 2, 3))
-        self.assertShapeEqual(shape_layers.as_batched(x, ld // 2, 2), (5, 2, 3))
-        self.assertShapeEqual(shape_layers.as_batched(x, 5, ld // 5), (5, 2, 3))
+        ld = 10
+        x = inp((ld, 3))
+        self.assertTensorShapeEquals(shape_layers.as_batched(x, ld // 2), (5, 2, 3))
+        self.assertTensorShapeEquals(shape_layers.as_batched(x, ld // 2, 2), (5, 2, 3))
+        self.assertTensorShapeEquals(shape_layers.as_batched(x, 5, ld // 5), (5, 2, 3))
 
 
 if __name__ == "__main__":

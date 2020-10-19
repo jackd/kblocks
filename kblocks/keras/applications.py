@@ -13,30 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Keras Applications are canned architectures with pre-trained weights."""
-from tensorflow.python.keras import backend, engine, models, utils
-from tensorflow.python.util import tf_inspect
 
 import keras_applications
+import tensorflow as tf
+
 from kblocks.keras import layers
-
-# `get_submodules_from_kwargs` has been introduced in 1.0.5, but we would
-# like to be able to handle prior versions. Note that prior to 1.0.5,
-# `keras_applications` did not expose a `__version__` attribute.
-if not hasattr(keras_applications, "get_submodules_from_kwargs"):
-    # pylint: disable=no-member
-
-    if (
-        "engine"
-        in tf_inspect.getfullargspec(keras_applications.set_keras_submodules)[0]
-    ):
-        keras_applications.set_keras_submodules(
-            backend=backend, layers=layers, models=models, utils=utils, engine=engine
-        )
-    else:
-        keras_applications.set_keras_submodules(
-            backend=backend, layers=layers, models=models, utils=utils
-        )
-    # pylint: enable=no-member
 
 
 def keras_modules_injection(base_fun):
@@ -52,11 +33,11 @@ def keras_modules_injection(base_fun):
 
     def wrapper(*args, **kwargs):
         if hasattr(keras_applications, "get_submodules_from_kwargs"):
-            kwargs["backend"] = backend
+            kwargs["backend"] = tf.keras.backend
             if "layers" not in kwargs:
                 kwargs["layers"] = layers
-            kwargs["models"] = models
-            kwargs["utils"] = utils
+            kwargs["models"] = tf.keras.models
+            kwargs["utils"] = tf.keras.utils
         return base_fun(*args, **kwargs)
 
     return wrapper

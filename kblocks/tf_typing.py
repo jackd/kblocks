@@ -8,14 +8,17 @@ RaggedTensorSpec = tf.RaggedTensorSpec
 SparseTensorSpec = tf.SparseTensorSpec
 
 TensorLikeSpec = Union[TensorSpec, RaggedTensorSpec, SparseTensorSpec]
-RaggedComponents = NamedTuple(
-    "RaggedComponents",
-    [("flat_values", Tensor), ("nested_row_splits", Tuple[Tensor, ...])],
-)
 
-SparseComponents = NamedTuple(
-    "SparseComponents", [("indices", Tensor), ("values", Tensor)]
-)
+
+class RaggedComponents(NamedTuple):
+    flat_values: Tensor
+    nested_row_splits: Tuple[Tensor, ...]
+
+
+class SparseComponents(NamedTuple):
+    indices: Tensor
+    values: Tensor
+
 
 TensorComponents = Union[Tensor, RaggedComponents, SparseComponents]
 

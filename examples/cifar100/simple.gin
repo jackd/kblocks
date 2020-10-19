@@ -3,9 +3,11 @@ import simple
 source = @cifar100_source()
 compiler = @cifar100_compile
 model_fn = @simple_cnn
-model_dir = '/tmp/kblocks/examples/cifar100'
+model_dir = '/tmp/kblocks/examples/cifar100/simple'
+
+# this makes batch_size easier to configure from command line
 cifar100_source.batch_size = %batch_size
-
-
 batch_size = 16
+
+# macro defined in $KB_CONFIG/fit.gin
 epochs = 40

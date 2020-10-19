@@ -5,8 +5,8 @@ import tensorflow as tf
 from absl import logging
 
 from kblocks.extras.cache import CacheManager
+from kblocks.framework.batchers import Batcher
 from kblocks.framework.sources import core
-from kblocks.framework.sources.batcher import Batcher
 from kblocks.utils import memoized_property
 
 AUTOTUNE = tf.data.experimental.AUTOTUNE
@@ -78,8 +78,8 @@ class PipelinedSource(core.DataSource):
             dataset = self._batcher(dataset)
             if self._post_batch_map is not None:
                 dataset = dataset.map(self._post_batch_map, self._num_parallel_calls)
-            if self._prefetch_buffer is not None:
-                dataset = dataset.prefetch(self._prefetch_buffer)
+        if self._prefetch_buffer is not None:
+            dataset = dataset.prefetch(self._prefetch_buffer)
         return dataset
 
     def epoch_length(self, split: core.Split) -> Optional[int]:
@@ -96,10 +96,11 @@ class PipelinedSource(core.DataSource):
             output_types=tf.nest.map_structure(lambda x: x.dtype, base_spec),
             output_shapes=tf.nest.map_structure(lambda x: x.shape, base_spec),
         )
-        for m in self._pre_cache_map, self._pre_batch_map:
-            if m is not None:
-                dataset = dataset.map(m)
-        dataset = self._batcher(dataset)
-        if self._post_batch_map is not None:
-            dataset = dataset.map(self._post_batch_map)
+        with tf.keras.backend.learning_phase_scope(True):
+            for m in self._pre_cache_map, self._pre_batch_map:
+                if m is not None:
+                    dataset = dataset.map(m)
+            dataset = self._batcher(dataset)
+            if self._post_batch_map is not None:
+                dataset = dataset.map(self._post_batch_map)
         return dataset.element_spec

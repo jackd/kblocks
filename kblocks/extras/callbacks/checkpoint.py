@@ -37,6 +37,9 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
 
         self._checkpoint: tf.train.Checkpoint
         self._manager: tf.train.CheckpointManager
+
+        self._last_epoch = None
+        self._last_saved_epoch = None
         super().__init__()
 
     def set_model(self, model: tf.keras.Model):
@@ -51,14 +54,13 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
     def checkpoint(self, epoch: Optional[int] = None) -> Optional[str]:
         if epoch is None:
             return self._manager.latest_checkpoint
-        else:
-            chkpt = f"{self._manager._checkpoint_prefix}-{epoch:d}"  # pylint:disable=protected-access
-            chkpts = self._manager.checkpoints
-            if chkpt not in chkpts:
-                raise ValueError(
-                    "chkpt for epoch {} not in saved chkpts {}".format(epoch, chkpts)
-                )
-            return chkpt
+        chkpt = f"{self._manager._checkpoint_prefix}-{epoch:d}"  # pylint:disable=protected-access
+        chkpts = self._manager.checkpoints
+        if chkpt not in chkpts:
+            raise ValueError(
+                "chkpt for epoch {} not in saved chkpts {}".format(epoch, chkpts)
+            )
+        return chkpt
 
     def epoch(self, chkpt: str) -> Optional[int]:
         return int(chkpt.split("-")[-1])
@@ -78,10 +80,16 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         logging.info("Restoring model at epoch {} from {}".format(epoch, chkpt))
         return self._checkpoint.restore(chkpt)
 
-    def on_epoch_end(self, epoch: int, logs=None):
-        if epoch % self._save_freq == 0 and epoch != 0:
+    def _save(self, epoch: int):
+        if epoch != self._last_saved_epoch:
             logging.info("Saving model at epoch {}".format(epoch))
             self._manager.save(epoch)
+            self._last_saved_epoch = epoch
+
+    def on_epoch_end(self, epoch: int, logs=None):
+        self._last_epoch = epoch
+        if epoch % self._save_freq == 0 and epoch != 0:
+            self._save(epoch)
 
     def on_train_begin(self, logs=None):
         if self._restore_on_begin:
@@ -89,6 +97,9 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
             if out is not None:
                 out.assert_consumed()
         return logs
+
+    def on_train_end(self, logs=None):
+        self._save(self._last_epoch)
 
     def on_test_begin(self, logs=None):
         if not self._restored and self._restore_on_begin:

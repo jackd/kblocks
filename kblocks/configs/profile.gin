@@ -21,6 +21,6 @@ kb.framework.profile.burn_iters = %burn_iters
 kb.framework.profile.min_iters = %min_iters
 kb.framework.profile.prefetch_buffer = %prefetch_buffer
 
-prefetch_buffer = None
+prefetch_buffer = 1
 burn_iters = 0
 min_iters = 1

@@ -66,7 +66,7 @@ def unstack(
     ndims = st.dense_shape.shape[0]
     if axis < 0:
         axis = axis + ndims
-    if not (0 <= axis < ndims):
+    if not 0 <= axis < ndims:
         raise ValueError(
             "Invalid axis value {} for st with ndims {}".format(axis, ndims)
         )

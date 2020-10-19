@@ -8,7 +8,7 @@ This package provides a rapid prototyping environment for running deep learning 
 ## Installation
 
 ```bash
-pip install tensorflow  # not included in requirements.txt - could be tf-nightly
+pip install tensorflow>=2.3  # not included in requirements.txt - could be tf-nightly
 git clone https://github.com/jackd/kblocks.git
 pip install -e kblocks
 ```
@@ -25,9 +25,10 @@ The following is an example of training a model without using dependency injecti
 import functools
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from kblocks.framework.problems import TfdsProblem
+from kblocks.framework.sources import TfdsSource
+from kblocks.framework.batchers import RectBatcher
 
-def cifar100_problem(data_dir='~/tensorflow_datasets'):
+def cifar100_source(data_dir='~/tensorflow_datasets'):
     def pre_batch_map(image: tf.Tensor, label: tf.Tensor, split=str):
         image = tf.cast(image, tf.float32)
         image = tf.image.per_image_standardization(image)
@@ -35,16 +36,12 @@ def cifar100_problem(data_dir='~/tensorflow_datasets'):
             image = tf.image.random_flip_left_right(image)
         return image, label
 
-    return  TfdsProblem(
-        builder=tfds.builder('cifar100', data_dir=data_dir),
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
-        split_map={'validation': 'test'},  # use test split for validation
-        pre_batch_map={
-            split: functools.partial(pre_batch_map, split=split)
-            for split in ('train', 'test')
-        },  # use different mapping functions before batching depending on split
-        outputs_spec=tf.TensorSpec(shape=(None, 100), dtype=tf.float32),
+     return PipelinedSource(
+        source=TfdsSource("cifar100", split_map={"validation": "test"}),
+        batcher=RectBatcher(batch_size),
+        pre_batch_map=pre_batch_map,
+        shuffle_buffer=shuffle_buffer,
+        meta=dict(num_classes=100),
     )
 ```
 
@@ -58,8 +55,8 @@ We'll use a very basic CNN. Note you should not `compile` things here.
 def simple_cnn(image,
                outputs_spec,
                conv_filters=(16, 32),
-               dense_units=(),
-               activation='relu'):
+               dense_units=(256,),
+               activation="relu"):
     """
     Simple convolutional network architecture.
 
@@ -97,26 +94,25 @@ def simple_cnn(image,
 ### Fit using a [Trainable](kblocks/framework/trainables)
 
 ```python
+import functools
+
 from absl import flags
 
-import kblocks.keras_configurables  # exposes tf.keras.optimizers.Adam to gin
-# in 'simple.gin'
+import kblocks.framework.compilers
 import simple  # assumes simple.py contains above fns and is in same folder
-from kblocks.framework.pipelines import ModelPipeline
-from kblocks.framework.trainables import Trainable
+from kblocks.framework.compilers import compile_classification_model
+from kblocks.framework.trainable import base_trainable, fit
 
+source = cifar100_source()
+optimizer = tf.keras.optimizers.Adam()
+trainable = base_trainable(
+    source=source,
+    model_fn=simple_cnn,
+    compiler=functools.partial(compile_classification_model, optimizer=optimizer),
+    model_dir="/tmp/kblocks/examples/cifar100"
+)
 
-def simple_cnn_pipeline(features_spec, outputs_spec):
-    return (ModelPipeline(features_spec, outputs_spec, model_fn=simple_cnn)
-
-
-trainable = Trainable(
-    problem=cifar100_problem(),
-    pipeline_fn=simple_cnn_pipeline,
-    optimizer_fn=tf.keras.optimizers.Adam,
-    model_dir='/tmp/kblocks/cifar100/simple_cnn')
-
-trainable.fit(batch_size, epochs=10)
+fit(trainable, epochs=30)
 ```
 
 ### Explore results
@@ -146,7 +142,7 @@ Making the above code injectable is as simple as adding a `gin.configurable` wra
 
 ```python
 @gin.configurable()
-def cifar100_problem(data_dir):
+def cifar100_source(data_dir):
     ...
 
 
@@ -163,9 +159,15 @@ def simple_cnn(image,
 We configure with a separate `.gin` file in the same directory. [gin-config](https://github.com/google/gin-config) is a powerful dependency injection
 
 ```gin
+
 model_fn = @simple_cnn
-problem = @cifar100_problem()
-optimizer_fn = @tf.keras.optimizers.Adam
+source = @cifar100_source()
+compiler = @compile_classification_model
+
+compile_classification_model.optimizer = %optimizer
+optimizer = @tf.keras.optimizers.Adam()
+
+cifar100_source.batch_size = %batch_size
 
 model_dir = '/tmp/kblocks/examples/cifar100/v0'
 
@@ -173,7 +175,7 @@ batch_size = 32
 epochs = 10
 ```
 
-This isn't a full configuration. On its own, lines like `batch_size=32` won't do anything - they bind a value to a `gin` macro, but there's nothing linking this bound value to the argument used in `fit`. The idea is to use it in conjunction with various base configuration files in [\$KB_CONFIG](kblocks/configs) (`kblocks` defines this environment variable locally so you can use it from the command-line). To train, we just call `kblocks.__main__` with any base configuration and customized ones.
+This isn't a full configuration. On its own, lines like `epochs=10` won't do anything - they bind a value to a `gin` macro, but there's nothing linking this bound value to the argument used in `fit`. The idea is to use it in conjunction with various base configuration files in [\$KB_CONFIG](kblocks/configs) (`kblocks` defines this environment variable locally so you can use it from the command-line as a string, e.g. `'$KB_CONFIG/fit'`). To train, we just call `kblocks.__main__` with [$KB_CONFIG/fit.gin](kblocks/configs/fit.gin) and customized ones.
 
 ```bash
 python -m kblocks '$KB_CONFIG/fit.gin' simple.gin
@@ -314,8 +316,12 @@ Go check out the [gin user guide](https://github.com/google/gin-config/blob/mast
 
 - Implementations from [Sparse Convolutions on Continuous Domains](https://github.com/jackd/sccd.git):
   - [Point Cloud Network](https://github.com/jackd/pcn.git)
-  - [Event Stream Network](https://github.com/jackd/esn.git)
+  - [Event Convolution Network](https://github.com/jackd/ecn.git)
 
 ## TODO
 
-- XLA compilation: `tf.config.optimizer.set_jit`
+- seeding / reproducible results
+- refactor [polynomials](kblocks/ops/polynomials) into separate repo
+- clean up. Do we still need:
+  - shape ops / layers?
+  - ragged layers?

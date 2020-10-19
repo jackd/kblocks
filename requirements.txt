@@ -2,4 +2,4 @@ gin-config
 tensorflow-datasets
 setproctitle
 scipy
-multi-graph@ git+git://github.com/jackd/multi-graph.git@master#egg=multi-graph;
+meta-model@ git+git://github.com/jackd/meta-model.git@master

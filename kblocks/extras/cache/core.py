@@ -90,9 +90,10 @@ class BaseCacheManager(CacheManager):
 
 @gin.configurable(module="kb.cache")
 class SnapshotManager(CacheManager):
-    def __init__(self, path: str, compression: str = "GZIP"):
+    def __init__(self, path: str, compression: str = "AUTO", preprocess: bool = False):
         self._path = path
         self._compression = compression
+        self._preprocess = preprocess
 
     @property
     def path(self) -> str:
@@ -102,14 +103,24 @@ class SnapshotManager(CacheManager):
     def compression(self) -> str:
         return self._compression
 
+    @property
+    def preprocess(self) -> bool:
+        return self._preprocess
+
     def clear(self):
         """Clear the cache."""
         tf.io.gfile.remove(self._path)
 
     def __call__(self, dataset: tf.data.Dataset):
-        return dataset.apply(
+        dataset = dataset.apply(
             tf.data.experimental.snapshot(self.path, compression=self.compression)
         )
+        if self.preprocess and not os.path.isdir(self.path):
+            assert tf.executing_eagerly()
+            # iterate over dataset to make data saved to disk
+            for _ in tqdm(dataset, desc=f"Preprocessing snapshot at {self.path}"):
+                pass
+        return dataset
 
 
 @gin.configurable(module="kb.cache")

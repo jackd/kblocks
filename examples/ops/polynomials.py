@@ -10,7 +10,6 @@ xnp = x.numpy()
 min_order = 1
 max_order = 4
 polys = [b(x, max_order)[min_order:] for b in builders]
-# polys = [[pi * (1 - tf.abs(x)) for pi in p] for p in polys]
 
 for i in range(max_order - min_order):
     plt.figure()

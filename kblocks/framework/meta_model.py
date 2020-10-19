@@ -5,42 +5,39 @@ import gin
 import tensorflow as tf
 from absl import logging
 
-import multi_graph as mg
-from kblocks.framework.sources import DataSource, PipelinedSource, RectBatcher
+from kblocks.framework.batchers import Batcher
+from kblocks.framework.sources import DataSource, PipelinedSource
 from kblocks.framework.trainable import Trainable
+from meta_model import pipeline as pl
 
 
 @gin.configurable(module="kb.framework")
-def multi_graph_trainable(
+def meta_model_trainable(
     build_fn: Callable,
     base_source: DataSource,
-    batch_size: int,
+    batcher: Batcher,
     compiler: Callable[[tf.keras.Model], None],
-    build_with_batch_size: bool = False,
     model_dir: Optional[str] = None,
-    use_model_builders: bool = False,
     rebuild_model_with_xla: bool = False,
     **pipeline_kwargs
 ):
-    logging.info("Building multi graph...")
-    built = mg.build_multi_graph(
+    logging.info("Building pipelined model...")
+    pipeline, model = pl.build_pipelined_model(
         functools.partial(build_fn, **base_source.meta),
-        base_source.element_spec,
-        batch_size if build_with_batch_size else None,
-        use_model_builders=use_model_builders,
+        element_spec=base_source.element_spec,
+        batcher=batcher,
     )
 
-    logging.info("Successfully built!")
+    logging.info("Pipelined model built!")
 
     source = PipelinedSource(
         base_source,
-        batcher=RectBatcher(batch_size=batch_size),
-        pre_cache_map=built.pre_cache_map,
-        pre_batch_map=built.pre_batch_map,
-        post_batch_map=built.post_batch_map,
+        batcher=batcher,
+        pre_cache_map=pipeline.pre_cache_map,
+        pre_batch_map=pipeline.pre_batch_map,
+        post_batch_map=pipeline.post_batch_map,
         **pipeline_kwargs
     )
-    model = built.trained_model
     if rebuild_model_with_xla:
         with tf.xla.experimental.jit_scope():
             model = tf.keras.models.clone_model(model)
