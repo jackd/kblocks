@@ -4,7 +4,7 @@ import gin
 import tensorflow as tf
 
 
-@gin.configurable(module="kb.metrics")
+@gin.configurable(module="kb.extras.metrics")
 class ProbMeanIoU(tf.keras.metrics.MeanIoU):
     """tf.keras.metrics.MeanIoU wrapper that takes probabilities/logits."""
 

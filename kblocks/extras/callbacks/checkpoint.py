@@ -11,13 +11,12 @@ import gin
 import tensorflow as tf
 from absl import logging
 
-from kblocks import utils
-
 
 @gin.configurable(module="kb.callbacks")
 class CheckpointCallback(tf.keras.callbacks.Callback):
     def __init__(
         self,
+        checkpoint: tf.train.Checkpoint,
         directory: str,
         save_freq: int = 1,
         restore_on_begin: bool = True,
@@ -25,7 +24,9 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         keep_checkpoint_every_n_hours: Optional[int] = None,
         checkpoint_name: str = "ckpt",
     ):
-        self._manager_kwargs = dict(
+        self._checkpoint = checkpoint
+        self._manager = tf.train.CheckpointManager(
+            self._checkpoint,
             directory=directory,
             max_to_keep=max_to_keep,
             keep_checkpoint_every_n_hours=keep_checkpoint_every_n_hours,
@@ -35,20 +36,13 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         self._restore_on_begin = restore_on_begin
         self._restored = False
 
-        self._checkpoint: tf.train.Checkpoint
-        self._manager: tf.train.CheckpointManager
-
         self._last_epoch = None
         self._last_saved_epoch = None
         super().__init__()
 
     def set_model(self, model: tf.keras.Model):
         self._restored = False
-        utils.init_optimizer_weights(model)
-        self._checkpoint = tf.train.Checkpoint(model=model)
-        self._manager = tf.train.CheckpointManager(
-            self._checkpoint, **self._manager_kwargs
-        )
+        # utils.init_optimizer_weights(model)
         super().set_model(model)
 
     def checkpoint(self, epoch: Optional[int] = None) -> Optional[str]:
@@ -63,6 +57,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
         return chkpt
 
     def epoch(self, chkpt: str) -> Optional[int]:
+        del self
         return int(chkpt.split("-")[-1])
 
     def restore(self, epoch_or_chkpt: Optional[Union[int, str]] = None):
@@ -87,6 +82,7 @@ class CheckpointCallback(tf.keras.callbacks.Callback):
             self._last_saved_epoch = epoch
 
     def on_epoch_end(self, epoch: int, logs=None):
+        epoch += 1  # number of COMPLETED epochs
         self._last_epoch = epoch
         if epoch % self._save_freq == 0 and epoch != 0:
             self._save(epoch)

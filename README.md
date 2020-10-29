@@ -17,9 +17,9 @@ pip install -e kblocks
 
 The following is an example of training a model without using dependency injection. It isn't the point of this package, but in order to appreciate the point you need to go through this process first.
 
-### Define a [Problem](kblocks/framework/problems/core.py)
+### Define a [Source](kblocks/framework/sources/core.py)
 
-`Problem`s provide a `tf.data.Dataset`, information about its length, expected model outputs and losses and metrics used in `tf.keras.Model.compile`. [tensorflow_datasets](https://github.com/tensorflow/datasets) is a great source of datasets, and the [TfdsProblem](kblocks/framework/problems/tfds.py) is a convenient wrapper around this.
+`Source`s provide `tf.data.Dataset`s and meta-data. [tensorflow_datasets](https://github.com/tensorflow/datasets) is a great source of datasets, and the `TfdsSource` is a convenient wrapper around `tfds.DatasetBuilder`s. Most data pipelines involve some degree of mapping, batching and shuffling, and [PipelinedSource](kblocks/framework/sources/pipelined.py) provide these.
 
 ```python
 import functools
@@ -37,15 +37,17 @@ def cifar100_source(data_dir='~/tensorflow_datasets'):
         return image, label
 
      return PipelinedSource(
-        source=TfdsSource("cifar100", split_map={"validation": "test"}),
+        source=TfdsSource(
+            "cifar100",
+            # use the last 10% of the official training set for validation
+            split_map={"train": "train[:90]", "validation": "train[90:]"},
+            meta=dict(num_classes=100),  # passed as **kwargs to `simple_cnn` below
+        ),
         batcher=RectBatcher(batch_size),
         pre_batch_map=pre_batch_map,
         shuffle_buffer=shuffle_buffer,
-        meta=dict(num_classes=100),
     )
 ```
-
-Note `outputs_spec` isn't necessarily the same as the labels spec. In this case, the dataset labels are class integers (`tf.TensorSpec(shape=(batch_size,), dtype=tf.int64)`) while the outputs of trained models should be logits (`tf.TensorSpec(shape=(batch_size, num_classes), dtype=tf.float32`)).
 
 ### Define a `model_fn`
 
@@ -53,7 +55,7 @@ We'll use a very basic CNN. Note you should not `compile` things here.
 
 ```python
 def simple_cnn(image,
-               outputs_spec,
+               num_classes: int,
                conv_filters=(16, 32),
                dense_units=(256,),
                activation="relu"):
@@ -62,7 +64,7 @@ def simple_cnn(image,
 
     Args:
         image: rank-4 float tensor
-        outputs_spec: tf.TensorSpec corresponding to the desired output.
+        num_classes: number of classes in the output.
         conv_filters: sequence of ints describing number of filters in each
             convolutional layer
         dense_units: sequence of ints describing number of units in each
@@ -83,13 +85,10 @@ def simple_cnn(image,
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.Activation(activation)(x)
 
-    num_classes = outputs_spec.shape[-1]
     logits = tf.keras.layers.Dense(num_classes)(x)
 
     return tf.keras.Model(inputs=image, outputs=logits)
 ```
-
-`kblocks` currently uses a slight generalization of datasets called [Pipelines](kblocks/framework/pipelines/core.py), which combined a normal keras model with model-specific pre-batch and post-batch dataset mapping functions. In most cases this isn't necessary, in which case `ModelPipeline` works just fine
 
 ### Fit using a [Trainable](kblocks/framework/trainables)
 
@@ -147,9 +146,9 @@ def cifar100_source(data_dir):
 
 
 # blacklisting/whitelisting makes it clear what can and can't be configured
-@gin.configurable(blacklist=['image', 'outputs_spec'])
+@gin.configurable(blacklist=['image', 'num_classes'])
 def simple_cnn(image,
-               outputs_spec,
+               num_classes: int,
                conv_filters=(16, 32),
                dense_units=(),
                activation='relu'):
@@ -231,9 +230,9 @@ Unfortunately, this won't work as we're expecting. This is because the places we
 #### Option 1: Accept Custom Convolution2D/Dense Implementations
 
 ```python
-@gin.configurable(blacklist=['image', 'outputs_spec'])
+@gin.configurable(blacklist=['image', 'num_classes'])
 def simple_cnn(image,
-               outputs_spec,
+               num_classes: int,
                conv_filters=(16, 32),
                dense_units=(),
                activation='relu',
@@ -251,7 +250,6 @@ def simple_cnn(image,
         x = tf.keras.layers.BatchNormalization()(x)
         x = tf.keras.layers.Activation(activation)(x)
 
-    num_classes = outputs_spec.shape[-1]
     logits = Dense(num_classes)(x)
 
     return tf.keras.Model(inputs=image, outputs=logits)
@@ -270,9 +268,9 @@ Convolution2D = gin.external_configurable(tf.keras.layers.Convolution2D)
 Dense = gin.external_configurable(tf.keras.layers.Dense)
 BatchNormalization = gin.external_configurable(tf.keras.layers.BatchNormalization)
 
-@gin.configurable(blacklist=['image', 'outputs_spec'])
+@gin.configurable(blacklist=['image', 'num_classes'])
 def simple_cnn(image,
-               outputs_spec,
+               num_classes,
                conv_filters=(16, 32),
                dense_units=(),
                activation='relu'):
@@ -288,7 +286,6 @@ def simple_cnn(image,
         x = BatchNormalization()(x)
         x = tf.keras.layers.Activation(activation)(x)
 
-    num_classes = outputs_spec.shape[-1]
     logits = Dense(num_classes)(x)
 
     return tf.keras.Model(inputs=image, outputs=logits)
@@ -312,6 +309,20 @@ Note that using the objects output by `external_cofigurable` from code is differ
 
 Go check out the [gin user guide](https://github.com/google/gin-config/blob/master/docs/index.md) for more examples of how best to use this powerful framework. Happy configuring!
 
+## Reproducibility
+
+The aim is for training with [Trainable.fit](kblocks/framework/trainable.py) to lead to reproducible results when. This is currently possible if training is performed in one single step, though will fail if run over multiple calls (with checkpoints saved). In order to achieve this:
+
+1. training must be performed in a single step (i.e. no restarting from earlier `fit`s see below);
+2. `TfConfig.seed` must be configured;
+3. data augmentation functions must use `tf.random.Generator` ops, rather than `tf.random` ops, and the `tf.random.Generator`(s) used should be made available in `DataSource.modules` to ensure their state is saved during training. Additionally, `tf.data.Dataset.map` calls with random ops must use `num_parallel_calls=1`; and
+4. if using `kblocks.extras.cache.SnapshotManager`, `preprocess` must be `False`.
+
+Current limitations to the (1) are:
+
+- how do we save `tf.data.Dataset.shuffle` state?
+- how do we make `tf.keras.layers.Dropout` reproducible over split runs? Custom implementation using `tf.random.Generator`?
+
 ## Projects using `kblocks`
 
 - Implementations from [Sparse Convolutions on Continuous Domains](https://github.com/jackd/sccd.git):
@@ -320,8 +331,7 @@ Go check out the [gin user guide](https://github.com/google/gin-config/blob/mast
 
 ## TODO
 
-- seeding / reproducible results
-- refactor [polynomials](kblocks/ops/polynomials) into separate repo
-- clean up. Do we still need:
-  - shape ops / layers?
-  - ragged layers?
+- seeding / reproducible results: with dataset shuffling / dropout
+  - shuffle state?
+  - custom dropout layer?
+- refactor [polynomials](kblocks/ops/polynomials) into separate repo?

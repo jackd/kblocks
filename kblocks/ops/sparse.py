@@ -24,6 +24,8 @@ def block_diagonalize_sparse(sparse_indices, dense_shape):
 def apply_offset(
     batch_index: tf.Tensor, other_index: tf.Tensor, offset: Union[int, tf.Tensor]
 ):
+    assert isinstance(batch_index, tf.Tensor)
+    assert isinstance(other_index, tf.Tensor)
     if isinstance(offset, int) or offset.shape.ndims == 0:
         return other_index + offset * batch_index
     offset.shape.assert_has_rank(1)
@@ -44,6 +46,8 @@ def block_diagonalize_sparse_general(sparse_indices, *offsets):
 def ragged_to_sparse_indices(
     rt: tf.RaggedTensor, offset: tf.Tensor, dtype=None,
 ) -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor]:
+    assert isinstance(rt, tf.RaggedTensor)
+    assert isinstance(offset, tf.Tensor)
     if dtype is None:
         dtype = rt.dtype
     assert offset.dtype == dtype
@@ -63,6 +67,7 @@ def ragged_to_sparse_indices(
 def unstack(
     st: tf.SparseTensor, axis: int = 0, num_partitions=None
 ) -> List[tf.SparseTensor]:
+    assert isinstance(st, tf.SparseTensor)
     ndims = st.dense_shape.shape[0]
     if axis < 0:
         axis = axis + ndims
@@ -93,6 +98,7 @@ def unstack(
 
 
 def remove_dim(st: tf.SparseTensor, axis: int = 0) -> tf.SparseTensor:
+    assert isinstance(st, tf.SparseTensor)
     if axis == 0:
         return remove_leading_dim(st)
     indices = tf.split(st.indices, [1, -1], axis=-1)
@@ -105,6 +111,7 @@ def remove_dim(st: tf.SparseTensor, axis: int = 0) -> tf.SparseTensor:
 
 
 def remove_leading_dim(st: tf.SparseTensor) -> tf.SparseTensor:
+    assert isinstance(st, tf.SparseTensor)
     _, indices = tf.split(st.indices, [1, -1], axis=-1)
     _, dense_shape = tf.split(st.dense_shape, [1, -1])
     return tf.SparseTensor(indices, st.values, dense_shape)

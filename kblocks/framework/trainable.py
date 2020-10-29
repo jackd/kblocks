@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, Tuple
 
 import gin
 import numpy as np
@@ -16,7 +16,7 @@ from kblocks.framework.sources import DataSource
 def _flatten_dataset_features(dataset):
     def map_fn(inputs, labels, weights=None):
         inputs = tuple(tf.nest.flatten(inputs))
-        return (inputs, labels) if weights is None else (inputs, labels, weights)
+        return tf.keras.utils.pack_x_y_sample_weight(inputs, labels, weights)
 
     return dataset.map(map_fn)
 
@@ -43,15 +43,23 @@ def base_trainable(
 
 
 @gin.configurable(module="kb.framework")
-class Trainable:
+class Trainable(tf.Module):
     def __init__(
-        self, source: DataSource, model: tf.keras.Model, model_dir: Optional[str] = None
+        self,
+        source: DataSource,
+        model: tf.keras.Model,
+        model_dir: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         if model_dir is not None:
             model_dir = os.path.expanduser(os.path.expandvars(model_dir))
         self._model_dir = model_dir
         self._source = source
         self._model = model
+        if model.optimizer is not None:
+            utils.init_optimizer_weights(model)
+        super().__init__(name=name)
+        self._chkpt = tf.train.Checkpoint(model=model, **source.modules)
 
     @property
     def model_dir(self) -> Optional[str]:
@@ -236,7 +244,7 @@ class Trainable:
         callbacks: Sequence[tf.keras.callbacks.Callback] = (),
         chkpt_kwargs: Optional[Mapping[str, Any]] = None,
         validation_freq: int = 1,
-        profile_batch: str = "2,12",
+        profile_batch: Tuple[int, int] = (2, 12),
         build_only: bool = False,
     ):
         source = self.source
@@ -246,25 +254,24 @@ class Trainable:
         splits = ("train", "validation")
         train_ds, val_ds = (source.get_dataset(s) for s in splits)
         spec = train_ds.element_spec[0]
-        flat_spec = tuple(tf.nest.flatten(train_ds))
+        flat_spec = tuple(tf.nest.flatten(spec))
         if flat_spec != spec:
             train_ds, val_ds = (
                 _flatten_dataset_features(ds) for ds in (train_ds, val_ds)
             )
         train_steps, val_steps = (source.epoch_length(s) for s in splits)
-        # possible memory leak with re-initializing datasets in fit?
-        if train_steps is not None:
+        # randomization issues with repeated iteration rather than Dataset.repeat
+        # https://github.com/tensorflow/tensorflow/issues/44195
+        if (
+            train_steps is not None
+            and train_ds.cardinality() != tf.data.INFINITE_CARDINALITY
+        ):
             train_ds = train_ds.repeat()
-        if val_steps is not None:
-            val_ds = val_ds.repeat()
 
         used_callbacks = [
             cb.AbslLogger(),
             tf.keras.callbacks.TerminateOnNaN(),
-            cb.GarbageCollector(),
         ]
-
-        utils.init_optimizer_weights(model)
 
         # do_fit needs to be in a session if running in graph mode
         def do_fit():
@@ -273,7 +280,7 @@ class Trainable:
                     os.makedirs(model_dir)
                 chkpt_dir = os.path.join(model_dir, "chkpts")
                 chkpt_callback = cb.CheckpointCallback(
-                    **_updated(chkpt_kwargs, directory=chkpt_dir)
+                    self._chkpt, **_updated(chkpt_kwargs, directory=chkpt_dir),
                 )
 
                 chkpt_callback.set_model(model)
@@ -295,14 +302,11 @@ class Trainable:
 
             used_callbacks.extend(callbacks)
             if model_dir is not None:
-                used_callbacks.extend(
-                    [
-                        tf.keras.callbacks.TensorBoard(
-                            log_dir=model_dir, profile_batch=profile_batch,
-                        ),
-                    ]
+                used_callbacks.append(
+                    tf.keras.callbacks.TensorBoard(
+                        log_dir=model_dir, profile_batch=profile_batch,
+                    )
                 )
-
             logging.info(
                 "Training starting with operative config: \n{}".format(
                     gin.operative_config_str()
@@ -321,7 +325,6 @@ class Trainable:
                 initial_epoch=initial_epoch,
                 validation_freq=validation_freq,
             )
-
             if build_only:
                 logging.info("Built successfully")
                 return None
@@ -407,7 +410,7 @@ def fit(
     callbacks: Sequence[tf.keras.callbacks.Callback] = (),
     chkpt_kwargs: Optional[Mapping[str, Any]] = None,
     validation_freq: int = 1,
-    profile_batch: str = "2,12",
+    profile_batch: Tuple[int, int] = (2, 12),
     build_only: bool = False,
 ):
     return trainable.fit(

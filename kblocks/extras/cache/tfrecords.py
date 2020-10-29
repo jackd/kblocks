@@ -72,15 +72,19 @@ def _write_dataset(
 def _cache_dataset(
     dataset: tf.data.Dataset,
     cache_dir: str,
-    num_parallel_calls=AUTOTUNE,
+    num_parallel_calls: int = AUTOTUNE,
     compression: Optional[str] = None,
+    deterministic: Optional[bool] = None,
 ):
 
     path = os.path.join(cache_dir, "serialized.tfrecords")
     spec = dataset.element_spec
     if not os.path.isfile(path):
-        # logging.info(f"Writing dataset to {path}")
-        with tqdm(desc=f"Writing dataset to {path}") as updater:
+        try:
+            total = len(dataset)
+        except TypeError:
+            total = None
+        with tqdm(desc=f"Writing dataset to {path}", total=total) as updater:
             write_op = _write_dataset(
                 dataset.map(
                     functools.partial(serialize_example, callback=updater.update),
@@ -95,7 +99,7 @@ def _cache_dataset(
                 with tf.compat.v1.Session() as sess:
                     sess.run(write_op)
     return tf.data.TFRecordDataset(path, compression_type=compression).map(
-        deserializer(spec), num_parallel_calls
+        deserializer(spec), num_parallel_calls, deterministic=deterministic
     )
 
 
@@ -106,10 +110,12 @@ class TFRecordsCacheManager(core.BaseCacheManager):
         cache_dir: str,
         num_parallel_calls: int = AUTOTUNE,
         compression: Optional[str] = None,
+        deterministic: Optional[bool] = None,
     ):
         super().__init__(cache_dir=cache_dir)
         self._num_parallel_calls = num_parallel_calls
         self._compression = compression
+        self._deterministic = deterministic
 
     @property
     def compression(self) -> str:
@@ -119,10 +125,15 @@ class TFRecordsCacheManager(core.BaseCacheManager):
     def num_parallel_calls(self) -> int:
         return self._num_parallel_calls
 
-    def __call__(self, dataset):
-        return _cache_dataset(
-            dataset,
-            self.cache_dir,
-            num_parallel_calls=self.num_parallel_calls,
-            compression=self._compression,
+    def __call__(
+        self, dataset: tf.data.Dataset, transform: core.Transform = core.identity
+    ):
+        return transform(
+            _cache_dataset(
+                dataset,
+                self.cache_dir,
+                num_parallel_calls=self.num_parallel_calls,
+                compression=self._compression,
+                deterministic=self._deterministic,
+            )
         )

@@ -1,3 +1,4 @@
+import functools
 from typing import Any, Callable, Mapping, Optional
 
 import gin
@@ -23,10 +24,13 @@ class PipelinedSource(core.DataSource):
         post_batch_map: Optional[Callable] = None,
         cache_managers: Optional[Mapping[str, CacheManager]] = None,
         shuffle_buffer: Optional[int] = None,
+        shuffle_seed: Optional[int] = None,
         prefetch_buffer: Optional[int] = AUTOTUNE,
         num_parallel_calls: int = AUTOTUNE,
         clear_cache: bool = False,
         meta: Optional[Mapping[str, Any]] = None,
+        modules: Optional[Mapping[str, tf.Module]] = None,
+        deterministic: Optional[bool] = None,
     ):
         assert isinstance(source, core.DataSource)
         self._base_source = source
@@ -36,48 +40,65 @@ class PipelinedSource(core.DataSource):
         self._post_batch_map = post_batch_map
         self._cache_managers = cache_managers
         self._shuffle_buffer = shuffle_buffer
+        self._shuffle_seed = shuffle_seed
         self._prefetch_buffer = prefetch_buffer
         self._num_parallel_calls = num_parallel_calls
         self._clear_cache = clear_cache
         if meta is None:
             meta = source.meta
         self._meta = meta
+        self._modules = source.modules if modules is None else modules
+        self._deterministic = deterministic
 
     @property
     def meta(self) -> Mapping[str, Any]:
         return self._meta
 
+    @property
+    def modules(self) -> Mapping[str, tf.Module]:
+        return self._modules
+
     def get_dataset(self, split: core.Split):
         dataset = self._base_source.get_dataset(split)
         training = split == "train"
-        with tf.keras.backend.learning_phase_scope(training):
-            cache_manager = (
-                None
-                if self._cache_managers is None
-                else self._cache_managers.get(split)
-            )
-            if self._pre_cache_map is not None:
-                dataset = dataset.map(
-                    self._pre_cache_map,
-                    self._num_parallel_calls if cache_manager is None else 1,
-                )
-            if cache_manager is not None:
-                if self._clear_cache:
-                    cache_manager.clear()
-                dataset = cache_manager(dataset)
-            else:
-                logging.warning(
-                    "`pre_cache_map` supplied but no `cache_manager` - not caching."
-                )
 
+        def post_cache_transform(dataset):
             if training and self._shuffle_buffer is not None:
-                dataset = dataset.shuffle(self._shuffle_buffer)
+                dataset = dataset.shuffle(self._shuffle_buffer, seed=self._shuffle_seed)
             if self._pre_batch_map is not None:
-                dataset = dataset.map(self._pre_batch_map, self._num_parallel_calls)
+                dataset = dataset.map(
+                    functools.partial(self._pre_batch_map, training=training),
+                    self._num_parallel_calls,
+                    deterministic=self._deterministic,
+                )
+            return self._batcher(dataset)
 
-            dataset = self._batcher(dataset)
-            if self._post_batch_map is not None:
-                dataset = dataset.map(self._post_batch_map, self._num_parallel_calls)
+        cache_manager = (
+            None if self._cache_managers is None else self._cache_managers.get(split)
+        )
+        if self._pre_cache_map is not None:
+            dataset = dataset.map(
+                functools.partial(self._pre_cache_map, training=training),
+                self._num_parallel_calls,
+                deterministic=self._deterministic,
+            )
+        if cache_manager is not None:
+            if self._clear_cache:
+                cache_manager.clear()
+            dataset = cache_manager(dataset, transform=post_cache_transform)
+        else:
+            logging.warning(
+                "`pre_cache_map` supplied but no `cache_manager` - not caching."
+            )
+            dataset = post_cache_transform(dataset)
+
+        if self._post_batch_map is not None:
+            dataset = dataset.map(
+                functools.partial(self._post_batch_map, training=training),
+                self._num_parallel_calls,
+                deterministic=self._deterministic,
+            )
+
         if self._prefetch_buffer is not None:
             dataset = dataset.prefetch(self._prefetch_buffer)
         return dataset
@@ -96,11 +117,12 @@ class PipelinedSource(core.DataSource):
             output_types=tf.nest.map_structure(lambda x: x.dtype, base_spec),
             output_shapes=tf.nest.map_structure(lambda x: x.shape, base_spec),
         )
-        with tf.keras.backend.learning_phase_scope(True):
-            for m in self._pre_cache_map, self._pre_batch_map:
-                if m is not None:
-                    dataset = dataset.map(m)
-            dataset = self._batcher(dataset)
-            if self._post_batch_map is not None:
-                dataset = dataset.map(self._post_batch_map)
+        for m in self._pre_cache_map, self._pre_batch_map:
+            if m is not None:
+                dataset = dataset.map(functools.partial(m, training=True))
+        dataset = self._batcher(dataset)
+        if self._post_batch_map is not None:
+            dataset = dataset.map(
+                functools.partial(self._post_batch_map, training=True)
+            )
         return dataset.element_spec

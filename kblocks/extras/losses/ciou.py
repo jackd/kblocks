@@ -4,7 +4,7 @@ import gin
 import tensorflow as tf
 
 
-@gin.configurable(module="kb.losses")
+@gin.configurable(module="kb.extras.losses")
 def continuous_binary_iou_loss(
     y_true: tf.Tensor, y_pred: tf.Tensor, from_logits: bool = True
 ) -> tf.Tensor:
@@ -21,7 +21,7 @@ def continuous_binary_iou_loss(
     return loss
 
 
-@gin.configurable(module="kb.losses")
+@gin.configurable(module="kb.extras.losses")
 class ContinuousBinaryIouLoss(tf.keras.losses.Loss):
     def __init__(self, reduction="auto", from_logits=True, name=None):
         self._from_logits = from_logits
@@ -75,7 +75,7 @@ def continuous_mean_iou_loss(
         return 1 - tf.reduce_mean(ious)
 
 
-@gin.configurable(module="kb.losses")
+@gin.configurable(module="kb.extras.losses")
 class ContinuousMeanIouLoss(tf.keras.losses.Loss):
     def __init__(self, from_logits: bool = True, name: Optional[str] = None):
         self.from_logits = from_logits

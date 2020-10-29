@@ -8,11 +8,12 @@ from absl import logging
 from tqdm import tqdm
 
 Split = Union[str, tfds.Split]
-gin.external_configurable(tfds.ReadConfig, module="tfds")
+Callback = tf.keras.callbacks.Callback
+ReadConfig = gin.external_configurable(tfds.ReadConfig, module="tfds")
 
 
 @gin.configurable(module="kb.framework")
-class DataSource(abc.ABC):
+class DataSource:
     @property
     def element_spec(self):
         return self.get_dataset("train").element_spec
@@ -28,6 +29,13 @@ class DataSource(abc.ABC):
     @property
     def meta(self) -> Mapping[str, Any]:
         return {}
+
+    @property
+    def modules(self) -> Mapping[str, tf.Module]:
+        return {}
+
+    def take(self, taken: Mapping[Split, int]):
+        return Taken(self, taken)
 
 
 class DelegatingSource(DataSource):
@@ -55,22 +63,32 @@ class DelegatingSource(DataSource):
     def element_spec(self):
         return self._base.element_spec
 
+    @property
+    def modules(self) -> Mapping[str, tf.Module]:
+        return self._base.modules
+
 
 @gin.configurable(module="kb.framework")
 class BaseSource(DataSource):
     def __init__(
         self,
         dataset_fn: Callable[[Split], tf.data.Dataset],
-        epoch_lengths: Optional[Mapping[Split, int]],
+        epoch_lengths: Optional[Mapping[Split, int]] = None,
         meta: Optional[Mapping[str, Any]] = None,
+        modules: Optional[Mapping[str, tf.Module]] = None,
     ):
         self._dataset_fn = dataset_fn
         self._epoch_lengths = epoch_lengths or {}
-        self._meta = meta
+        self._meta = meta or {}
+        self._modules = modules or {}
 
     @property
     def meta(self) -> Mapping[str, Any]:
-        return {} if self._meta is None else self._meta
+        return self._meta
+
+    @property
+    def modules(self) -> Mapping[str, tf.Module]:
+        return self._modules
 
     def get_dataset(self, split: Split) -> tf.data.Dataset:
         return self._dataset_fn(split)
@@ -94,6 +112,7 @@ class TfdsSource(DataSource):
         shuffle_files: Optional[bool] = None,
         read_config: Optional[tfds.ReadConfig] = None,
         meta: Optional[Mapping[str, Any]] = None,
+        modules: Optional[Mapping[str, tf.Module]] = None,
     ):
         self._shuffle_files = shuffle_files
         if isinstance(builder, str):
@@ -113,8 +132,18 @@ class TfdsSource(DataSource):
                 label = info.features[info.supervised_keys[1]]
                 if hasattr(label, "num_classes"):
                     meta = dict(num_classes=label.num_classes)
-        self._meta = meta
+        self._meta = meta or {}
+        if read_config is None:
+            read_config = ReadConfig()
+            if read_config.shuffle_seed is None:
+                read_config.shuffle_seed = 0
         self._read_config = read_config
+
+        self._modules = modules or {}
+
+    @property
+    def modules(self) -> Mapping[str, tf.Module]:
+        return self._modules
 
     @property
     def meta(self) -> Mapping[str, Any]:
@@ -142,6 +171,25 @@ class TfdsSource(DataSource):
             read_config=self._read_config,
         )
         return dataset
+
+
+@gin.configurable(module="kb.framework")
+class Taken(DelegatingSource):
+    def __init__(self, base_source: DataSource, taken: Mapping[Split, int]):
+        super().__init__(base_source)
+        self._taken = taken
+
+    def epoch_length(self, split: Split):
+        base = super().epoch_length(split)
+        if split in self._taken:
+            return min(self._taken[split], base)
+        return base
+
+    def get_dataset(self, split: Split):
+        base = super().get_dataset(split)
+        if split in self._taken:
+            return base.take(self._taken[split])
+        return base
 
 
 @gin.configurable(module="kb.framework")

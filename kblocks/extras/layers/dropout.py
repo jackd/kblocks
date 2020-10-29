@@ -4,7 +4,7 @@ import gin
 import tensorflow as tf
 
 
-@gin.configurable(module="kb.layers")
+@gin.configurable(module="kb.extras.layers")
 class ChannelDropout(tf.keras.layers.Layer):
     """https://arxiv.org/abs/1904.03392"""
 
@@ -22,7 +22,7 @@ class ChannelDropout(tf.keras.layers.Layer):
         return config
 
     @tf.function
-    def call(self, features, training: Optional[Union[tf.Tensor, bool]] = None):
+    def call(self, inputs, training: Optional[Union[tf.Tensor, bool]] = None):
         if training is None:
             training = tf.keras.backend.learning_phase()
         if isinstance(training, int):
@@ -30,8 +30,8 @@ class ChannelDropout(tf.keras.layers.Layer):
 
         assert isinstance(training, bool)
         if training:
-            num_channels = features.shape[-1]
+            num_channels = inputs.shape[-1]
             mask = tf.random.uniform(shape=(num_channels,)) > self.rate
-            return tf.where(mask, features / (1 - self.rate), tf.zeros_like(features))
-        else:
-            return features
+            return tf.where(mask, inputs / (1 - self.rate), tf.zeros_like(inputs))
+
+        return inputs

@@ -34,27 +34,10 @@ class RaggedTest(tf.test.TestCase):
         actual, expected = self.evaluate((actual, expected))
         np.testing.assert_equal(actual, expected)
 
-    def test_lengths_to_mask(self):
-        actual = tf.RaggedTensor.from_row_lengths(values, row_lengths).to_tensor() != 0
-        expected = ragged_ops.lengths_to_mask(row_lengths)
-        actual, expected = self.evaluate((actual, expected))
-        np.testing.assert_equal(actual, expected)
-
     def test_mask_to_lengths(self):
         mask = tf.RaggedTensor.from_row_lengths(values, row_lengths).to_tensor() != 0
         rl = ragged_ops.mask_to_lengths(mask)
         np.testing.assert_equal(self.evaluate(rl), row_lengths)
-
-    def test_segment_sum(self):
-        values = tf.random.normal(shape=(100, 5), dtype=tf.float32)
-        row_lengths = tf.constant([50, 30, 20])
-        rt = tf.RaggedTensor.from_row_lengths(values, row_lengths)
-        segment_ids = rt.value_rowids()
-        num_segments = row_lengths.shape[0]
-        actual = ragged_ops.segment_sum(values, segment_ids, num_segments)
-        expected = tf.reduce_sum(rt, axis=1)
-        actual, expected = self.evaluate((actual, expected))
-        np.testing.assert_allclose(actual, expected, rtol=1e-5)
 
 
 if __name__ == "__main__":

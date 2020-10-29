@@ -5,7 +5,7 @@ from tensorflow.python.keras.metrics import (  # pylint: disable=no-name-in-modu
 )
 
 
-@gin.configurable(module="kb.metrics")
+@gin.configurable(module="kb.extras.metrics")
 class IntersectionOverUnion(tf.keras.metrics.Metric):
     def __init__(self, threshold=0.0, ignore_weights=False, name="iou", dtype=None):
         super(IntersectionOverUnion, self).__init__(name=name, dtype=dtype)

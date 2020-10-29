@@ -1,26 +1,9 @@
 """Ragged utility operations."""
-
-
 from typing import Optional
 
 import tensorflow as tf
 
 from kblocks.tf_typing import Dimension
-
-splits_to_ids = tf.ragged.row_splits_to_segment_ids
-ids_to_splits = tf.ragged.segment_ids_to_row_splits
-
-
-def pre_batch_ragged(tensor: tf.Tensor, row_splits_dtype=tf.int64) -> tf.RaggedTensor:
-    return tf.RaggedTensor.from_tensor(
-        tf.expand_dims(tensor, axis=0), row_splits_dtype=row_splits_dtype
-    )
-
-
-def post_batch_ragged(rt: tf.RaggedTensor, validate=True) -> tf.RaggedTensor:
-    return tf.RaggedTensor.from_nested_row_splits(
-        rt.flat_values, rt.nested_row_splits[1:], validate=validate
-    )
 
 
 def lengths_to_splits(row_lengths: tf.Tensor) -> tf.Tensor:
@@ -61,10 +44,6 @@ def lengths_to_ids(row_lengths: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
     )
 
 
-def lengths_to_mask(row_lengths: tf.Tensor, size: Optional[Dimension] = None):
-    return tf.sequence_mask(row_lengths, size)
-
-
 def mask_to_lengths(mask: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
     """
     Convert boolean mask to row lengths of rank 1 less.
@@ -79,9 +58,3 @@ def mask_to_lengths(mask: tf.Tensor, dtype=tf.int64) -> tf.Tensor:
             "mask must have dtype bool but has dtype {}".format(mask.dtype)
         )
     return tf.math.count_nonzero(mask, axis=-1, dtype=dtype)
-
-
-def segment_sum(values, segment_ids, num_segments):
-    return tf.scatter_nd(
-        tf.expand_dims(segment_ids, axis=-1), values, [num_segments, *values.shape[1:]]
-    )

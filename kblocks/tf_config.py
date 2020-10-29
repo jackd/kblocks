@@ -55,12 +55,18 @@ class TfConfig:
         jit: Optional[bool] = None,
         optimizer_options: Optional[dict] = None,
         log_device_placement: Optional[bool] = None,
+        seed: Optional[int] = None,
+        inter_op_parallelism_threads: int = 0,
+        intra_op_parallelism_threads: int = 0,
     ):
         self.optimizer_options = optimizer_options
         self.allow_growth = allow_growth
         self.visible_devices = visible_devices
         self.jit = jit
         self.log_device_placement = log_device_placement
+        self.seed = seed
+        self.inter_op_parallelism_threads = inter_op_parallelism_threads
+        self.intra_op_parallelism_threads = intra_op_parallelism_threads
 
     def configure(self):
         if self.visible_devices is not None:
@@ -81,7 +87,15 @@ class TfConfig:
         dp = self.log_device_placement
         if dp is not None:
             tf.debugging.set_log_device_placement(dp)
+        tf.config.threading.set_inter_op_parallelism_threads(
+            self.inter_op_parallelism_threads
+        )
+        tf.config.threading.set_intra_op_parallelism_threads(
+            self.intra_op_parallelism_threads
+        )
         tf.keras.backend.clear_session()
+        if self.seed is not None:
+            tf.random.set_seed(self.seed)
 
     def get_config(self):
         return dict(
@@ -90,6 +104,9 @@ class TfConfig:
             jit=self.jit,
             optimizer_options=self.optimizer_options,
             log_device_placement=self.log_device_placement,
+            seed=self.seed,
+            inter_op_parallelism_threads=self.inter_op_parallelism_threads,
+            intra_op_parallelism_threads=self.intra_op_parallelism_threads,
         )
 
     @classmethod

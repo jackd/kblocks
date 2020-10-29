@@ -21,7 +21,7 @@ def init_optimizer_weights(model: tf.keras.Model):
     optimizer.iterations  # pylint:disable=pointless-statement
 
 
-@gin.configurable(module="kb.utils")
+@gin.register(module="kb.utils")
 def identity(x):
     return x
 

@@ -34,12 +34,10 @@ def simple_cnn(
 
 @gin.configurable()
 def cifar100_source(batch_size=16, shuffle_buffer=128):
-    def pre_batch_map(image: tf.Tensor, label: tf.Tensor):
+    def pre_batch_map(image: tf.Tensor, label: tf.Tensor, training: bool):
         image = tf.cast(image, tf.float32)
         image = tf.image.per_image_standardization(image)
-        learning_phase = tf.keras.backend.learning_phase()
-        assert isinstance(learning_phase, bool)
-        if learning_phase:
+        if training:
             image = tf.image.random_flip_left_right(image)
         return image, label
 

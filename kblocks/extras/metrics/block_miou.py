@@ -27,7 +27,7 @@ def mean_iou(cm: tf.Tensor, dtype: tf.DType = tf.float32):
     return tf.math.divide_no_nan(tf.reduce_sum(iou, name="mean_iou"), num_valid_entries)
 
 
-@gin.configurable(module="kb.metrics")
+@gin.configurable(module="kb.extras.metrics")
 class BlockMeanIoU(tf.keras.metrics.MeanIoU):
     """
     Calculate MeanIoU averaged over blocks.

@@ -4,7 +4,7 @@ import tensorflow as tf
 from kblocks.extras.losses.lovasz import original as _orig
 
 
-@gin.configurable(module="kb.losses")
+@gin.configurable(module="kb.extras.losses")
 def lovasz(y_true, y_pred, classes="present", from_logits=False):
     if from_logits:
         y_pred = tf.nn.softmax(y_pred)
@@ -18,7 +18,7 @@ def lovasz(y_true, y_pred, classes="present", from_logits=False):
         return _orig.lovasz_softmax_flat(y_pred, y_true, classes=classes)
 
 
-@gin.configurable(module="kb.losses")
+@gin.configurable(module="kb.extras.losses")
 class Lovasz(tf.keras.losses.Loss):
     def __init__(
         self, from_logits=True, classes="present", reduction="auto", name=None

@@ -5,7 +5,7 @@ import tensorflow as tf
 K = tf.keras.backend
 
 
-@gin.configurable(module="kb.metrics")
+@gin.configurable(module="kb.extras.metrics")
 class MeanClassAccuracy(tf.keras.metrics.Metric):
     def __init__(self, num_classes, name="mean_class_acc", dtype=tf.float32):
         super(MeanClassAccuracy, self).__init__(name=name, dtype=dtype)

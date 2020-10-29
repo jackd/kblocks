@@ -47,6 +47,7 @@ class OrthogonalPolynomialBuilder(PolynomialBuilder):
         raise NotImplementedError
 
     def get_normalization_factor(self, order: int) -> Num:
+        del order, self
         return 1
 
     def get_weighting_fn(self, x: tf.Tensor) -> tf.Tensor:
@@ -225,14 +226,13 @@ class GegenbauerPolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
         if self.lam == 0:
             if order == 0:
                 return np.pi
-            else:
-                return 2 * np.pi / order ** 2
-        else:
-            from scipy.special import gamma
+            return 2 * np.pi / order ** 2
 
-            numer = np.pi * 2 ** (1 - 2 * self.lam) * gamma(order + 2 * self.lam)
-            denom = (order + self.lam) * factorial(order) * gamma(self.lam) ** 2
-            return numer / denom
+        from scipy.special import gamma
+
+        numer = np.pi * 2 ** (1 - 2 * self.lam) * gamma(order + 2 * self.lam)
+        denom = (order + self.lam) * factorial(order) * gamma(self.lam) ** 2
+        return numer / denom
 
     def __repr__(self):
         return "GegenbauerPolyBuilder(%s)" % str(self.lam).rstrip("0")
@@ -242,12 +242,6 @@ def total_order_num_out(num_dims: int, max_order: int) -> int:
     from scipy.special import comb
 
     return int(comb(num_dims + max_order, max_order))
-    # if num_dims == 0 or max_order == 0:
-    #     return 1
-    # else:
-    #     return sum(
-    #         total_order_num_out(num_dims - 1, max_order - i)
-    #         for i in range(max_order + 1))
 
 
 @gin.configurable(module="kblocks.ops")
@@ -269,13 +263,7 @@ class NdPolynomialBuilder(object):
     def num_out(self, num_dims: int):
         if self._is_total_order:
             return total_order_num_out(num_dims, self._max_order)
-        else:
-            return num_dims * self._max_order
-
-    def output_shape(self, input_shape: Sequence[int], axis=-1) -> Tuple[int, ...]:
-        s = list(input_shape)
-        s[axis] = self.num_out(s[axis])
-        return tuple(s)
+        return num_dims * self._max_order
 
     def __call__(
         self, coords: tf.Tensor, unstack_axis: int = -1, stack_axis: Optional[int] = -1

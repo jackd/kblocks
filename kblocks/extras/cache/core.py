@@ -1,13 +1,18 @@
 import abc
 import os
-from typing import Iterable
+from typing import Callable
 
 import gin
 import tensorflow as tf
 from absl import logging
 from tqdm import tqdm
 
+from kblocks.utils import identity
+
+# import wtftf
+
 AUTOTUNE = tf.data.experimental.AUTOTUNE
+Transform = Callable[[tf.data.Dataset], tf.data.Dataset]
 
 
 def graph_dataset_iterator(dataset):
@@ -20,18 +25,10 @@ def graph_dataset_iterator(dataset):
             pass
 
 
-def dataset_iterator(dataset, as_numpy=None):
-    if hasattr(dataset, "as_numpy_iterator"):
-        return dataset.as_numpy_iterator()
+def dataset_iterator(dataset):
     if tf.executing_eagerly():
-        if as_numpy:
-            return (tf.nest.map_structure(lambda x: x.numpy(), d) for d in dataset)
-        else:
-            return dataset
-    else:
-        if as_numpy is False:
-            raise ValueError("Cannot get non-numpy iterator in graph mode")
-        return graph_dataset_iterator(dataset)
+        return dataset
+    return graph_dataset_iterator(dataset)
 
 
 def cache_exists(path: str):
@@ -43,11 +40,13 @@ def iterate_over(dataset, desc=None):
         pass
 
 
-def preprocessed_cache(dataset, path, desc="Creating cache..."):
+def preprocessed_cache(dataset, path, desc=None):
     dataset = dataset.cache(path)
     if cache_exists(path):
         logging.info(f"Reusing cache data at {path}")
     else:
+        if desc is None:
+            desc = f"Creating cache data at {path}"
         iterate_over(dataset, desc=desc)
     return dataset
 
@@ -58,7 +57,9 @@ class CacheManager(abc.ABC):
         raise NotImplementedError("Abstract method")
 
     @abc.abstractmethod
-    def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
+    def __call__(
+        self, dataset: tf.data.Dataset, transform: Transform = identity
+    ) -> tf.data.Dataset:
         raise NotImplementedError("Abstract method")
 
 
@@ -78,19 +79,29 @@ class BaseCacheManager(CacheManager):
 
     def clear(self):
         """Clear the cache."""
-        tf.io.gfile.rmtree(self.cache_dir)
+        if os.path.exists(self.cache_dir):
+            tf.io.gfile.rmtree(self.cache_dir)
         os.makedirs(self.cache_dir)
 
-    def __call__(self, dataset: tf.data.Dataset):
+    def __call__(
+        self, dataset: tf.data.Dataset, transform: Transform = identity
+    ) -> tf.data.Dataset:
         path = os.path.join(self.cache_dir, "cache")
         if self._preprocess:
-            return preprocessed_cache(dataset, path)
-        return dataset.cache(path)
+            dataset = preprocessed_cache(dataset, path)
+        else:
+            dataset = dataset.cache(path)
+        return transform(dataset)
 
 
 @gin.configurable(module="kb.cache")
 class SnapshotManager(CacheManager):
     def __init__(self, path: str, compression: str = "AUTO", preprocess: bool = False):
+        if preprocess and tf.version.VERSION.startswith("2.4.0-dev"):
+            logging.warning(
+                "SnapshotManager with preprocess non-deterministic in tf-nightly - see "
+                "https://github.com/tensorflow/tensorflow/issues/44278"
+            )
         self._path = path
         self._compression = compression
         self._preprocess = preprocess
@@ -109,23 +120,27 @@ class SnapshotManager(CacheManager):
 
     def clear(self):
         """Clear the cache."""
-        tf.io.gfile.remove(self._path)
+        if os.path.exists(self.path):
+            tf.io.gfile.remove(self.path)
 
-    def __call__(self, dataset: tf.data.Dataset):
+    def __call__(
+        self, dataset: tf.data.Dataset, transform: Transform = identity
+    ) -> tf.data.Dataset:
         dataset = dataset.apply(
             tf.data.experimental.snapshot(self.path, compression=self.compression)
         )
+
         if self.preprocess and not os.path.isdir(self.path):
             assert tf.executing_eagerly()
-            # iterate over dataset to make data saved to disk
+            # iterate over dataset to ensure data saved to disk
             for _ in tqdm(dataset, desc=f"Preprocessing snapshot at {self.path}"):
                 pass
-        return dataset
+        return transform(dataset)
 
 
 @gin.configurable(module="kb.cache")
 class SaveLoadManager(CacheManager):
-    """CacheManager implementation that uses `tf.data.experimental.save/load`."""
+    """CacheManager implementation that uses `tf.data.experimental.[save|load]`."""
 
     def __init__(self, path: str, compression: str = "GZIP"):
         self._path = path
@@ -141,9 +156,10 @@ class SaveLoadManager(CacheManager):
 
     def clear(self):
         """Clear the cache."""
-        tf.io.gfile.remove(self.path)
+        if os.path.exists(self.path):
+            tf.io.gfile.rmtree(self.path)
 
-    def __call__(self, dataset: tf.data.Dataset):
+    def __call__(self, dataset: tf.data.Dataset, transform: Transform = identity):
         if not os.path.exists(self.path):
             try:
                 logging.info(f"Saving dataset to {self.path}")
@@ -152,25 +168,58 @@ class SaveLoadManager(CacheManager):
                 if os.path.exists(self.path):
                     self.clear()
                 raise
-        return tf.data.experimental.load(
+        dataset = tf.data.experimental.load(
             self.path, dataset.element_spec, compression=self.compression
         )
-
-
-def _identity(x):
-    return x
+        return transform(dataset)
 
 
 @gin.configurable(module="kb.cache")
-class ParentManager(CacheManager):
+class RepeatCacheManager(CacheManager):
+    """
+    Manager for multiple repeats of a dataset e.g. for caching after data augmentation.
+
+    In general, using `take_single=True` is slightly more efficient as it only applies
+    custom `transform` (which may contain e.g. shuffling) to the taken dataset, rather
+    than each of the constituents. However, this requires `shuffle_datasets` to be True,
+    which will give epochs out-of-order compared to `dataset.repeat(num_repeats)`.
+
+    You may also consider using `take_single=False, shuffle_files=True` and apply
+    transform manually on the returned dataset. This gives a dataset with `num_repeats`
+    times as many elements as the original (assuming no batching occurs in the
+    subsequent transform), but makes it impossible to have the same batching dynamics
+    at the end of each epoch, e.g. with `num_repeats=2`, initial dataset length of 10
+    a subsequent `batch(4)`, the returned dataset will have 5 elements of batch size
+    [4, 4, 4, 4, 4], as opposed to manually repeating after the batch which would give
+    [4, 4, 2, 4, 4, 2].
+
+    Args:
+        cache_dir: root directory to save each epoch.
+        num_repeats: number of repeats to save.
+        manager_impl: function producing a CacheManager from a save directory.
+        take_single: if True, the resulting dataset is the same length as the initial
+            dataset, otherwise it will be `num_repeats` times as long.
+        shuffle_datasets: if True, the dataset list will be shuffled (as opposed to the
+            constituent datasets themselves).
+    """
+
     def __init__(
-        self, cache_dir: str, num_children: int, manager_impl=BaseCacheManager,
+        self,
+        cache_dir: str,
+        num_repeats: int,
+        manager_impl: Callable[[str], CacheManager] = BaseCacheManager,
+        take_single: bool = True,
+        shuffle_datasets: bool = True,
     ):
         self._cache_dir = cache_dir
         self._managers = tuple(
-            manager_impl(os.path.join(cache_dir, f"repeat-{i:04d}-{num_children:04d}"),)
-            for i in range(num_children)
+            manager_impl(os.path.join(cache_dir, f"repeat-{i:04d}-{num_repeats:04d}"),)
+            for i in range(num_repeats)
         )
+        if take_single and not shuffle_datasets:
+            raise ValueError("`shuffle_datasets` must be True if `take_singe` is")
+        self._take_single = take_single
+        self._shuffle_datasets = shuffle_datasets
 
     @property
     def cache_dir(self) -> str:
@@ -180,36 +229,30 @@ class ParentManager(CacheManager):
         for manager in self._managers:
             manager.clear()
 
-    @abc.abstractmethod
-    def _children(self, dataset: tf.data.Dataset) -> Iterable[tf.data.Dataset]:
-        raise NotImplementedError()
+    def __call__(
+        self, dataset: tf.data.Dataset, transform: Transform = identity
+    ) -> tf.data.Dataset:
+        # datasets = [manager(dataset) for manager in self._managers]
+        # length = len(dataset)
+        # choices = tf.data.Dataset.range(length).map(
+        #     lambda x: wtftf.random.uniform(
+        #         (), maxval=len(self._managers), dtype=tf.int64
+        #     )
+        # )
+        # return tf.data.experimental.choose_from_datasets(datasets, choices)
 
-    def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
-        datasets = [
-            manager(dataset)
-            for (manager, dataset) in zip(self._managers, self._children(dataset))
-        ]
-        return tf.data.Dataset.from_tensor_slices(datasets).flat_map(_identity)
-
-
-@gin.configurable(module="kb.cache")
-class ShardedCacheManager(ParentManager):
-    def __init__(self, cache_dir: str, num_shards: int, **kwargs):
-        self._num_shards = num_shards
-        super().__init__(cache_dir=cache_dir, num_children=num_shards, **kwargs)
-
-    def _children(self, dataset):
-        return [dataset.shard(self._num_shards, i) for i in range(self._num_shards)]
-
-
-@gin.configurable(module="kb.cache")
-class RepeatCacheManager(ParentManager):
-    def __init__(self, cache_dir: str, num_repeats: int, **kwargs):
-        self._num_repeats = num_repeats
-        super().__init__(cache_dir=cache_dir, num_children=num_repeats, **kwargs)
-
-    def _children(self, dataset):
-        return [dataset] * self._num_repeats
+        trans0, trans1 = (
+            (identity, transform) if self._take_single else (transform, identity)
+        )
+        datasets = [manager(dataset, trans0) for manager in self._managers]
+        dataset = tf.data.Dataset.from_tensor_slices(datasets)
+        if self._shuffle_datasets:
+            dataset = dataset.shuffle(len(datasets))
+        if self._take_single:
+            dataset = dataset.take(1)
+        dataset = dataset.flat_map(identity)
+        dataset = trans1(dataset)
+        return dataset
 
 
 @gin.configurable(module="kb.cache")
