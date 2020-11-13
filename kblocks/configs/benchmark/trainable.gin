@@ -1,0 +1,9 @@
+include 'base.gin'
+
+kb.main.fn = @kb.benchmarks.benchmark_trainable
+kb.benchmarks.benchmark_trainable.trainable = %trainable
+kb.benchmarks.benchmark_trainable.train_split = %train_split
+kb.benchmarks.benchmark_trainable.source_only = %source_only
+
+train_split = True
+source_only = False

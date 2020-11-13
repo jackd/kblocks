@@ -1,0 +1,9 @@
+# Will overwrite "deterministic.gin" effects if included after it.
+#############################################
+
+include "deterministic.gin"
+
+deterministic = False
+global_seed = None
+global_rng_seed = None
+num_parallel_calls = -1  # AUTOTUNE

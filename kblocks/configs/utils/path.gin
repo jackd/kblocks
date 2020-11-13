@@ -1,0 +1,37 @@
+# Sets up macros for paths.
+# - root_dir = "~/kblocks"
+# - problem_dir = os.path.join(root_dir, problem_id)
+# - family_dir = os.path.join(problem_dir, family_id)
+# - variant_dir = os.path.join(family_dir, variant_id)
+# - model_dir = os.path.join(variant_dir, f"{run-{run:02d}"})
+
+# Undefined macros:
+# * run
+
+###################################
+
+import kblocks.path
+
+problem_dir = @os.path.join()
+family_dir = @os.path.join()
+variant_dir = @os.path.join()
+model_dir = @os.path.join()
+
+problem_dir/os.path.join.a = %root_dir
+problem_dir/os.path.join.p = %problem_id
+
+family_dir/os.path.join.a = %problem_dir
+family_dir/os.path.join.p = %family_id
+
+variant_dir/os.path.join.a = %family_dir
+variant_dir/os.path.join.p = %variant_id
+
+model_dir/os.path.join.a = %variant_dir
+model_dir/os.path.join.p = @kb.path.run_subdir()
+
+kb.path.run_subdir.run = %run
+
+root_dir = "~/kblocks"
+problem_id = "default_problem"
+family_id = "default_family"
+variant_id = "default_variant"

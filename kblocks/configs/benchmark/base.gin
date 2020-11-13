@@ -1,0 +1,10 @@
+import kblocks.benchmarks
+import kblocks.cli
+
+kb.main.graph_mode = True
+
+kb.benchmarks.benchmark_op.burn_iters = %burn_iters
+kb.benchmarks.benchmark_op.min_iters = %min_iters
+
+burn_iters = 50
+min_iters = 100

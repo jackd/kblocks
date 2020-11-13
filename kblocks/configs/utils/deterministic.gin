@@ -1,0 +1,23 @@
+# Will overwrite './non-deterministic.gin' effects if included after it.
+
+# Undefined macros:
+# * run
+
+#############################################
+
+import kblocks.data
+import kblocks.logical
+import kblocks.tf_config
+
+kb.TfConfig.deterministic_ops = %deterministic
+kb.TfConfig.seed = %global_seed
+kb.TfConfig.global_rng_seed = %global_rng_seed
+tf.data.Options.experimental_deterministic = %deterministic
+
+not_deterministic = @logical_not()
+not_deterministic/logical_not.cond = %deterministic
+
+deterministic = True
+global_seed = %run
+global_rng_seed = %run
+num_parallel_calls = 1

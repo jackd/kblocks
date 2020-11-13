@@ -2,11 +2,20 @@ import gin
 import tensorflow as tf
 from absl import logging
 
-K = tf.keras.backend
-
 
 @gin.configurable(module="kb.callbacks")
+@tf.keras.utils.register_keras_serializable("kblocks")
 class AbslLogger(tf.keras.callbacks.Callback):
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    def get_config(self):  # pylint: disable=no-self-use
+        return {}
+
+    def on_train_begin(self, logs=None):
+        self.model.summary(print_fn=logging.info)
+
     def on_epoch_end(self, epoch, logs=None):
         if logs is not None and len(logs) > 0:
             lines = ["Finished epoch {}".format(epoch)]

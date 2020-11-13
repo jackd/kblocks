@@ -1,0 +1,6 @@
+import image_utils
+
+model_fn = @simple_cnn
+simple_cnn.num_classes = %num_classes
+
+family_id = 'simple_cnn'

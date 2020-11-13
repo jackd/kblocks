@@ -1,0 +1,4 @@
+include 'base.gin'
+
+kb.main.fn = @kb.benchmarks.benchmark_source
+kb.benchmarks.benchmark_source.source = %source

@@ -13,6 +13,25 @@ git clone https://github.com/jackd/kblocks.git
 pip install -e kblocks
 ```
 
+Some examples require [tensorflow-datasets](https://github.com/tensorflow/datasets)
+
+```bash
+pip install tensorflow-datasets
+```
+
+The profiling experience is best with
+
+```bash
+pip install tensorboard_plugin_profile
+```
+
+This will also require `libcupti` on your `$LD_LIBRARY_PATH`. Ensure you version consistent with your tensorflow installation can be found
+
+```bash
+/sbin/ldconfig -N -v $(sed 's/:/ /g' <<< $LD_LIBRARY_PATH) | grep libcupti
+```
+
+
 ## Quick Start - without Injection
 
 The following is an example of training a model without using dependency injection. It isn't the point of this package, but in order to appreciate the point you need to go through this process first.
@@ -331,7 +350,7 @@ Current limitations to the (1) are:
 
 ## TODO
 
-- seeding / reproducible results: with dataset shuffling / dropout
-  - shuffle state?
-  - custom dropout layer?
+- benchmarking
+  - trainable / source
+  - python + gin
 - refactor [polynomials](kblocks/ops/polynomials) into separate repo?

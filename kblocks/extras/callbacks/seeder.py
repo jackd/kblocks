@@ -3,6 +3,8 @@ import abc
 import gin
 import tensorflow as tf
 
+from kblocks.serialize import register_serializable
+
 
 class Seeder(tf.keras.callbacks.Callback):
     def __init__(self, seed_offset: int = 0):
@@ -12,6 +14,10 @@ class Seeder(tf.keras.callbacks.Callback):
     def get_config(self):
         return dict(seed_offset=self._seed_offset)
 
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
     def on_epoch_begin(self, epoch, logs=None):
         self._set_seed(self._seed_offset + epoch)
 
@@ -20,7 +26,8 @@ class Seeder(tf.keras.callbacks.Callback):
         raise NotImplementedError("Abstract method")
 
 
-@gin.configurable(module="kb.extras.callbacks")
+@gin.configurable(module="kb.callbacks")
+@register_serializable
 class GlobalSeeder(Seeder):
     """
     `tf.keras.callbacks.Callback` that sets the tf random seed each epoch.
@@ -33,7 +40,8 @@ class GlobalSeeder(Seeder):
         tf.random.set_seed(seed)
 
 
-@gin.configurable(module="kb.extras.callbacks")
+@gin.configurable(module="kb.callbacks")
+@register_serializable
 class GeneratorSeeder(Seeder):
     """
     `tf.keras.callbacks.Callback` that resets a `tf.random.Generator` each epoch.

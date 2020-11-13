@@ -1,37 +1,75 @@
-from typing import Optional, Union
+"""
+Dropout implementations using `tf.random.Generator`.
+
+Unlike `tf.keras.layers.Dropout`, these implementations create and store their own
+random generator/state, meaning networks using these can be restarted part-way through
+training and generate the same sequences.
+"""
+from typing import Optional
 
 import gin
 import tensorflow as tf
 
 
-@gin.configurable(module="kb.extras.layers")
-class ChannelDropout(tf.keras.layers.Layer):
-    """https://arxiv.org/abs/1904.03392"""
+def _rng(seed: Optional[int]):
+    if seed is None:
+        (rng,) = tf.random.get_global_generator().split(1)
+        return rng
+    return tf.random.Generator.from_seed(seed)
 
-    def __init__(self, rate: float, **kwargs):
+
+@gin.configurable(module="kb.extras.layers")
+@tf.keras.utils.register_keras_serializable("kblocks")
+class Dropout(tf.keras.layers.Layer):
+    def __init__(self, rate: float, seed: Optional[int] = None, **kwargs):
         super().__init__(**kwargs)
         self._rate = rate
+        self._seed = seed
+        self._rng = None
 
     @property
-    def rate(self):
+    def rate(self) -> float:
         return self._rate
+
+    @property
+    def seed(self) -> Optional[int]:
+        return self._seed
 
     def get_config(self):
         config = super().get_config()
-        config["rate"] = self.rate
+        config.update(dict(rate=self.rate, seed=self.seed))
         return config
 
+    def build(self, input_shape):
+        if self.built:
+            return
+        assert self._rng is None
+        self._rng = _rng(self.seed)
+        super().build(input_shape)
+
+    def _apply_training(self, inputs):
+        mask = self._rng.uniform(tf.shape(inputs)) > self.rate
+        return tf.where(mask, inputs / (1 - self.rate), tf.zeros_like(inputs))
+
     @tf.function
-    def call(self, inputs, training: Optional[Union[tf.Tensor, bool]] = None):
+    def call(  # pylint: disable=arguments-differ
+        self, inputs, training: Optional[bool] = None
+    ):
+        assert self._rng is not None
         if training is None:
             training = tf.keras.backend.learning_phase()
-        if isinstance(training, int):
-            training = bool(training)
 
-        assert isinstance(training, bool)
         if training:
-            num_channels = inputs.shape[-1]
-            mask = tf.random.uniform(shape=(num_channels,)) > self.rate
-            return tf.where(mask, inputs / (1 - self.rate), tf.zeros_like(inputs))
-
+            return self._apply_training(inputs)
         return inputs
+
+
+@gin.configurable(module="kb.extras.layers")
+@tf.keras.utils.register_keras_serializable("kblocks")
+class ChannelDropout(Dropout):
+    """https://arxiv.org/abs/1904.03392"""
+
+    def _apply_training(self, inputs):
+        num_channels = inputs.shape[-1]
+        mask = self._rng.uniform(shape=(num_channels,)) > self.rate
+        return tf.where(mask, inputs / (1 - self.rate), tf.zeros_like(inputs))

@@ -1,7 +1,0 @@
-import kblocks.cli
-
-include 'utils/trainable.gin'
-
-kb.main.fn = @kb.framework.evaluate
-
-kb.framework.evaluate.trainable = %trainable  # default defined in trainable.gin

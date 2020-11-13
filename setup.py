@@ -4,7 +4,7 @@ from setuptools import setup
 
 # We follow Semantic Versioning (https://semver.org/)
 _MAJOR_VERSION = "0"
-_MINOR_VERSION = "1"
+_MINOR_VERSION = "2"
 _PATCH_VERSION = "0"
 
 with open(os.path.join(os.path.dirname(__file__), "requirements.txt")) as fp:

@@ -1,0 +1,7 @@
+include '$KB_CONFIG/utils/tfds.gin'
+include 'pipeline.gin'
+
+validation_split = 'test'
+
+tfds_name = 'mnist'
+num_classes = 10

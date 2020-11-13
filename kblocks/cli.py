@@ -17,6 +17,7 @@ import os
 from typing import Callable, Optional
 
 import gin
+import tensorflow as tf
 from absl import flags, logging
 
 from kblocks import tf_config, utils
@@ -47,25 +48,6 @@ def _unique_prog_name(log_dir, base_prog_name):
     return prog_name
 
 
-@gin.configurable(module="kb")
-def logging_config(
-    to_file: bool = True,
-    log_dir: Optional[str] = None,
-    program_name: str = "kblocks",
-    force_unique: bool = True,
-):
-    if to_file and log_dir is not None:
-        log_dir = os.path.expanduser(os.path.expandvars(log_dir))
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        logging.info("Logging to {}".format(log_dir))
-        if force_unique:
-            program_name = _unique_prog_name(log_dir, program_name)
-        logging.get_absl_handler().use_absl_log_file(
-            log_dir=log_dir, program_name=program_name
-        )
-
-
 def get_gin_summary(argv):
     """
     Collect GinSummary from command line args
@@ -88,20 +70,30 @@ def get_gin_summary(argv):
     )
 
 
-@gin.configurable(module="kb")
-def main(fn: Optional[Callable] = None):
+@gin.configurable(module="kb", blacklist=["config"])
+def main(
+    config: tf_config.TfConfig, fn: Optional[Callable] = None, graph_mode: bool = False
+):
     if fn is None:
         logging.error("`main.fn` is not configured.")
     if not callable(fn):
-        raise ValueError("`main.fn` is not callable.")
-    return fn()
+        raise ValueError(f"Expected `main.fn` to be callable but got {fn}.")
+
+    def run():
+        config.configure()
+        return fn()
+
+    if graph_mode:
+        with tf.Graph().as_default():
+            return run()
+
+    return run()
 
 
 def summary_main(gin_summary):
     gin_summary.enable_path_options()
     gin_summary.parse(finalize=True)
-    logging_config()
+    config = tf_config.TfConfig()
     logging.info(gin_summary.pretty_format())
     utils.proc()
-    tf_config.TfConfig().configure()
-    return main()
+    return main(config)

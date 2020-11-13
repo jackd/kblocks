@@ -1,3 +1,4 @@
+import os
 from typing import Optional, Sequence
 
 import gin
@@ -56,8 +57,10 @@ class TfConfig:
         optimizer_options: Optional[dict] = None,
         log_device_placement: Optional[bool] = None,
         seed: Optional[int] = None,
+        global_rng_seed: Optional[int] = None,
         inter_op_parallelism_threads: int = 0,
         intra_op_parallelism_threads: int = 0,
+        deterministic_ops: bool = False,
     ):
         self.optimizer_options = optimizer_options
         self.allow_growth = allow_growth
@@ -65,8 +68,10 @@ class TfConfig:
         self.jit = jit
         self.log_device_placement = log_device_placement
         self.seed = seed
+        self.global_rng_seed = global_rng_seed
         self.inter_op_parallelism_threads = inter_op_parallelism_threads
         self.intra_op_parallelism_threads = intra_op_parallelism_threads
+        self.deterministic_ops = deterministic_ops
 
     def configure(self):
         if self.visible_devices is not None:
@@ -93,9 +98,14 @@ class TfConfig:
         tf.config.threading.set_intra_op_parallelism_threads(
             self.intra_op_parallelism_threads
         )
-        tf.keras.backend.clear_session()
+        # tf.keras.backend.clear_session()
         if self.seed is not None:
             tf.random.set_seed(self.seed)
+        if self.global_rng_seed is not None:
+            tf.random.set_global_generator(
+                tf.random.Generator.from_seed(self.global_rng_seed)
+            )
+        os.environ["TF_DETERMINISTIC_OPS"] = "1" if self.deterministic_ops else "0"
 
     def get_config(self):
         return dict(
@@ -105,8 +115,10 @@ class TfConfig:
             optimizer_options=self.optimizer_options,
             log_device_placement=self.log_device_placement,
             seed=self.seed,
+            global_rng_seed=self.global_rng_seed,
             inter_op_parallelism_threads=self.inter_op_parallelism_threads,
             intra_op_parallelism_threads=self.intra_op_parallelism_threads,
+            deterministic_ops=self.deterministic_ops,
         )
 
     @classmethod

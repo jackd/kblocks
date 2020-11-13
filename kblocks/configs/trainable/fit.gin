@@ -1,0 +1,9 @@
+import kblocks.trainables
+
+include "../experiment.gin"
+
+experiment = @kb.trainable.Fit()
+
+kb.trainable.Fit.trainable = %trainable
+kb.trainable.Fit.epochs = %epochs
+kb.trainable.Fit.save_dir = %model_dir

@@ -1,0 +1,24 @@
+import image_utils
+import kblocks.keras.losses
+import kblocks.keras.metrics
+import kblocks.keras.optimizers
+
+include '$KB_CONFIG/trainable/built.gin'
+include '$KB_CONFIG/utils/deterministic.gin'
+include '$KB_CONFIG/utils/path.gin'
+
+root_dir = "/tmp/kblocks-examples/image-cls"
+
+loss = @tf.keras.losses.SparseCategoricalCrossentropy()
+tf.keras.losses.SparseCategoricalCrossentropy.from_logits = True
+
+build_trainable.metrics = [@tf.keras.metrics.SparseCategoricalAccuracy()]
+build_trainable.optimizer = @tf.keras.optimizers.Adam()
+
+build_trainable.train_source = %train/source
+build_trainable.validation_source = %validation/source
+
+batch_size = 32
+shuffle_buffer = 256
+epochs = 5
+run = 0

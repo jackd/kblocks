@@ -1,3 +1,0 @@
-include 'fit.gin'
-
-kb.main.fn = @kb.framework.fit_wrapped

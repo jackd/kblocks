@@ -1,0 +1,17 @@
+# Undefined macros:
+# * tfds_name
+
+###############################
+import kblocks.data.sources
+
+train/base_source = @kb.data.TfdsSource()
+validation/base_source = @kb.data.TfdsSource()
+
+train/kb.data.TfdsSource.split = %train_split
+validation/kb.data.TfdsSource.split = %validation_split
+
+kb.data.TfdsSource.name = %tfds_name
+kb.data.TfdsSource.as_supervised = True
+
+train_split = 'train'
+validation_split = 'validation'

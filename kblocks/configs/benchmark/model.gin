@@ -1,0 +1,5 @@
+include 'base.gin'
+
+kb.main.fn = @kb.benchmarks.benchmark_model
+kb.benchmark.benchmark_models.model = %model
+kb.benchmark.benchmark_models.dataset = %dataset

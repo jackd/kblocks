@@ -1,0 +1,8 @@
+include '$KB_CONFIG/utils/tfds.gin'
+include 'pipeline.gin'
+
+tfds_name = 'cifar10'
+num_classes = 10
+
+train_split = 'train[:90%]'
+validation_split = 'train[90%:]'

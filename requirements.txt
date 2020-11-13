@@ -3,3 +3,4 @@ tensorflow-datasets
 setproctitle
 scipy
 meta-model@ git+git://github.com/jackd/meta-model.git@master
+pandas

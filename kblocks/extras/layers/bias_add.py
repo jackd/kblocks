@@ -3,6 +3,7 @@ import tensorflow as tf
 
 
 @gin.configurable(module="kb.extras.layers")
+@tf.keras.utils.register_keras_serializable("kblocks")
 class BiasAdd(tf.keras.layers.Layer):
     def __init__(
         self, initializer="zeros", regularizer=None, constraint=None, **kwargs
@@ -10,7 +11,8 @@ class BiasAdd(tf.keras.layers.Layer):
         self.initializer = tf.keras.initializers.get(initializer)
         self.regularizer = tf.keras.regularizers.get(regularizer)
         self.constraint = tf.keras.constraints.get(constraint)
-        super(BiasAdd, self).__init__(**kwargs)
+        self.bias = None
+        super().__init__(**kwargs)
 
     def build(self, input_shape):
         s = input_shape[-1]
@@ -21,13 +23,13 @@ class BiasAdd(tf.keras.layers.Layer):
             regularizer=self.regularizer,
             constraint=self.constraint,
         )
-        super(BiasAdd, self).build(input_shape)
+        super().build(input_shape)
 
-    def call(self, inputs):
+    def call(self, inputs):  # pylint: disable=arguments-differ
         return inputs + self.bias
 
     def get_config(self):
-        config = super(BiasAdd, self).get_config()
+        config = super().get_config()
         config.update(
             dict(
                 initializer=tf.keras.initializers.serialize(self.initializer),

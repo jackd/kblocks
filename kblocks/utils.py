@@ -1,24 +1,18 @@
 """Utilities used throughout kblocks."""
-from typing import Any, Optional
+from typing import Any, Callable, Iterable, List, Optional, TypeVar
 
 import gin
 import setproctitle
-import tensorflow as tf
+
+T = TypeVar("T")
 
 
-def init_optimizer_weights(model: tf.keras.Model):
-    """
-    Hack to ensure optimizer variables have been created.
+@gin.configurable(module="kb.utils")
+def proc(title: str = "kblocks"):
+    setproctitle.setproctitle(title)
 
-    This is normally run on the first optimization step, but various tests save before
-    running a single step. Without running this, if the optimizer state is not stored in
-    a checkpoint then loading from that checkpoint won't reset the optimizer state to
-    default.
-    """
-    optimizer = model.optimizer
-    optimizer._create_slots(model.trainable_weights)  # pylint:disable=protected-access
-    optimizer._create_hypers()  # pylint:disable=protected-access
-    optimizer.iterations  # pylint:disable=pointless-statement
+
+# utility function registration
 
 
 @gin.register(module="kb.utils")
@@ -26,9 +20,25 @@ def identity(x):
     return x
 
 
-@gin.configurable(module="kb.utils")
-def proc(title: str = "kblocks"):
-    setproctitle.setproctitle(title)
+@gin.register(module="kb.utils")
+def concat(a: Iterable[T], b: Iterable[T]) -> List[T]:
+    out = list(a)
+    out.extend(b)
+    return out
+
+
+gin.register(dict, module="kb.utils")
+
+
+@gin.register(name_or_fn="getattr", module="kb.utils")
+def _getattr(object, name: str, default=None):  # pylint: disable=redefined-builtin
+    return getattr(object, name, default)
+
+
+@gin.register(module="kb.utils")
+def call(func: Callable, **kwargs):
+    """Configurable version of `func(**kwargs)`."""
+    return func(**kwargs)
 
 
 class memoized_property(property):  # pylint: disable=invalid-name
