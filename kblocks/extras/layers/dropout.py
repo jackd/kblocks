@@ -10,6 +10,8 @@ from typing import Optional
 import gin
 import tensorflow as tf
 
+from kblocks.utils import register_serializable
+
 
 def _rng(seed: Optional[int]):
     if seed is None:
@@ -19,7 +21,7 @@ def _rng(seed: Optional[int]):
 
 
 @gin.configurable(module="kb.extras.layers")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class Dropout(tf.keras.layers.Layer):
     def __init__(self, rate: float, seed: Optional[int] = None, **kwargs):
         super().__init__(**kwargs)
@@ -65,7 +67,7 @@ class Dropout(tf.keras.layers.Layer):
 
 
 @gin.configurable(module="kb.extras.layers")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class ChannelDropout(Dropout):
     """https://arxiv.org/abs/1904.03392"""
 

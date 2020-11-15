@@ -1,9 +1,11 @@
 import gin
 import tensorflow as tf
 
+from kblocks.utils import register_serializable
+
 
 @gin.configurable(module="kb.extras.layers")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class Scale(tf.keras.layers.Layer):
     def __init__(self, initializer="ones", regularizer=None, constraint=None, **kwargs):
         self.initializer = tf.keras.initializers.get(initializer)
@@ -45,6 +47,7 @@ class Scale(tf.keras.layers.Layer):
 
 
 @gin.configurable(module="kb.extras.layers")
+@register_serializable
 class UniformScale(Scale):
     def _scale_shape(self, input_shape):
         del self, input_shape

@@ -1,9 +1,11 @@
 import gin
 import tensorflow as tf
 
+from kblocks.utils import register_serializable
+
 
 @gin.configurable(module="kb.extras.layers")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class BiasAdd(tf.keras.layers.Layer):
     def __init__(
         self, initializer="zeros", regularizer=None, constraint=None, **kwargs

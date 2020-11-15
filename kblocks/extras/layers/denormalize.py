@@ -5,10 +5,11 @@ import tensorflow as tf
 
 from kblocks.extras.layers.bias_add import BiasAdd
 from kblocks.extras.layers.scale import Scale
+from kblocks.utils import register_serializable
 
 
 @gin.configurable(module="kb.extras.layers")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class Denormalization(tf.keras.layers.Layer):
     def __init__(
         self, bias: Optional[BiasAdd] = None, scale: Optional[Scale] = None, **kwargs

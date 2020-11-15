@@ -2,9 +2,11 @@ import gin
 import tensorflow as tf
 from absl import logging
 
+from kblocks.utils import register_serializable
+
 
 @gin.configurable(module="kb.callbacks")
-@tf.keras.utils.register_keras_serializable("kblocks")
+@register_serializable
 class AbslLogger(tf.keras.callbacks.Callback):
     @classmethod
     def from_config(cls, config):
