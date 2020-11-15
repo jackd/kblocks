@@ -19,7 +19,7 @@ class FunctoolsTest(tf.test.TestCase):
         serialized = serialize_function(f)
         self.assertEqual(
             serialized,
-            dict(class_name="kblocks>Function", config=dict(name="f", module=__name__)),
+            dict(class_name="KBlocks>Function", config=dict(name="f", module=__name__)),
         )
         serialized = serialize_function(functools.partial(f, y=3))
         self.assertEqual(
@@ -28,7 +28,7 @@ class FunctoolsTest(tf.test.TestCase):
                 class_name="functools>partial",
                 config=dict(
                     func=dict(
-                        class_name="kblocks>Function",
+                        class_name="KBlocks>Function",
                         config=dict(name="f", module=__name__),
                     ),
                     args=[],
@@ -39,7 +39,7 @@ class FunctoolsTest(tf.test.TestCase):
 
     def test_get(self):
         fn = get(
-            dict(class_name="kblocks>Function", config=dict(name="f", module=__name__))
+            dict(class_name="KBlocks>Function", config=dict(name="f", module=__name__))
         )
         self.assertEqual(fn(4, 3), 7)
         fn = get(
@@ -47,7 +47,7 @@ class FunctoolsTest(tf.test.TestCase):
                 class_name="functools>partial",
                 config=dict(
                     func=dict(
-                        class_name="kblocks>Function",
+                        class_name="KBlocks>Function",
                         config=dict(name="f", module=__name__),
                     ),
                     args=[],

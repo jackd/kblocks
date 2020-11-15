@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from kblocks.extras.layers.bias_add import BiasAdd
 from kblocks.extras.layers.scale import Scale
-from kblocks.utils import register_serializable
+from kblocks.serialize import register_serializable
 
 
 @gin.configurable(module="kb.extras.layers")

@@ -10,7 +10,7 @@ from typing import Optional
 import gin
 import tensorflow as tf
 
-from kblocks.utils import register_serializable
+from kblocks.serialize import register_serializable
 
 
 def _rng(seed: Optional[int]):

@@ -2,7 +2,7 @@ import gin
 import tensorflow as tf
 from absl import logging
 
-from kblocks.utils import register_serializable
+from kblocks.serialize import register_serializable
 
 
 @gin.configurable(module="kb.callbacks")
