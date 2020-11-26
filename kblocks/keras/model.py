@@ -69,29 +69,24 @@ def fit(
     steps_per_epoch: Optional[int] = None,
     callbacks: Iterable[tf.keras.callbacks.Callback] = (),
     initial_epoch: int = 0,
+    validation_freq: int = 1,
     verbose: bool = True,
 ) -> tf.keras.callbacks.History:
     """See `tf.keras.Model.fit`."""
     assert_compiled(model)
-    if steps_per_epoch is None:
-        steps_per_epoch = train_data.cardinality().numpy()
-        assert_valid_cardinality(steps_per_epoch)
-        train_data = train_data.repeat()
-    elif train_data.cardinality() != tf.data.INFINITE_CARDINALITY:
-        train_data = train_data.repeat()
-    assert train_data.cardinality() == tf.data.INFINITE_CARDINALITY
-    assert steps_per_epoch is not None
-
     if validation_data is not None:
         assert_valid_cardinality(validation_data)
     logging.info("Starting `model.fit`")
     return model.fit(
-        train_data,
+        train_data.prefetch(tf.data.experimental.AUTOTUNE),
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
-        validation_data=validation_data,
+        validation_data=None
+        if validation_data is None
+        else validation_data.prefetch(tf.data.experimental.AUTOTUNE),
         callbacks=callbacks,
         initial_epoch=initial_epoch,
+        validation_freq=validation_freq,
         verbose=verbose,
     )
 

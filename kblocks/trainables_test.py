@@ -89,14 +89,15 @@ def get_pipelined_source(
     map_seed=0,
     shuffle_seed=0,
     cache_factory: Optional[transforms.CacheFactory] = None,
-    preprocess_offline: bool = True,
     cache_dir: str = "",
     num_repeats: Optional[int] = None,
 ):
     assert cache_factory is None or isinstance(cache_factory, transforms.CacheFactory)
     if shuffle:
         if use_rng:
-            source = source.shuffle_rng(len(source.dataset), seed=shuffle_seed)
+            source = source.apply(
+                transforms.ShuffleBatch(len(source.dataset)), seed=shuffle_seed
+            )
 
         else:
             source = source.shuffle(len(source.dataset), seed=shuffle_seed)
@@ -130,11 +131,7 @@ def get_pipelined_source(
             source = source.apply(
                 # transforms.ChooseFromRepeatedCache(
                 transforms.RandomRepeatedCache(
-                    num_repeats,
-                    cache_dir,
-                    cache_factory,
-                    seed=0,
-                    preprocess_offline=preprocess_offline,
+                    num_repeats, cache_dir, cache_factory, seed=0,
                 )
             )
     source = source.batch(batch_size)
@@ -142,10 +139,10 @@ def get_pipelined_source(
     return source
 
 
-dropout_opts = (
-    False,
-    # True,  # not sure why these don't work
-)
+# dropout_opts = (
+#     False,
+#     True,
+# )
 restart_opts = (
     True,
     False,
@@ -158,10 +155,10 @@ random_map_opts = (
     False,
     True,
 )
-use_rng_opts = (
-    # False,
-    True,
-)
+# use_rng_opts = (
+#     False,
+#     True,
+# )
 rng_args = tuple(
     itertools.product((False,), restart_opts, shuffle_opts, random_map_opts, (True,))
 )
@@ -315,6 +312,4 @@ class TrainableTest(tf.test.TestCase):
 
 
 if __name__ == "__main__":
-    # unittest.main()
     tf.test.main()
-    # TrainableTest().test_deterministic_training(True, False, True, True)

@@ -102,9 +102,11 @@ class TfConfig:
         if self.seed is not None:
             tf.random.set_seed(self.seed)
         if self.global_rng_seed is not None:
-            tf.random.set_global_generator(
-                tf.random.Generator.from_seed(self.global_rng_seed)
-            )
+            tf.random.get_global_generator().reset_from_seed(self.global_rng_seed)
+            # worse results when we create a new rng as below - no idea why ??
+            # tf.random.set_global_generator(
+            #     tf.random.Generator.from_seed(self.global_rng_seed)
+            # )
         os.environ["TF_DETERMINISTIC_OPS"] = "1" if self.deterministic_ops else "0"
 
     def get_config(self):

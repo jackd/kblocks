@@ -110,10 +110,6 @@ class DataSource(tf.Module):
     def shuffle(self, *args, **kwargs):
         pass
 
-    @applies(transforms.ShuffleRng)
-    def shuffle_rng(self, *args, **kwargs):
-        pass
-
 
 @gin.register(module="kb.data")
 @register_serializable

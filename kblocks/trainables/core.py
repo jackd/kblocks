@@ -29,6 +29,7 @@ class Trainable(tf.Module):
         train_source: DataSource,
         validation_source: Optional[DataSource] = None,
         callbacks: Sequence[tf.keras.callbacks.Callback] = (),
+        steps_per_epoch: Optional[int] = None,
         name: Optional[str] = None,
     ):
         model = model_lib.get(model)
@@ -39,12 +40,16 @@ class Trainable(tf.Module):
         model_lib.assert_compiled(model)
         model_lib.init_optimizer_weights(model)
 
-        model_lib.assert_valid_cardinality(train_source.dataset.cardinality())
+        model_lib.assert_valid_cardinality(
+            train_source.dataset.cardinality(),
+            allow_infinite=steps_per_epoch is not None,
+        )
 
         self._model = model
         self._train_source = train_source
         self._validation_source = validation_source
         self._callbacks = callbacks
+        self._steps_per_epoch = steps_per_epoch
 
         self._model._train_source = train_source
         if validation_source is not None:
@@ -52,7 +57,7 @@ class Trainable(tf.Module):
         super().__init__(name=name)
 
     def get_config(self):
-        return tf.nest.map_structure(
+        config = tf.nest.map_structure(
             tf.keras.utils.serialize_keras_object,
             dict(
                 model=self.model,
@@ -61,6 +66,8 @@ class Trainable(tf.Module):
                 callbacks=self.callbacks,
             ),
         )
+        config["steps_per_epoch"] = self._steps_per_epoch
+        return config
 
     @classmethod
     def from_config(cls, config):
@@ -69,6 +76,10 @@ class Trainable(tf.Module):
     @property
     def model(self) -> tf.keras.Model:
         return self._model
+
+    @property
+    def steps_per_epoch(self) -> Optional[int]:
+        return self._steps_per_epoch
 
     @property
     def train_source(self) -> DataSource:
@@ -92,6 +103,7 @@ def build_trainable(
     loss=None,
     metrics=None,
     optimizer=None,
+    steps_per_epoch: Optional[int] = None,
 ):
     model = model_fn(train_source.dataset.element_spec[0])
     if optimizer is None:
@@ -104,6 +116,7 @@ def build_trainable(
         train_source=train_source,
         validation_source=validation_source,
         callbacks=callbacks,
+        steps_per_epoch=steps_per_epoch,
     )
 
 

@@ -7,3 +7,8 @@ experiment = @kb.trainable.Fit()
 kb.trainable.Fit.trainable = %trainable
 kb.trainable.Fit.epochs = %epochs
 kb.trainable.Fit.save_dir = %model_dir
+kb.trainable.Fit.checkpoint_interval = %checkpoint_interval
+kb.trainable.Fit.validation_freq = %validation_freq
+
+checkpoint_interval = 1
+validation_freq = 1

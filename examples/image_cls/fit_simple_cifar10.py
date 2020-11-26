@@ -6,6 +6,7 @@ from absl import logging
 
 from image_utils import augment_image_example, simple_cnn
 from kblocks.data.sources import TfdsSource
+from kblocks.data.transforms import ShuffleBatch
 from kblocks.tf_config import TfConfig
 from kblocks.trainables import Fit, Trainable
 
@@ -26,17 +27,13 @@ tfds_kwargs = dict(name=name, shuffle_files=False, as_supervised=True)
 
 train_source = (
     TfdsSource(split="train", **tfds_kwargs)
-    .shuffle_rng(shuffle_buffer)
+    .apply(ShuffleBatch(shuffle_buffer))
     .batch(batch_size)
     .map_rng(functools.partial(augment_image_example, noise_stddev=0.05))
-    .prefetch()
 )
 
 validation_source = (
-    TfdsSource(split="test", **tfds_kwargs)
-    .batch(batch_size)
-    .map(augment_image_example)
-    .prefetch()
+    TfdsSource(split="test", **tfds_kwargs).batch(batch_size).map(augment_image_example)
 )
 
 model = simple_cnn(train_source.dataset.element_spec[0], num_classes)

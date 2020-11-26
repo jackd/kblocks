@@ -9,6 +9,7 @@ from absl import logging
 
 import kblocks.data.transforms.tfrecords as tfrecords_lib
 from kblocks.data.transforms.core import Transform, _get_rng, _maybe_ragged_batch
+from kblocks.path import expand
 from kblocks.serialize import register_serializable
 
 
@@ -35,6 +36,8 @@ class CacheFactory:
         return dataset.cache(cache_dir + "/cache")
 
     def exists(self, cache_dir: str):
+        if tf.executing_eagerly() and not tf.io.gfile.exists(cache_dir):
+            tf.io.gfile.makedirs(cache_dir)
         return tf.size(tf.io.matching_files(cache_dir + "/*")) > 0
 
     def remove(self, cache_dir: str):
@@ -81,12 +84,62 @@ class SaveLoadFactory(CacheFactory):
     ) -> tf.data.Dataset:
         if not self.exists(cache_dir):
             tf.print(  # pylint: disable=redundant-keyword-arg
-                "Saving dataset to ", cache_dir, output_stream=logging.info
+                "Saving dataset to", cache_dir, output_stream=logging.info
             )
             tf.data.experimental.save(dataset, cache_dir, self._compression)
+
         return tf.data.experimental.load(
-            cache_dir, dataset.element_spec, compression=self._compression
+            cache_dir, dataset.element_spec, compression=self._compression,
         )
+
+
+@gin.configurable(module="kb.data")
+@register_serializable
+class ShardedSaveLoadFactory(SaveLoadFactory):
+    def __init__(self, *args, num_shards: int, shuffle: bool = False, **kwargs):
+        self._num_shards = num_shards
+        self._shuffle = shuffle
+        super().__init__(*args, **kwargs)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(dict(num_shards=self._num_shards, shuffle=self._shuffle))
+
+    def cache(self, dataset: tf.data.Dataset, cache_dir: Union[str, tf.Tensor]):
+        dataset = dataset.enumerate()
+        if not self.exists(cache_dir):
+            tf.print(  # pylint: disable=redundant-keyword-arg
+                "Saving dataset to", cache_dir, output_stream=logging.info
+            )
+
+            def shard_func(i, x):
+                del x
+                return i % self._num_shards
+
+            tf.data.experimental.save(
+                # dataset.enumerate(),
+                dataset,
+                cache_dir,
+                compression=self._compression,
+                shard_func=shard_func,
+            )
+
+        def reader_func(datasets):
+            if self._shuffle:
+                datasets = datasets.shuffle(self._num_shards)
+
+            return datasets.interleave(
+                # lambda x: x.map(lambda i, *el: el),
+                lambda x: x,
+                num_parallel_calls=tf.data.experimental.AUTOTUNE,
+            )
+
+        return tf.data.experimental.load(
+            cache_dir,
+            dataset.element_spec,
+            compression=self._compression,
+            reader_func=reader_func,
+        ).map(lambda i, el: el)
 
 
 @gin.configurable(module="kb.data")
@@ -135,7 +188,7 @@ class Cache(Transform):
             self._factory = CacheFactory()
         else:
             self._factory = get_factory(factory)
-        self._cache_dir = cache_dir
+        self._cache_dir = expand(cache_dir)
         super().__init__()
 
     def get_config(self):
@@ -181,13 +234,11 @@ class RepeatedCache(Transform, abc.ABC):
         path: str,
         cache_factory: CacheFactory,
         seed: Optional[int] = None,
-        preprocess_offline: bool = False,
     ):
         self._num_repeats = num_repeats
         self._seed = seed
         self._cache_factory = get_factory(cache_factory)
-        self._path = path
-        self._preprocess_offline = preprocess_offline
+        self._path = expand(path)
         self._rng = None
         super().__init__()
 
@@ -197,37 +248,15 @@ class RepeatedCache(Transform, abc.ABC):
             path=self._path,
             seed=self._seed,
             cache_factory=tf.keras.utils.serialize_keras_object(self._cache_factory),
-            preprocess_offline=self._preprocess_offline,
         )
 
-    def _prepare(self, dataset: tf.data.Dataset) -> Sequence[str]:
+    def _prepare(self) -> Sequence[str]:
         cache_dirs = [
             os.path.join(self._path, f"repeat-{i}") for i in range(self._num_repeats)
         ]
         for cache_dir in cache_dirs:
             if not tf.io.gfile.isdir(cache_dir):
                 tf.io.gfile.makedirs(cache_dir)
-
-        if self._preprocess_offline and not all(
-            (self._cache_factory.exists(d) for d in cache_dirs)
-        ):
-            try:
-                for cache_dir in tqdm.tqdm(
-                    cache_dirs, desc="Creating repeated cache data"
-                ):
-                    if not self._cache_factory.exists(cache_dir):
-                        cached = self._cache_factory.cache(dataset, cache_dir)
-
-                        for _ in tqdm.tqdm(
-                            _iter_dataset(cached),
-                            total=len(cached),
-                            desc=f"Creating cache data at {cache_dir}",
-                        ):
-                            pass
-            except:
-                logging.info("Error creating cached data. Removing partial caches")
-                tf.io.gfile.rmtree(self._path)
-                raise
         return cache_dirs
 
 
@@ -247,7 +276,7 @@ class ChooseFromRepeatedCache(RepeatedCache):
     def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         cardinality = dataset.cardinality()
         parse_func = self._cache_factory.parse_func(dataset.element_spec)
-        cache_dirs = self._prepare(dataset)
+        cache_dirs = self._prepare()
 
         dir_dataset = tf.data.Dataset.from_tensor_slices(cache_dirs)
         dataset = dir_dataset.interleave(
@@ -259,6 +288,7 @@ class ChooseFromRepeatedCache(RepeatedCache):
         # shouldn't be any remainder
         dataset = _maybe_ragged_batch(dataset, self._num_repeats, drop_remainder=True)
 
+        @tf.function
         def map_func(*args):
             if len(args) == 1:
                 (args,) = args
@@ -290,8 +320,9 @@ class RandomRepeatedCache(RepeatedCache):
     def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
         cardinality = dataset.cardinality()
         parse_func = self._cache_factory.parse_func(dataset.element_spec)
-        cache_dirs = self._prepare(dataset)
+        cache_dirs = self._prepare()
 
+        @tf.function
         def map_func(dirs: tf.Tensor) -> tf.data.Dataset:
             if self._rng is None:
                 self._rng = _get_rng(self._seed)
@@ -303,3 +334,131 @@ class RandomRepeatedCache(RepeatedCache):
             dataset = dataset.map(parse_func, num_parallel_calls=1)
         dataset = dataset.apply(tf.data.experimental.assert_cardinality(cardinality))
         return dataset
+
+
+@gin.configurable(module="kb.data")
+@register_serializable
+class RepeatedTFRecordsCache(Transform):
+    def __init__(
+        self,
+        path: str,
+        num_repeats: int,
+        compression: Optional[str] = None,
+        seed: Optional[int] = None,
+        num_parallel_calls: int = tf.data.experimental.AUTOTUNE,
+        num_parallel_reads: int = tf.data.experimental.AUTOTUNE,
+    ):
+        self._path = expand(path)
+        self._num_repeats = num_repeats
+        self._compression = compression
+        self._seed = seed
+        self._num_parallel_calls = num_parallel_calls
+        self._num_parallel_reads = num_parallel_reads
+        self._rng = None
+        super().__init__()
+
+    def get_config(self):
+        return dict(
+            path=self._path,
+            num_repeats=self._num_repeats,
+            compression=self._compression,
+            num_parallel_calls=self._num_parallel_calls,
+            num_parallel_reads=self._num_parallel_reads,
+            seed=self._seed,
+        )
+
+    def _create(self, dataset: tf.data.Dataset):
+        cardinality = dataset.cardinality()
+        if cardinality == tf.data.INFINITE_CARDINALITY:
+            raise ValueError("Cannot cache dataset with infinite cardinality")
+
+        if not tf.io.gfile.isdir(self._path):
+            tf.io.gfile.makedirs(self._path)
+        if self._num_repeats > 10000:
+            raise ValueError("Only up to 9999 repeats supported")
+        paths = [
+            self._path + f"/serialized-{i:04d}.tfrecords"
+            for i in range(self._num_repeats)
+        ]
+        for path in paths:
+            if tf.shape(tf.io.matching_files(path))[0] == 0:
+                logging.info(f"Saving tfrecords dataset to {path}")
+                tfrecords_lib.save(dataset, path, compression=self._compression)
+        deserializer = tfrecords_lib.deserializer(dataset.element_spec)
+        return paths, cardinality, deserializer
+
+    def __call__(self, dataset: tf.data.Dataset):
+        paths, cardinality, deserializer = self._create(dataset)
+        cardinality *= len(paths)
+
+        # def shuffle(paths):
+        #     if self._rng is None:
+        #         self._rng = _get_rng(self._seed)
+        #     i = self._rng.uniform((self._num_repeats,))
+        #     perm = tf.argsort(i)
+        #     return tf.gather(paths, perm, axis=0)
+
+        return (
+            # tf.data.Dataset.from_tensors(paths)
+            # .map(shuffle)
+            # .unbatch()  # HACK
+            tf.data.Dataset.from_tensor_slices(paths)
+            .flat_map(
+                lambda path: tf.data.TFRecordDataset(
+                    path, compression_type=self._compression
+                )
+            )
+            .map(deserializer)
+            .apply(tf.data.experimental.assert_cardinality(cardinality))
+        )
+
+
+@gin.configurable(module="kb.data")
+@register_serializable
+class ChooseFromRepeatedTFRecordsCache(RepeatedTFRecordsCache):
+    """Similar to `ChooseFromRepeatedCache` but optimized for `TFRecordsFactory`."""
+
+    def __call__(self, dataset: tf.data.Dataset):
+        paths, cardinality, deserializer = self._create(dataset)
+        dataset = (
+            tf.data.TFRecordDataset(
+                paths,
+                num_parallel_reads=self._num_parallel_reads,
+                compression_type=self._compression,
+            )
+            .batch(self._num_repeats)
+            .apply(tf.data.experimental.assert_cardinality(cardinality))
+        )
+
+        def map_func(string_batch: tf.Tensor):
+            if self._rng is None:
+                self._rng = _get_rng(self._seed)
+            i = self._rng.uniform((), maxval=self._num_repeats, dtype=tf.int64)
+            string = tf.gather(string_batch, i, axis=0)
+            return deserializer(string)
+
+        return dataset.map(map_func, self._num_parallel_calls)
+
+
+@gin.configurable(module="kb.data")
+@register_serializable
+class RandomRepeatedTFRecordsCache(RepeatedTFRecordsCache):
+    def __call__(self, dataset: tf.data.Dataset):
+        paths, cardinality, deserializer = self._create(dataset)
+
+        def map_func(paths):
+            if self._rng is None:
+                self._rng = _get_rng(self._seed)
+            i = self._rng.uniform((), maxval=self._num_repeats, dtype=tf.int64)
+            return tf.data.TFRecordDataset(
+                paths[i],
+                num_parallel_reads=self._num_parallel_reads,
+                compression_type=self._compression,
+            )
+
+        return (
+            tf.data.Dataset.from_tensors(paths)
+            .flat_map(map_func)
+            .map(deserializer, self._num_parallel_calls)
+            .apply(tf.data.experimental.assert_cardinality(cardinality))
+        )

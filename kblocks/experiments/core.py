@@ -1,7 +1,6 @@
 import abc
 import json
 import os
-import pickle
 from typing import Any, Dict, Generic, Iterable, Optional, TypeVar
 
 import gin
@@ -10,6 +9,7 @@ from absl import logging
 
 from kblocks.experiments import callbacks as cb
 from kblocks.experiments.status import Status
+from kblocks.path import expand
 
 T = TypeVar("T")
 
@@ -18,17 +18,18 @@ def _serialized_path(save_dir: str):
     return os.path.join(save_dir, "serialized.json")
 
 
-class Experiment(tf.Module, Generic[T], abc.ABC):
+class Experiment(tf.Module, abc.ABC, Generic[T]):
     def __init__(self, save_dir: str, name: Optional[str] = None):
-        self._save_dir = save_dir
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+        self._save_dir = expand(save_dir)
+        if not os.path.exists(self._save_dir):
+            os.makedirs(self._save_dir)
         tf.Module.__init__(self, name=name)
 
     @classmethod
     def from_path(cls, path: str):
         if not path.endswith("serialized.json"):
             path = _serialized_path(path)
+        path = expand(path)
         if not os.path.isfile(path):
             raise IOError(f"No config file found at {path}")
         with open(path, "r") as fp:
@@ -59,10 +60,6 @@ class Experiment(tf.Module, Generic[T], abc.ABC):
     @property
     def operative_config_path(self) -> str:
         return self._subdir("operative-config.gin")
-
-    @property
-    def results_dir(self) -> str:
-        return self._subdir("results")
 
     @property
     def initial_checkpoint_prefix(self) -> str:
@@ -113,18 +110,16 @@ class Experiment(tf.Module, Generic[T], abc.ABC):
     def restore_final_state(self):
         return self._restore(self.final_checkpoint_prefix)
 
-    def run(self, callbacks: Iterable[cb.ExperimentCallback] = ()) -> T:
-        if not tf.io.gfile.isdir(self.results_dir):
-            tf.io.gfile.makedirs(self.results_dir)
+    def run(self, callbacks: Iterable[cb.ExperimentCallback] = ()) -> Optional[T]:
         status = self.status
         if status == Status.FINISHED:
             logging.info("Experiment already finished.")
-            return self.load_results()
+            return None
 
         callbacks = [
             *callbacks,
             cb.LoggingCallback(),
-            cb.SerializeCallback(self, self.serialized_path),
+            # cb.SerializeCallback(self, self.serialized_path),
             cb.OperativeConfigLogger(self.operative_config_path),
         ]
         chkpt = self.checkpoint
@@ -141,7 +136,6 @@ class Experiment(tf.Module, Generic[T], abc.ABC):
 
         try:
             results = self._run(status)
-            self._save_results(results, self.results_dir)
             self._set_status(Status.FINISHED)
             for callback in callbacks:
                 callback.on_finished(results)
@@ -157,32 +151,6 @@ class Experiment(tf.Module, Generic[T], abc.ABC):
                 callback.on_exception(exception)
             raise
 
-    def load_results(self) -> T:
-        return self._load_results(self.results_dir)
-
-    def _save_results(self, results: T, results_dir: str):
-        """
-        Save results of a finished experiment.
-
-        The returned value should be consistent with `_load_results`.
-
-        Default implementation uses `pickle`.
-        """
-        with open(os.path.join(results_dir, "results.pkl"), "w") as fp:
-            pickle.dump(results, fp)
-
-    def _load_results(self, results_dir: str) -> T:
-        """
-        Load results of a finished experiment.
-
-        The returned value should load results saved be `_save_results`.
-
-        Default implementation uses `pickle`.
-        """
-        with open(os.path.join(results_dir, "results.pkl"), "r") as fp:
-            result = pickle.load(fp)
-        return result
-
     @abc.abstractmethod
     def _run(self, start_status: str = Status.NOT_STARTED) -> T:
         """
@@ -194,5 +162,5 @@ class Experiment(tf.Module, Generic[T], abc.ABC):
 
 
 @gin.register(module="kb.experiment")
-def run(experiment: Experiment[T]) -> T:
+def run(experiment: Experiment):
     return experiment.run()

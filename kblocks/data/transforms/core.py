@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 
 import gin
 import tensorflow as tf
+from absl import logging
 
 from kblocks.functools import get as get_function
 from kblocks.functools import serialize_function
@@ -135,6 +136,10 @@ class Map(Transform):
 
 @gin.configurable(module="kb.data")
 def map_transform(func: Callable, *args, use_rng: bool = False, **kwargs) -> Map:
+    if not use_rng:
+        seed = kwargs.pop("seed", None)
+        if seed is not None:
+            logging.warning("`seed` invalid when `use_rng` is False - ignoring.")
     return MapRng(func, *args, **kwargs) if use_rng else Map(func, *args, **kwargs)
 
 
@@ -281,49 +286,6 @@ class Shuffle(Transform):
             seed=self._seed,
             reshuffle_each_iteration=self._reshuffle_each_iteration,
         )
-
-
-@gin.configurable(module="kb.data")
-def shuffle(*args, use_rng: bool = False, **kwargs):
-    return ShuffleRng(*args, **kwargs) if use_rng else Shuffle(*args, **kwargs)
-
-
-@gin.configurable(module="kb.data")
-@register_serializable
-class ShuffleRng(Transform):
-    def __init__(self, buffer_size: int, seed: Optional[int] = None):
-        self._buffer_size = buffer_size
-        self._seed = seed
-        self._rng = None
-        super().__init__()
-
-    def get_config(self) -> Dict[str, Any]:
-        return dict(buffer_size=self._buffer_size, seed=self._seed)
-
-    def __call__(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
-        def map_func(*args):
-            if len(args) == 1:
-                (args,) = args
-            if self._rng is None:
-                self._rng = _get_rng(self._seed)
-            size = tf.shape(tf.nest.flatten(args)[0])[0]
-            u = self._rng.uniform((size,))
-            perm = tf.argsort(u)
-            args = tf.nest.map_structure(lambda x: tf.gather(x, perm, axis=0), args)
-            return args
-
-        buffer_size = self._buffer_size if self._buffer_size > 0 else len(dataset)
-        shuffled = (
-            _maybe_ragged_batch(dataset, buffer_size, drop_remainder=False)
-            .map(map_func)
-            .unbatch()
-        )
-        cardinality = dataset.cardinality()  # will not change with the following
-        if cardinality != shuffled.cardinality():
-            shuffled = shuffled.apply(
-                tf.data.experimental.assert_cardinality(cardinality)
-            )
-        return shuffled
 
 
 def get(identifier) -> Transform:

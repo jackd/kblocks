@@ -115,8 +115,11 @@
 import gin
 import tensorflow as tf
 
+from kblocks.serialize import register_serializable
+
 
 @gin.configurable(module="kb.callbacks")
+@register_serializable
 class BackupAndRestore(tf.keras.callbacks.experimental.BackupAndRestore):
     """Generalized version of `tf.keras.callbacks.experimental.BackupAndRestore`."""
 
@@ -134,6 +137,16 @@ class BackupAndRestore(tf.keras.callbacks.experimental.BackupAndRestore):
         self._checkpoint_interval = checkpoint_interval
         self._keep_checkpoint_every_n_hours = keep_checkpoint_every_n_hours
         self._last_epoch = -1
+
+    def get_config(self):
+        return dict(
+            backup_dir=self.backup_dir,
+            max_to_keep=self._max_to_keep,
+            remove_after_training=self._remove_after_training,
+            checkpoint_interval=self._checkpoint_interval,
+            keep_checkpoint_every_n_hours=self._keep_checkpoint_every_n_hours,
+            last_epoch=self._last_epoch,
+        )
 
     def _maybe_save(self, max_interval: int):
         interval = self._last_epoch - self._training_state._ckpt_saved_epoch.numpy()

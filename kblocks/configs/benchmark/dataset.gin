@@ -1,4 +1,4 @@
 include 'base.gin'
 
 kb.main.fn = @kb.benchmarks.benchmark_dataset
-kb.benchmarks.benchmark_dataset.build_fn = %build_fn
+kb.benchmarks.benchmark_dataset.dataset = %dataset

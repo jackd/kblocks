@@ -1,5 +1,0 @@
-import kblocks.benchmark
-import kblocks.cli
-
-kb.main.fn = @benchmark_source
-benchmark_source.source_fn = %source_fn

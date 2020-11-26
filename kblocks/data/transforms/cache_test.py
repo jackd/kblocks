@@ -16,18 +16,22 @@ def as_array(dataset: tf.data.Dataset) -> np.ndarray:
     return np.array([el.numpy() for el in dataset])
 
 
-factories = [
+lazy_factories = (
     transforms.CacheFactory(),
     transforms.SnapshotFactory(),
-]
-if tf.version.VERSION > "2.4":
-    # not sure why the following don't work with 2.3
-    factories.extend([transforms.TFRecordsFactory(), transforms.SaveLoadFactory()])
+)
+
+eager_factories = (
+    transforms.TFRecordsFactory(),
+    transforms.SaveLoadFactory(),
+)
 
 repeated_impls = (
     transforms.ChooseFromRepeatedCache,
     transforms.RandomRepeatedCache,
 )
+
+factories = lazy_factories + eager_factories
 
 
 class CacheTest(tf.test.TestCase, parameterized.TestCase):
@@ -53,17 +57,82 @@ class CacheTest(tf.test.TestCase, parameterized.TestCase):
                 np.testing.assert_equal(as_array(cached), expected)
                 np.testing.assert_equal(rng.state.numpy(), state)
 
+    def test_repreated_tfrecords_transform(self):
+        seed = 0
+        epoch_length = 5
+        rng = tf.random.Generator.from_seed(seed)
+        dataset = tf.data.Dataset.range(epoch_length).map(
+            lambda x: tf.cast(x, tf.float32) + rng.uniform(())
+        )
+
+        num_repeats = 3
+
+        def unique(dataset, repeats):
+            return np.unique(
+                np.array([as_array(dataset) for _ in range(repeats)]).flatten()
+            )
+
+        expected_unique = unique(dataset, num_repeats)
+        state = rng.state.numpy()
+
+        rng.reset_from_seed(seed)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cached = transforms.RepeatedTFRecordsCache(
+                num_repeats=num_repeats, path=os.path.join(tmp_dir, "cache"),
+            )(dataset)
+            actual_unique = unique(cached, repeats=1)
+            np.testing.assert_equal(actual_unique.size, expected_unique.size)
+            np.testing.assert_equal(expected_unique, actual_unique)
+            np.testing.assert_equal(rng.state.numpy(), state)
+
+            actual_unique2 = unique(cached, repeats=2)
+            np.testing.assert_equal(actual_unique2.size, actual_unique.size)
+            np.testing.assert_equal(actual_unique2, actual_unique)
+            np.testing.assert_equal(rng.state.numpy(), state)
+
+    def test_choose_from_tfrecords_transform(self):
+        seed = 0
+        epoch_length = 5
+        rng = tf.random.Generator.from_seed(seed)
+        dataset = tf.data.Dataset.range(epoch_length).map(
+            lambda x: tf.cast(x, tf.float32) + rng.uniform(())
+        )
+
+        num_repeats = 3
+
+        def unique(dataset, repeats):
+            return np.unique(
+                np.array([as_array(dataset) for _ in range(repeats)]).flatten()
+            )
+
+        expected_unique = unique(dataset, num_repeats)
+        state = rng.state.numpy()
+
+        rng.reset_from_seed(seed)
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cached = transforms.ChooseFromRepeatedTFRecordsCache(
+                num_repeats=num_repeats, path=os.path.join(tmp_dir, "cache"),
+            )(dataset)
+            actual_unique = unique(cached, repeats=20)
+            np.testing.assert_equal(actual_unique.size, expected_unique.size)
+            np.testing.assert_equal(expected_unique, actual_unique)
+            np.testing.assert_equal(rng.state.numpy(), state)
+
+            actual_unique2 = unique(cached, repeats=20)
+            np.testing.assert_equal(actual_unique2.size, actual_unique.size)
+            np.testing.assert_equal(actual_unique2, actual_unique)
+            np.testing.assert_equal(rng.state.numpy(), state)
+
     @parameterized.parameters(
-        *itertools.product(factories, (True,), repeated_impls),
-        *itertools.product(factories, (False,), (transforms.RandomRepeatedCache,))
-        # preprocess_offline=False, repeated_impl=ChooseFromRepeatedCache
-        # will not give consistent results, since rng is called in interleaved order
+        *itertools.product(eager_factories, repeated_impls),
+        *itertools.product(lazy_factories, (transforms.RandomRepeatedCache,)),
+        # lazy factories + ChooseFromRepeatedCache will not give consistent results
+        # since rng is called in interleaved order
     )
     def test_repeated_cache_transform(
-        self,
-        factory: transforms.CacheFactory,
-        preprocess_offline: bool,
-        repeated_impl: Callable,
+        self, factory: transforms.CacheFactory, repeated_impl: Callable,
     ):
         seed = 0
         epoch_length = 5
@@ -89,7 +158,6 @@ class CacheTest(tf.test.TestCase, parameterized.TestCase):
                 num_repeats=num_repeats,
                 path=os.path.join(tmp_dir, "cache"),
                 cache_factory=factory,
-                preprocess_offline=preprocess_offline,
             )(dataset)
             actual_unique = unique(cached, repeats=20)
             np.testing.assert_equal(actual_unique.size, expected_unique.size)

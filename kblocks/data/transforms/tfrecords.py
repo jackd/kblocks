@@ -5,7 +5,6 @@ I feel there's a memory leak -somewhere- related to the official implementation.
 """
 from typing import Optional
 
-import numpy as np
 import tensorflow as tf
 from absl import logging
 
@@ -13,17 +12,8 @@ AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
 def serialize_example(*args, **kwargs):
-    callback = kwargs.pop("callback", None)
     flat_example = tf.nest.flatten((args, kwargs), expand_composites=True)
     flat_strings = tuple(tf.io.serialize_tensor(x) for x in flat_example)
-
-    if callback is not None:
-
-        def fn():
-            callback()
-            return np.zeros((0,), dtype=np.float32)
-
-        tf.py_function(fn, [], tf.float32)
     flat_strings = tf.stack(flat_strings)
     return tf.io.serialize_tensor(flat_strings)
 
