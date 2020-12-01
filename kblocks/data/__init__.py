@@ -1,5 +1,6 @@
 from .cache import save_load_cache, tfrecords_cache
 from .core import (
+    Transform,
     apply,
     assert_cardinality,
     batch,
@@ -27,6 +28,7 @@ from .repeated import RepeatedData, repeated_data
 __all__ = [
     "save_load_cache",
     "tfrecords_cache",
+    "Transform",
     "apply",
     "assert_cardinality",
     "batch",
