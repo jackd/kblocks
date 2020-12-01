@@ -17,7 +17,7 @@ def proc(title: str = "kblocks"):
 
 
 @gin.register(module="kb.utils")
-def identity(x):
+def identity(x: T) -> T:
     return x
 
 
@@ -83,3 +83,10 @@ def delegates(to=None, keep=False):
         return f
 
     return _f
+
+
+def super_signature(cls: type):
+    """Decorator that makes overwrites cls' signature with it's first base class'."""
+    assert isinstance(cls, type)
+    cls.__signature__ = inspect.signature(cls.__bases__[0])
+    return cls

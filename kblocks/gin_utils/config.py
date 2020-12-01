@@ -4,17 +4,13 @@ from typing import Iterable, List, Union
 import numpy as np
 from absl import logging
 
-KB_CONFIG_DIR = os.path.realpath(
-    os.path.join(os.path.dirname(__file__), "..", "configs")
-)
-
 
 def try_register_config_dir(key, path):
     """
     Attempt to regiester a configuration directory or warn if failed.
 
-    For example, this file calls
-    `try_register_config_dir('KB_CONFIG', KB_CONFIG_DIR)`
+    e.g. kblocks/configs/__init__.py calls
+    `try_register_config_dir("KB_CONFIG", KB_CONFIG_DIR)`
 
     This means after importing this directory, '$KB_CONFIG/fit.gin' can be
     used from the command line or in `include` statements in gin file (assuming
@@ -32,9 +28,6 @@ def try_register_config_dir(key, path):
             )
     else:
         os.environ[key] = path
-
-
-try_register_config_dir("KB_CONFIG", KB_CONFIG_DIR)
 
 
 def fix_paths(config_files: Union[str, Iterable[str]]) -> List[str]:

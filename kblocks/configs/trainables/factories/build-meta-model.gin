@@ -1,0 +1,29 @@
+import kblocks.configs
+import kblocks.models
+import kblocks.experiments.fit
+import kblocks.trainables.meta_models
+
+include '$KB_CONFIG/trainables/factories/core.gin'
+
+trainable = @kb.trainables.build_meta_model_trainable()
+kb.trainables.build_meta_model_trainable.meta_model_func = %meta_model_func
+kb.trainables.build_meta_model_trainable.train_dataset = %train_data
+kb.trainables.build_meta_model_trainable.validation_dataset = %validation_data
+
+kb.trainables.build_meta_model_trainable.batcher = %batcher
+kb.trainables.build_meta_model_trainable.shuffle_buffer = %shuffle_buffer
+kb.trainables.build_meta_model_trainable.compiler = @kb.models.compiled
+kb.trainables.build_meta_model_trainable.cache_factory = %cache_factory
+kb.trainables.build_meta_model_trainable.cache_dir = %cache_dir
+kb.trainables.build_meta_model_trainable.cache_repeats = %cache_repeats
+kb.trainables.build_meta_model_trainable.train_augment_func = %train_augment_func
+kb.trainables.build_meta_model_trainable.validation_augment_func = %validation_augment_func
+kb.trainables.build_meta_model_trainable.callbacks = %model_callbacks
+kb.trainables.build_meta_model_trainable.seed = %data_seed
+
+data/seed = 0
+train_augment_func = None
+validation_augment_func = None
+cache_repeats = None
+cache_dir = None
+cache_factory = None

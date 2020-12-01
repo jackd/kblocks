@@ -1,7 +1,11 @@
 import gin
-import tensorflow as tf
 import tensorflow_datasets as tfds
 
-for func in (tfds.load, tfds.builder):
-    gin.register(func, module="tfds")
-    tf.keras.utils.register_keras_serializable("TFDS")(func)
+load = gin.external_configurable(tfds.load, module="tfds")
+builder = gin.external_configurable(tfds.builder, module="tfds")
+ReadConfig = gin.external_configurable(
+    tfds.core.utils.read_config.ReadConfig, module="tfds"
+)
+DownloadConfig = gin.external_configurable(
+    tfds.core.download.DownloadConfig, module="tfds"
+)

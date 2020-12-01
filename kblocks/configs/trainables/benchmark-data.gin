@@ -1,0 +1,11 @@
+import kblocks.cli
+import kblocks.configs
+import kblocks.trainables.mains
+
+include '$KB_CONFIG/utils/benchmark.gin'
+
+kb.main.fn = @kb.trainables.benchmark_trainable_data
+kb.trainables.benchmark_trainable_data.trainable = %trainable
+kb.trainables.benchmark_trainable_data.training = %training
+
+training = True

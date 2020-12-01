@@ -1,9 +1,3 @@
-import kblocks.cli
-import kblocks.profile
-
-kb.main.fn = @kb.profile.profile_trainable
-
-kb.profile.profile_trainable.trainable = %trainable
 kb.profile.profile_func.burn_iters = %burn_iters
 kb.profile.profile_func.run_iters = %run_iters
 kb.profile.profile_func.path = %path

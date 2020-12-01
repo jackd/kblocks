@@ -1,5 +1,0 @@
-include 'base.gin'
-
-main.fn = @kb.trainable.clear
-
-kb.trainable.clear.trainable = %trainable

@@ -1,5 +1,0 @@
-include 'base.gin'
-
-main.fn = @kb.trainable.evaluate
-
-kb.trainable.evaluate.trainable = %trainable

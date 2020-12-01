@@ -1,5 +1,8 @@
 import kblocks.keras.losses
 import kblocks.keras.metrics
+import kblocks.configs
+
+include "$KB_CONFIG/compilers/base.gin"
 
 loss = @tf.keras.losses.SparseCategoricalCrossentropy()
 metrics = [

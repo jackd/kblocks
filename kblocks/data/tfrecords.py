@@ -44,9 +44,10 @@ def save_serialized(
 def save(dataset: tf.data.Dataset, path: str, compression: Optional[str] = None):
     serialized = dataset.map(
         serialize_example,
-        num_parallel_calls=1,  # data corruptions with value > 1
-        # https://github.com/tensorflow/tensorflow/issues/13463
+        num_parallel_calls=tf.data.experimental.AUTOTUNE,
     )
+    # data corruptions with num_parallel_calls != 1?
+    # https://github.com/tensorflow/tensorflow/issues/13463
     return save_serialized(serialized, path=path, compression=compression)
 
 
@@ -67,8 +68,10 @@ def tfrecords_cache(
     compression: Optional[str] = None,
     deterministic: Optional[bool] = None,
 ):
-    if not tf.io.gfile.isdir(cache_dir):
+    if tf.executing_eagerly():
         tf.io.gfile.makedirs(cache_dir)
+
+    cardinality = dataset.cardinality()
     path = cache_dir + "/serialized.tfrecords"  # must work in graph mode
     if tf.shape(tf.io.matching_files(path))[0] == 0:
         logging.info(f"Saving tfrecords dataset to {path}")
@@ -78,4 +81,4 @@ def tfrecords_cache(
         spec=dataset.element_spec,
         num_parallel_calls=num_parallel_calls,
         deterministic=deterministic,
-    )
+    ).apply(tf.data.experimental.assert_cardinality(cardinality))

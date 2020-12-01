@@ -1,166 +1,159 @@
 import abc
 import json
 import os
-from typing import Any, Dict, Generic, Iterable, Optional, TypeVar
 
 import gin
+import psutil
 import tensorflow as tf
 from absl import logging
 
 from kblocks.experiments import callbacks as cb
-from kblocks.experiments.status import Status
+from kblocks.experiments import status as status_lib
 from kblocks.path import expand
 
-T = TypeVar("T")
+
+def _status_path(save_dir: str):
+    return os.path.join(save_dir, "status.json")
 
 
-def _serialized_path(save_dir: str):
-    return os.path.join(save_dir, "serialized.json")
+def _operative_config_path(save_dir: str):
+    return os.path.join(save_dir, "operative-config.gin")
 
 
-class Experiment(tf.Module, abc.ABC, Generic[T]):
-    def __init__(self, save_dir: str, name: Optional[str] = None):
-        self._save_dir = expand(save_dir)
-        if not os.path.exists(self._save_dir):
-            os.makedirs(self._save_dir)
-        tf.Module.__init__(self, name=name)
+@gin.configurable(module="kb.experiments")
+class Experiment(abc.ABC):
+    """
+    Class for tracking `gin.operative_config_str`s and experiment statuses.
 
-    @classmethod
-    def from_path(cls, path: str):
-        if not path.endswith("serialized.json"):
-            path = _serialized_path(path)
-        path = expand(path)
-        if not os.path.isfile(path):
-            raise IOError(f"No config file found at {path}")
-        with open(path, "r") as fp:
-            serialized = json.load(fp)
-        experiment = tf.keras.utils.deserialize_keras_object(serialized)
-        assert isinstance(experiment, cls)
-        return experiment
+    Implementations must implement `_run`, which should not call any configurable
+    functions. Constructor arguments may be configurable. This ensures the logged
+    config string is complete.
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+    Example usage:
+    ```python
+    def fit(model: tf.keras.Model, train_data: tf.data.Dataset, epochs: int):
+        model.fit(train_data, epochs=epochs)
+
+
+    @gin.configurable
+    class Fit(Experiment):
+        def __init__(
+                self,
+                model: tf.keras.Model,
+                train_data: tf.data.Dataset,
+                epochs: int,
+                save_dir: str):
+            self.model = model
+            self.train_data = train_data
+            self.epochs = epochs
+            super().__init__(save_dir=save_dir)
+
+        def _run(self, start_status):
+            fit(model=self.model, train_data=self.train_data, epochs=self.epochs)
+
+
+    config_str = '''\
+    run.experiment = @Fit()
+    Fit.model = @my_model_fn()
+    my_model_fn.num_classes = 10  # nested configuration is fine
+    Fit.train_data = @my_train_data_fn()
+    Fit.epochs = 5
+    Fit.save_dir =
+    '''
+
+    gin.parse_config(config_str)
+    gin.finalize()
+    run()
+    ```
+    """
+
+    def __init__(self, experiment_dir: str):
+        experiment_dir = expand(experiment_dir)
+        self._experiment_dir = experiment_dir
+        tf.io.gfile.makedirs(self._experiment_dir)
+        logging.info(f"Running experiment in {experiment_dir}")
 
     @property
-    def save_dir(self) -> str:
-        return self._save_dir
-
-    def _subdir(self, *args) -> str:
-        return os.path.join(self.save_dir, *args)
-
-    @property
-    def serialized_path(self) -> str:
-        return _serialized_path(self.save_dir)
+    def experiment_dir(self) -> str:
+        return self._experiment_dir
 
     @property
     def status_path(self) -> str:
-        return self._subdir("status.txt")
+        return _status_path(self._experiment_dir)
 
     @property
     def operative_config_path(self) -> str:
-        return self._subdir("operative-config.gin")
-
-    @property
-    def initial_checkpoint_prefix(self) -> str:
-        return self._subdir("checkpoints", "initial", "chkpt")
-
-    @property
-    def final_checkpoint_prefix(self) -> str:
-        return self._subdir("checkpoints", "final", "chkpt")
+        return _operative_config_path(self._experiment_dir)
 
     @property
     def status(self) -> str:
-        if not os.path.isfile(self.status_path):
-            return Status.NOT_STARTED
+        path = self.status_path
+        if not os.path.isfile(path):
+            return status_lib.NotStarted()
         with open(self.status_path, "r") as fp:
-            status = fp.read().rstrip()
-        Status.validate(status)
+            status = status_lib.get(json.load(fp))
         return status
 
-    def _set_status(self, value):
-        Status.validate(value)
+    def _set_status(
+        self,
+        value: status_lib.Status,
+    ):
+        assert isinstance(value, status_lib.Status)
         path = self.status_path
-        if value == Status.NOT_STARTED:
+        if isinstance(value, status_lib.NotStarted):
             if os.path.exists(path):
                 os.remove(path)
             return
         with open(path, "w") as fp:
-            fp.write(f"{value}\n")
-
-    def get_config(self) -> Dict[str, Any]:
-        return {}
-
-    @property
-    def checkpoint(self) -> tf.train.Checkpoint:
-        return tf.train.Checkpoint(root=self)
-
-    def _restore(self, file_prefix: str):
-        chkpt = self.checkpoint
-        folder, _ = os.path.split(file_prefix)
-        if not tf.io.gfile.isdir(folder) or not tf.io.gfile.exists(
-            f"{file_prefix}.index"
-        ):
-            return None
-        return chkpt.read(file_prefix)
-
-    def restore_initial_state(self):
-        return self._restore(self.initial_checkpoint_prefix)
-
-    def restore_final_state(self):
-        return self._restore(self.final_checkpoint_prefix)
-
-    def run(self, callbacks: Iterable[cb.ExperimentCallback] = ()) -> Optional[T]:
-        status = self.status
-        if status == Status.FINISHED:
-            logging.info("Experiment already finished.")
-            return None
-
-        callbacks = [
-            *callbacks,
-            cb.LoggingCallback(),
-            # cb.SerializeCallback(self, self.serialized_path),
-            cb.OperativeConfigLogger(self.operative_config_path),
-        ]
-        chkpt = self.checkpoint
-        if chkpt is not None:
-            callbacks.append(
-                cb.Checkpoint(
-                    chkpt, self.initial_checkpoint_prefix, self.final_checkpoint_prefix
-                )
+            json.dump(
+                tf.keras.utils.serialize_keras_object(value),
+                fp,
+                indent=4,
+                sort_keys=True,
             )
 
-        self._set_status(Status.RUNNING)
+    def run(self):
+        tf.io.gfile.makedirs(self.experiment_dir)
+        status = self.status
+        if isinstance(status, status_lib.Finished):
+            logging.info("Experiment already finished.")
+            return
+
+        if isinstance(status, status_lib.Running):
+            if psutil.pid_exists(status.pid):
+                raise RuntimeError(f"Experiment already underway on pid {status.pid}")
+
+        callbacks = [
+            cb.LoggingCallback(),
+            cb.OperativeConfigLogger(self.operative_config_path),
+        ]
+
+        self._set_status(status_lib.Running(os.getpid()))
         for callback in callbacks:
             callback.on_start(status)
 
         try:
-            results = self._run(status)
-            self._set_status(Status.FINISHED)
+            self._run(status)
+            self._set_status(status_lib.Finished())
             for callback in callbacks:
-                callback.on_finished(results)
-            return results
+                callback.on_finished()
         except KeyboardInterrupt:
-            self._set_status(Status.INTERRUPTED)
+            self._set_status(status_lib.Interrupted())
             for callback in callbacks:
                 callback.on_interrupt()
             raise
         except Exception as exception:
-            self._set_status(Status.EXCEPTION)
+            self._set_status(status_lib.Excepted(exception))
             for callback in callbacks:
                 callback.on_exception(exception)
             raise
 
     @abc.abstractmethod
-    def _run(self, start_status: str = Status.NOT_STARTED) -> T:
-        """
-        Run the experiment from the given starting status.
-
-        Implementations do not need to save results.
-        """
+    def _run(self, start_status: status_lib.Status):
+        """Run the experiment from the given starting status."""
         raise NotImplementedError("Abstract method")
 
 
-@gin.register(module="kb.experiment")
+@gin.register(module="kb.experiments")
 def run(experiment: Experiment):
     return experiment.run()

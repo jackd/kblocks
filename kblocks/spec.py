@@ -62,7 +62,9 @@ def map_spec(
         raise NotImplementedError()
 
     dataset = tf.data.Dataset.from_generator(
-        gen, tf.nest.map_structure(dtype, spec), tf.nest.map_structure(shape, spec),
+        gen,
+        tf.nest.map_structure(dtype, spec),
+        tf.nest.map_structure(shape, spec),
     )
     dataset = dataset.map(map_fn)
     return dataset.element_spec

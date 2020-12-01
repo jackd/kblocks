@@ -1,0 +1,5 @@
+import kblocks.models
+
+kb.models.compiled.loss = %loss
+kb.models.compiled.metrics = %metrics
+kb.models.compiled.optimizer = %optimizer

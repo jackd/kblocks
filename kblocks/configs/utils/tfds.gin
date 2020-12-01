@@ -2,16 +2,22 @@
 # * tfds_name
 
 ###############################
-import kblocks.data.sources
+import kblocks.tfds
+import kblocks.utils
 
-train/base_source = @kb.data.TfdsSource()
-validation/base_source = @kb.data.TfdsSource()
+train_data = @tfds.load()
+validation_data = @tfds.load()
 
-train/kb.data.TfdsSource.split = %train_split
-validation/kb.data.TfdsSource.split = %validation_split
+tfds.load.name = %tfds_name
+tfds.load.as_supervised = True
 
-kb.data.TfdsSource.name = %tfds_name
-kb.data.TfdsSource.as_supervised = True
+train_data/tfds.load.split = %train_split
+validation_data/tfds.load.split = %validation_split
 
 train_split = 'train'
 validation_split = 'validation'
+
+tfds.load.read_config = @tfds.ReadConfig()
+tfds.load.download_and_prepare_kwargs = %download_and_prepare_kwargs
+download_and_prepare_kwargs = @dict()
+download_and_prepare_kwargs/dict.download_config = @tfds.DownloadConfig()

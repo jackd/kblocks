@@ -1,8 +1,6 @@
-import os
-
 import gin
 
-from kblocks.gin_utils.config import KB_CONFIG_DIR
+from kblocks.gin_utils.path import enable_variable_expansion
 
 
 @gin.configurable
@@ -14,16 +12,21 @@ def print_kwargs(**kwargs):
 
 
 bindings = """
+import kblocks.path
+import kblocks.configs
+
+include "$KB_CONFIG/utils/path.gin"
 print_kwargs.root_dir = %root_dir
 print_kwargs.problem_dir = %problem_dir
 print_kwargs.family_dir = %family_dir
 print_kwargs.variant_dir = %variant_dir
-print_kwargs.model_dir = %model_dir
+print_kwargs.experiment_dir = %experiment_dir
 
-root_dir = '~/custom_dir'
+root_dir = @kb.path.expand()
+root_dir/expand.path = '~/custom_dir'
 run = 3
 """
 
-path = os.path.join(KB_CONFIG_DIR, "utils", "path.gin")
-gin.parse_config_files_and_bindings([path], [bindings])
+enable_variable_expansion()
+gin.parse_config(bindings)
 print_kwargs()

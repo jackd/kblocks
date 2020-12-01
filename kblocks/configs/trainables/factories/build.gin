@@ -1,0 +1,14 @@
+import kblocks.configs
+import kblocks.models
+import kblocks.trainables
+
+include '$KB_CONFIG/trainables/factories/core.gin'
+
+trainable = @kb.trainables.build_trainable()
+kb.trainables.build_trainable.model_func = %model_func
+kb.trainables.build_trainable.train_data = %train_data
+kb.trainables.build_trainable.validation_data = %validation_data
+kb.trainables.build_trainable.callbacks = %model/callbacks
+kb.trainables.build_trainable.compiler = @kb.models.compiled
+
+steps_per_epoch = None

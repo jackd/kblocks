@@ -2,9 +2,6 @@
 import gin
 import tensorflow as tf
 
-from kblocks.data.sources import DataSource
-from kblocks.trainables import Trainable
-
 
 def summarize(result, print_fn=print):
     """
@@ -74,26 +71,3 @@ def benchmark_model(
         grads = tape.gradient(loss, variables)
         op = model.optimizer.apply_gradients(zip(grads, variables))
     return benchmark_op(op, **kwargs)
-
-    # func = (
-    #     model.make_predict_function() if inference_only else
-    #     model.make_train_function()
-    # )
-    # op = func(tf.compat.v1.data.make_one_shot_iterator(dataset.repeat()))
-    # return benchmark_op(op, **kwargs)
-
-
-@gin.configurable(module="kb.benchmarks")
-def benchmark_trainable(
-    trainable: Trainable, train_split=True, source_only=False, **kwargs
-):
-    source = trainable.train_source if train_split else trainable.validation_source
-    dataset = source.dataset
-    if source_only:
-        return benchmark_dataset(dataset, **kwargs)
-    return benchmark_model(trainable.model, dataset, **kwargs)
-
-
-@gin.configurable(module="kb.benchmarks")
-def benchmark_source(source: DataSource, **kwargs):
-    return benchmark_dataset(source.dataset, **kwargs)

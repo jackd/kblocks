@@ -12,7 +12,7 @@ import kblocks.tf_config
 kb.TfConfig.deterministic_ops = %deterministic
 kb.TfConfig.seed = %global_seed
 kb.TfConfig.global_rng_seed = %global_rng_seed
-tf.data.Options.experimental_deterministic = %deterministic
+kb.data.options.experimental_deterministic = %deterministic
 
 not_deterministic = @logical_not()
 not_deterministic/logical_not.cond = %deterministic

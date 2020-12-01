@@ -1,4 +1,7 @@
-include 'base.gin'
+import kblocks.cli
+import kblocks.configs
+import kblocks.benchmarks
+include '$KB_CONFIG/utils/benchmark.gin'
 
 kb.main.fn = @kb.benchmarks.benchmark_model
 kb.benchmark.benchmark_models.model = %model

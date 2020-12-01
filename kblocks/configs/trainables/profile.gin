@@ -1,0 +1,10 @@
+import kblocks.cli
+import kblocks.configs
+import kblocks.trainables.mains
+
+include '$KB_CONFIG/utils/profile.gin'
+kb.main.fn = @kb.trainables.profile_trainable
+kb.trainables.profile_trainable.trainable = %trainable
+kb.trainables.profile_trainable.training = %training
+
+training = True

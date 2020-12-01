@@ -1,0 +1,5 @@
+import kblocks.experiments.fit
+import kblocks.models
+
+model_callbacks = @kb.experiments.model_callbacks()
+validation_data = None

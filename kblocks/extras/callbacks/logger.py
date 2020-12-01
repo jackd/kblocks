@@ -72,10 +72,14 @@ class YamlLogger(tf.keras.callbacks.Callback):
 @gin.configurable(module="kb.callbacks")
 @register_serializable
 class LearningRateLogger(tf.keras.callbacks.Callback):
+    def __init__(self):
+        super().__init__()
+        self._supports_tf_logs = True
+
     def on_epoch_end(self, epoch, logs=None):
-        if logs is None or "lr" in logs:
+        if logs is None or "learning_rate" in logs:
             return
-        logs["lr"] = self.model.optimizer.lr.numpy()
+        logs["learning_rate"] = tf.keras.backend.get_value(self.model.optimizer.lr)
 
     def get_config(self):
         return {}

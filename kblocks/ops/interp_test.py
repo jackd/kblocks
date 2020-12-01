@@ -13,7 +13,13 @@ class TestInterp(tf.test.TestCase):
     def test_intercepts3d(self):
         grid = np.array([[0, 1, 2], [10, 11, 12], [20, 21, 22]], dtype=np.float32)
         grid = np.stack([grid, grid + 100, grid + 200, grid + 300])
-        coords = np.array([[1, 1, 1], [0, 1, 1],], dtype=np.float32)
+        coords = np.array(
+            [
+                [1, 1, 1],
+                [0, 1, 1],
+            ],
+            dtype=np.float32,
+        )
         tf_vals = self.evaluate(linear_interp(grid, coords))
         expected = np.array([111, 11])
         np.testing.assert_allclose(tf_vals, expected)
@@ -35,7 +41,13 @@ class TestInterp(tf.test.TestCase):
     def test_intercepts3d_batch(self):
         grid = np.array([[0, 1, 2], [10, 11, 12], [20, 21, 22]], dtype=np.float32)
         grid = np.stack([grid, grid + 100, grid + 200, grid + 300])
-        coords = np.array([[1, 1, 1], [0, 1, 1],], dtype=np.float32)
+        coords = np.array(
+            [
+                [1, 1, 1],
+                [0, 1, 1],
+            ],
+            dtype=np.float32,
+        )
         grid = np.stack([grid, grid + 1000])
         coords = np.stack([coords, coords])
         actual = self.evaluate(linear_interp(grid, coords))

@@ -1,0 +1,8 @@
+import kblocks.cli
+import kblocks.trainables.mains
+
+kb.main.fn = @kb.trainables.check_weight_updates
+kb.trainables.check_weight_updates.trainable = %trainable
+kb.trainables.check_weight_updates.epochs = epochs
+
+epochs = 1

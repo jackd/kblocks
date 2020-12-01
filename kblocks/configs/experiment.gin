@@ -1,4 +1,0 @@
-import kblocks.experiments
-
-kb.main.fn = @kb.experiment.run
-kb.experiment.run.experiment = %experiment

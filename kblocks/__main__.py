@@ -31,6 +31,8 @@ General notes:
 
 from absl import app
 
+# set environment variable $KB_CONFIG
+import kblocks.configs  # pylint:disable=unused-import
 from kblocks import cli
 
 

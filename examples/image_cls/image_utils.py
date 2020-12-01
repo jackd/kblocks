@@ -1,10 +1,14 @@
+from typing import Callable, Optional
+
 import gin
 import tensorflow as tf
+import tfrng
 
 from kblocks.keras import layers
+from kblocks.models import RepeatedData
 
 
-@gin.register
+@gin.configurable
 def simple_cnn(
     inputs_spec,
     num_classes: int,
@@ -29,21 +33,43 @@ def simple_cnn(
     return tf.keras.Model(inputs=image, outputs=logits)
 
 
-@gin.register
+@gin.configurable
 def augment_image_example(
-    image: tf.Tensor,
-    label: tf.Tensor,
-    sample_weight=None,
-    noise_stddev=0,
-    use_rng: bool = True,
+    image: tf.Tensor, label: tf.Tensor, sample_weight=None, noise_stddev=0
 ):
     image = tf.cast(image, tf.float32)
     image = tf.image.per_image_standardization(image)
     if noise_stddev > 0:
-        kwargs = dict(shape=tf.shape(image), stddev=noise_stddev)
-        if use_rng:
-            noise = tf.random.get_global_generator().normal(**kwargs)
-        else:
-            noise = tf.random.normal(**kwargs)
-        image = image + noise
+        image = image + tfrng.normal(shape=tf.shape(image), stddev=noise_stddev)
     return tf.keras.utils.pack_x_y_sample_weight(image, label, sample_weight)
+
+
+@gin.configurable
+def get_augmented_data(
+    dataset: tf.data.Dataset,
+    batch_size: int,
+    map_func: Callable,
+    shuffle_buffer: Optional[int] = None,
+    shuffle_seed: Optional[int] = None,
+    augment_seed: Optional[int] = None,
+    use_stateless_map: bool = False,
+) -> RepeatedData:
+    if shuffle_buffer is not None:
+        dataset = dataset.shuffle(shuffle_buffer, seed=shuffle_seed)
+    dataset = dataset.batch(batch_size)
+    steps_per_epoch = tf.keras.backend.get_value(dataset.cardinality())
+    # repeat before map so stateless map is different across epochs
+    dataset = dataset.repeat()
+    AUTOTUNE = tf.data.experimental.AUTOTUNE
+    if use_stateless_map:
+        dataset = dataset.apply(
+            tfrng.data.stateless_map(
+                map_func,
+                seed=augment_seed,
+                num_parallel_calls=AUTOTUNE,
+            )
+        )
+    else:
+        # if map_func has random elements this won't be deterministic
+        dataset = dataset.map(map_func, num_parallel_calls=AUTOTUNE)
+    return RepeatedData(dataset, steps_per_epoch)

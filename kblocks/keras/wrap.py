@@ -8,7 +8,9 @@ BLACKLIST = ("serialize", "deserialize", "get")
 
 
 def wrapped_items(
-    src_module: ModuleType, gin_module: str, blacklist: Iterable[str] = BLACKLIST,
+    src_module: ModuleType,
+    gin_module: str,
+    blacklist: Iterable[str] = BLACKLIST,
 ) -> Iterable[Tuple[str, Any]]:
     for k in dir(src_module):
         v = getattr(src_module, k)

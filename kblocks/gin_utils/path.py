@@ -23,8 +23,8 @@ def _change_dir_context(directory: str):
 def _open_from_directory(path: str):
     """Change directory to the containing folder while the file remains open.
 
-  Allows for relative includes. See `enable_relative_includes`.
-  """
+    Allows for relative includes. See `enable_relative_includes`.
+    """
     path = os.path.realpath(path)
     folder = os.path.dirname(path)
     with _change_dir_context(folder):

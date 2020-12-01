@@ -1,0 +1,18 @@
+import kblocks.configs
+import kblocks.experiments.fit
+
+include '$KB_CONFIG/utils/path.gin'
+include '$KB_CONFIG/experiments/core.gin'
+
+experiment = @kb.experiments.Fit()
+kb.experiments.Fit.callbacks = %callbacks
+kb.experiments.Fit.epochs = %epochs
+kb.experiments.Fit.validation_data = %validation_data
+kb.experiments.Fit.validation_freq = %validation_freq
+
+callbacks = @kb.experiments.fit_callbacks()
+kb.experiments.logging_callbacks.experiment_dir = %experiment_dir
+
+validation_data = None
+validation_freq = 1
+epochs = 1

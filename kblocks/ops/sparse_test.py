@@ -69,10 +69,25 @@ class SparseOpsTest(tf.test.TestCase):
         np_values, unstacked = self.evaluate((values, unstacked))
 
         np.testing.assert_equal(
-            unstacked[0].indices, [[0, 2], [0, 5], [1, 1], [1, 2], [2, 4],]
+            unstacked[0].indices,
+            [
+                [0, 2],
+                [0, 5],
+                [1, 1],
+                [1, 2],
+                [2, 4],
+            ],
         )
         np.testing.assert_equal(
-            unstacked[1].indices, [[0, 2], [0, 5], [1, 1], [2, 2], [2, 4], [2, 5],]
+            unstacked[1].indices,
+            [
+                [0, 2],
+                [0, 5],
+                [1, 1],
+                [2, 2],
+                [2, 4],
+                [2, 5],
+            ],
         )
 
         np.testing.assert_allclose(unstacked[0].values, np_values[:5])
@@ -84,8 +99,23 @@ class SparseOpsTest(tf.test.TestCase):
         np_values, unstacked = self.evaluate((values, unstacked))
 
         np.testing.assert_equal(unstacked[0].indices, [[0, 2], [0, 5], [1, 2], [1, 5]])
-        np.testing.assert_equal(unstacked[1].indices, [[0, 1], [0, 2], [1, 1],])
-        np.testing.assert_equal(unstacked[2].indices, [[0, 4], [1, 2], [1, 4], [1, 5],])
+        np.testing.assert_equal(
+            unstacked[1].indices,
+            [
+                [0, 1],
+                [0, 2],
+                [1, 1],
+            ],
+        )
+        np.testing.assert_equal(
+            unstacked[2].indices,
+            [
+                [0, 4],
+                [1, 2],
+                [1, 4],
+                [1, 5],
+            ],
+        )
 
         np.testing.assert_allclose(unstacked[0].values, np_values[[0, 1, 5, 6]])
         np.testing.assert_allclose(unstacked[1].values, np_values[[2, 3, 7]])

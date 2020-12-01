@@ -1,5 +1,6 @@
-from kblocks.ops import sparse as _sparse_ops
 from wtftf.meta import layered
+
+from kblocks.ops import sparse as _sparse_ops
 
 block_diagonalize_sparse = layered(_sparse_ops.block_diagonalize_sparse)
 apply_offset = layered(_sparse_ops.apply_offset)

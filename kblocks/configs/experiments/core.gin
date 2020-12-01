@@ -1,0 +1,9 @@
+import kblocks.cli
+import kblocks.experiments
+import kblocks.path
+
+kb.main.fn = @kb.experiments.run
+Experiment.experiment_dir = %experiment_dir
+kb.experiments.run.experiment = %experiment
+
+experiment_dir = @kb.path.temp_dir()

@@ -15,7 +15,7 @@ import kblocks.path
 problem_dir = @os.path.join()
 family_dir = @os.path.join()
 variant_dir = @os.path.join()
-model_dir = @os.path.join()
+experiment_dir = @os.path.join()
 
 problem_dir/os.path.join.a = %root_dir
 problem_dir/os.path.join.p = %problem_id
@@ -26,8 +26,8 @@ family_dir/os.path.join.p = %family_id
 variant_dir/os.path.join.a = %family_dir
 variant_dir/os.path.join.p = %variant_id
 
-model_dir/os.path.join.a = %variant_dir
-model_dir/os.path.join.p = @kb.path.run_subdir()
+experiment_dir/os.path.join.a = %variant_dir
+experiment_dir/os.path.join.p = @kb.path.run_subdir()
 
 kb.path.run_subdir.run = %run
 
