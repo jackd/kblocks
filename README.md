@@ -11,7 +11,9 @@ This package provides a rapid prototyping environment for running deep learning 
 ```bash
 pip install tensorflow>=2.3  # not included in requirements.txt - could be tf-nightly
 git clone https://github.com/jackd/kblocks.git
-pip install -e kblocks
+cd kblocks
+pip install -r requirements.txt
+pip install -e .
 ```
 
 Some examples require [tensorflow-datasets](https://github.com/tensorflow/datasets)

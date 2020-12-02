@@ -7,3 +7,4 @@ tfrng@ git+git://github.com/jackd/tfrng.git
 wtftf@ git+git://github.com/jackd/wtftf.git
 uuid
 psutil
+pyyaml
