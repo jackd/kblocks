@@ -1,6 +1,6 @@
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 # We follow Semantic Versioning (https://semver.org/)
 _MAJOR_VERSION = "0"
@@ -17,7 +17,7 @@ setup(
     author="Dominic Jack",
     author_email="thedomjack@gmail.com",
     license="MIT",
-    packages=["kblocks"],
+    packages=find_packages(),
     install_requires=install_requires,
     zip_safe=True,
     python_requires=">=3.6",
