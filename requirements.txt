@@ -2,7 +2,7 @@ gin-config
 tensorflow-datasets
 setproctitle
 scipy
-meta-model@ git+git://github.com/jackd/meta-model.git@master
-tfrng@ git+git://github.com/jackd/tfrng.git@master
-wtftf@ git+git://github.com/jackd/wtftf.git@master
+meta-model@ git+git://github.com/jackd/meta-model.git
+tfrng@ git+git://github.com/jackd/tfrng.git
+wtftf@ git+git://github.com/jackd/wtftf.git
 uuid
