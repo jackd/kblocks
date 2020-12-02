@@ -4,4 +4,5 @@ setproctitle
 scipy
 meta-model@ git+git://github.com/jackd/meta-model.git@master
 tfrng@ git+git://github.com/jackd/tfrng.git@master
+wtftf@ git+git://github.com/jackd/wtftf.git@master
 uuid

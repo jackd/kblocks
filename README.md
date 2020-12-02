@@ -36,6 +36,7 @@ This repository depends on the following packages not available on github:
 
 - [meta-model](https://github.com/jackd/meta-model)
 - [tfrng](https://github.com/jackd/tfrng)
+- [wtftf](https://github.com/jackd/wtftf)
 
 ## Examples
 
