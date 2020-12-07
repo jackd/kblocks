@@ -42,11 +42,11 @@ class Experiment(abc.ABC):
                 model: tf.keras.Model,
                 train_data: tf.data.Dataset,
                 epochs: int,
-                save_dir: str):
+                experiment_dir: str):
             self.model = model
             self.train_data = train_data
             self.epochs = epochs
-            super().__init__(save_dir=save_dir)
+            super().__init__(experiment_dir=experiment_dir)
 
         def _run(self, start_status):
             fit(model=self.model, train_data=self.train_data, epochs=self.epochs)
@@ -58,7 +58,7 @@ class Experiment(abc.ABC):
     my_model_fn.num_classes = 10  # nested configuration is fine
     Fit.train_data = @my_train_data_fn()
     Fit.epochs = 5
-    Fit.save_dir =
+    Fit.experiment_dir = '/tmp/'
     '''
 
     gin.parse_config(config_str)

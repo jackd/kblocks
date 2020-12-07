@@ -58,8 +58,10 @@ def benchmark_dataset(dataset: tf.data.Dataset, **kwargs):
 def benchmark_model(
     model: tf.keras.Model, dataset: tf.data.Dataset, inference_only=False, **kwargs
 ):
+    if dataset.cardinality() != tf.data.INFINITE_CARDINALITY:
+        dataset = dataset.repeat()
     inputs, labels, sample_weight = tf.keras.utils.unpack_x_y_sample_weight(
-        as_inputs(dataset.repeat())
+        as_inputs(dataset)
     )
     if inference_only:
         op = model(inputs)

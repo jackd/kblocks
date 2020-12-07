@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import gin
 import tensorflow as tf
@@ -61,3 +61,25 @@ def repeated_data(data: Union[tf.data.Dataset, RepeatedData]) -> RepeatedData:
     if isinstance(data, RepeatedData):
         return data
     raise TypeError(f"data must be a Dataset or RepeatedData, got {data}")
+
+
+def dataset_and_steps(
+    data: Union[tf.data.Dataset, RepeatedData], steps: Optional[int] = None
+) -> Tuple[tf.data.Dataset, Optional[int]]:
+    """Get consistent (dataset, steps_per_epoch)."""
+    if isinstance(data, RepeatedData):
+        assert steps is None or steps == data.steps_per_epoch
+        return data.dataset, data.steps_per_epoch
+    assert isinstance(data, tf.data.Dataset)
+    cardinality = tf.keras.backend.get_value(data.cardinality())
+    if steps is None:
+        assert cardinality > 0
+        return data, None
+    if cardinality == tf.data.INFINITE_CARDINALITY:
+        return data, steps
+    if cardinality != steps:
+        raise ValueError(
+            "`steps` and `data.cardinality()` must be consistent, "
+            f"but {steps} != {cardinality}"
+        )
+    return data, None

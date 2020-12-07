@@ -6,7 +6,7 @@ import tensorflow as tf
 
 import kblocks.extras.callbacks as ecb
 import kblocks.keras.callbacks as kcb
-from kblocks.data.repeated import RepeatedData, repeated_data
+from kblocks.data.repeated import RepeatedData, dataset_and_steps
 from kblocks.experiments.core import Experiment
 from kblocks.models import fit
 from kblocks.path import expand
@@ -143,12 +143,14 @@ class Fit(Experiment):
         self,
         model: tf.keras.Model,
         train_data: Union[tf.data.Dataset, RepeatedData],
+        steps_per_epoch: Optional[int] = None,
         epochs: int = 1,
         validation_data: Optional[Union[tf.data.Dataset, RepeatedData]] = None,
+        validation_steps: Optional[int] = None,
         callbacks: Iterable[tf.keras.callbacks.Callback] = (),
         validation_freq: int = 1,
         verbose: bool = True,
-        use_iterators: bool = False,
+        track_iterator: bool = False,
         **kwargs,
     ):
         if not isinstance(model, tf.keras.Model):
@@ -159,23 +161,29 @@ class Fit(Experiment):
                     f"input spec(s) to a Model, got {model}"
                 )
         self._model = model
-        self._train_data = repeated_data(train_data)
+        self._train_data, self._steps_per_epoch = dataset_and_steps(
+            train_data, steps_per_epoch
+        )
+        self._validation_data, self._validation_steps = dataset_and_steps(
+            validation_data, validation_steps
+        )
         self._epochs = epochs
-        self._validation_data = repeated_data(validation_data)
         self._callbacks = tuple(callbacks)
         self._validation_freq = validation_freq
+        self._track_iterator = track_iterator
         self._verbose = verbose
-        self._use_iterators = use_iterators
         super().__init__(**kwargs)
 
     def _run(self, start_status):
         return fit(
             model=self._model,
             train_data=self._train_data,
+            steps_per_epoch=self._steps_per_epoch,
             epochs=self._epochs,
             validation_data=self._validation_data,
+            validation_steps=self._validation_steps,
             callbacks=self._callbacks,
             validation_freq=self._validation_freq,
+            track_iterator=self._track_iterator,
             verbose=self._verbose,
-            use_iterators=self._use_iterators,
         )

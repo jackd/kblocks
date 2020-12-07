@@ -10,7 +10,6 @@ kb.trainables.trainable_fit.trainable = %trainable
 kb.trainables.trainable_fit.callbacks = %logging_callbacks
 kb.trainables.trainable_fit.epochs = %epochs
 kb.trainables.trainable_fit.validation_freq = %validation_freq
-kb.trainables.trainable_fit.use_iterators = %use_iterators
 
 logging_callbacks = @kb.experiments.logging_callbacks()
 kb.experiments.logging_callbacks.experiment_dir = %experiment_dir
@@ -18,4 +17,3 @@ kb.experiments.logging_callbacks.experiment_dir = %experiment_dir
 validation_data = None
 validation_freq = 1
 epochs = 1
-use_iterators = False

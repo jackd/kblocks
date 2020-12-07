@@ -6,7 +6,7 @@ import tensorflow as tf
 import tfrng
 from meta_model import pipeline as pl
 
-from kblocks.data import RepeatedData, Transform
+from kblocks.data import Transform
 from kblocks.path import expand
 from kblocks.trainables.core import Trainable
 
@@ -183,8 +183,9 @@ def build_meta_model_trainable(
 
     return Trainable(
         model=model,
-        train_data=RepeatedData(train_dataset, steps_per_epoch),
-        validation_data=RepeatedData(validation_dataset),
+        train_data=train_dataset,
+        steps_per_epoch=steps_per_epoch,
+        validation_data=validation_dataset,
         callbacks=tuple(callbacks),
     )
 

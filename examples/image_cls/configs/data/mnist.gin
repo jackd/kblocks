@@ -1,5 +1,3 @@
-include '$KB_CONFIG/utils/tfds.gin'
-
 validation_split = 'test'
 
 tfds_name = 'mnist'

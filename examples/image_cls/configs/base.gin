@@ -28,12 +28,13 @@ train_data/get_augmented_data.use_stateless_map = True
 
 train_data/augment_image_example.noise_stddev = %noise_stddev
 
+track_iterator = True
 noise_stddev = 0.05
 batch_size = 32
 shuffle_buffer = 256
 epochs = 5
 run = 0
 
-root_dir = "/tmp/kblocks-examples/image-cls"
+root_dir = "/tmp/kblocks/examples/image-cls"
 
 optimizer = @tf.keras.optimizers.Adam()

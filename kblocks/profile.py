@@ -6,9 +6,6 @@ import tensorflow as tf
 import tqdm
 from absl import logging
 
-from kblocks.data.repeated import RepeatedData
-from kblocks.models import maybe_prefetch
-
 
 @gin.configurable(module="kb.profile")
 def profile_func(
@@ -42,12 +39,13 @@ To see results, e.g.
 @gin.configurable(module="kb.profile")
 def profile_model(
     model: tf.keras.Model,
-    data: RepeatedData,
+    dataset: tf.data.Dataset,
     inference_only: bool = False,
     **kwargs,
 ):
-    dataset = data.dataset
-    it = iter(maybe_prefetch(dataset))
+    if dataset.cardinality() != tf.data.INFINITE_CARDINALITY:
+        dataset = dataset.repeat()
+    it = iter(dataset)
     model_func = (
         model.make_predict_function() if inference_only else model.make_train_function()
     )

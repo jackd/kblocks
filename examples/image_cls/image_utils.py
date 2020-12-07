@@ -4,8 +4,8 @@ import gin
 import tensorflow as tf
 import tfrng
 
+from kblocks.data import RepeatedData
 from kblocks.keras import layers
-from kblocks.models import RepeatedData
 
 
 @gin.configurable
@@ -72,4 +72,5 @@ def get_augmented_data(
     else:
         # if map_func has random elements this won't be deterministic
         dataset = dataset.map(map_func, num_parallel_calls=AUTOTUNE)
+    dataset = dataset.prefetch(AUTOTUNE)
     return RepeatedData(dataset, steps_per_epoch)

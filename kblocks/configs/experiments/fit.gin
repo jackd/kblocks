@@ -9,6 +9,12 @@ kb.experiments.Fit.callbacks = %callbacks
 kb.experiments.Fit.epochs = %epochs
 kb.experiments.Fit.validation_data = %validation_data
 kb.experiments.Fit.validation_freq = %validation_freq
+kb.experiments.Fit.steps_per_epoch = %steps_per_epoch
+kb.experiments.Fit.validation_steps = %validation_steps
+kb.experiments.Fit.track_iterator = %track_iterator
+
+steps_per_epoch = None
+validation_steps = None
 
 callbacks = @kb.experiments.fit_callbacks()
 kb.experiments.logging_callbacks.experiment_dir = %experiment_dir
@@ -16,3 +22,4 @@ kb.experiments.logging_callbacks.experiment_dir = %experiment_dir
 validation_data = None
 validation_freq = 1
 epochs = 1
+track_iterator = False

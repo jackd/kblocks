@@ -1,10 +1,8 @@
 """gin wrappers around `tf.keras.Model` methods with tweaks for best-practices."""
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Tuple
 
 import gin
 import tensorflow as tf
-
-from kblocks.data.repeated import RepeatedData
 
 
 @gin.configurable(module="kb.models")
@@ -41,10 +39,9 @@ def init_optimizer_weights(model: tf.keras.Model):
     a checkpoint then loading from that checkpoint won't reset the optimizer state to
     default.
     """
-    optimizer = model.optimizer
-    optimizer._create_slots(model.trainable_weights)  # pylint:disable=protected-access
-    optimizer._create_hypers()  # pylint:disable=protected-access
-    optimizer.iterations  # pylint:disable=pointless-statement
+    model.optimizer._create_all_weights(  # pylint:disable=protected-access
+        model.trainable_weights
+    )
 
 
 def assert_valid_cardinality(
@@ -72,148 +69,137 @@ def assert_valid_cardinality(
         raise ValueError("Infinite cardinality not allowed.")
 
 
-def maybe_prefetch(
-    dataset: tf.data.Dataset, buffer_size: int = tf.data.experimental.AUTOTUNE
-):
-    if dataset.__class__.__name__ != "PrefetchDataset":
-        dataset = dataset.prefetch(buffer_size)
-    return dataset
+def as_infinite_iterator(
+    dataset: tf.data.Dataset, steps_per_epoch: Optional[int] = None
+) -> Tuple[tf.data.Iterator, int]:
+    """
+    Get an iterator for an infinite dataset and steps_per_epoch.
 
+    Args:
+        dataset: possibly infinite dataset.
+        steps_per_epoch: number of steps per epoch if `dataset` has infinite
+            cardinality, otherwise `None` or `dataset`'s cardinality.
 
-# def fit(
-#     model: tf.keras.Model,
-#     train_data: RepeatedData,
-#     epochs: int = 1,
-#     validation_data: Optional[RepeatedData] = None,
-#     callbacks: Iterable[tf.keras.callbacks.Callback] = (),
-#     initial_epoch: int = 0,
-#     validation_freq: int = 1,
-#     verbose: bool = True,
-#     use_iterators: bool = False,
-# ) -> tf.keras.callbacks.History:
-#     assert_compiled(model)
-#     model.stop_training = False
-#     train_func = model.make_train_function()
-#     validation_func = model.make_test_function()
-#     train_iter = iter(train_data.dataset)
-#     if validation_data is not None:
-#         validation_iter = iter(validation_data.dataset)
+    Returns:
+        iterator: tf.data.Iterator of possibly repeated `dataset`.
+        steps_per_epoch: number of elements in iterator considered one epoch.
 
-#     if use_iterators:
-#         assert not hasattr(model, "train_iter")
-#         model.train_iter = train_iter
-#     cb = tf.keras.callbacks.CallbackList(
-#         callbacks=callbacks, add_history=True, add_progbar=verbose, model=model
-#     )
-
-#     cb.on_train_begin()
-
-#     initial_epoch = model._maybe_load_initial_epoch_from_ckpt(  # pylint: disable=protected-access
-#         initial_epoch
-#     )
-#     for epoch in range(initial_epoch, epochs):
-#         model.reset_metrics()
-#         cb.on_epoch_begin(epoch)
-
-#         logs = None
-#         for step in range(train_data.steps_per_epoch):
-#             cb.on_train_batch_begin(step)
-#             logs = train_func(train_iter)
-#             cb.on_train_batch_end(step, logs)
-#             if model.stop_training:
-#                 break
-#         assert logs is not None
-#         epoch_logs = logs
-#         # validation
-#         if (
-#             validation_data is not None
-#             and model._should_eval(  # pylint: disable=protected-access
-#                 epoch, validation_freq
-#             )
-#         ):
-#             cb.on_test_begin()
-#             model.reset_metrics()
-#             for step in range(validation_data.steps_per_epoch):
-#                 cb.on_test_batch_begin(step)
-#                 logs = validation_func(validation_iter)
-#                 cb.on_test_batch_end(step, logs)
-#             cb.on_test_end(logs)
-#             epoch_logs.update({"val_" + name: val for name, val in logs.items()})
-#         cb.on_epoch_end(epoch, epoch_logs)
-#         training_logs = epoch_logs
-#         if model.stop_training:
-#             break
-#     cb.on_train_end(logs=training_logs)
-#     if use_iterators:
-#         del model.train_iter
-#     return model.history
+    Raises:
+        ValueError is dataset has finite cardinality inconsistent with steps_per_epoch.
+    """
+    cardinality = tf.keras.backend.get_value(dataset.cardinality())
+    if steps_per_epoch is None:
+        steps_per_epoch = cardinality
+        if cardinality == tf.data.INFINITE_CARDINALITY:
+            raise ValueError(
+                "steps_per_epoch must be provided if dataset has infinite "
+                "cardinality"
+            )
+        dataset = dataset.repeat()
+    elif cardinality != tf.data.INFINITE_CARDINALITY:
+        assert cardinality == steps_per_epoch
+        dataset = dataset.repeat()
+    return iter(dataset), steps_per_epoch
 
 
 def fit(
     model: tf.keras.Model,
-    train_data: RepeatedData,
+    train_data: tf.data.Dataset,
     epochs: int = 1,
-    validation_data: Optional[RepeatedData] = None,
+    steps_per_epoch: Optional[int] = None,
+    validation_data: tf.data.Dataset = None,
+    validation_steps: Optional[int] = None,
     callbacks: Iterable[tf.keras.callbacks.Callback] = (),
     initial_epoch: int = 0,
     validation_freq: int = 1,
+    track_iterator: bool = False,
     verbose: bool = True,
-    use_iterators: bool = False,
 ) -> tf.keras.callbacks.History:
     """
-    Wrapper around `tf.keras.Model.fit` that enforces best practices.
+    Custom fit implementation.
 
-    The following modifications are made.
+    Interface is intended to mimic best-practice usage of `tf.keras.Model.fit`.
 
-    1. It uses `RepeatedData` rather than standard datasets. For pipelines with
-        augmentation, these are generally easier to to construct and return from a
-        function separate from other arguments. Accepting one RepeatedData (rather than
-        e.g. validaiton_data, validation_steps) makes configuration easier with gin.
-    2. It adds train data's iterator as an attribute onto model, meaning checkpoints
-        (e.g. those created by `tf.keras.callbacks.experimental.BackupAndRestore`) that
-        save `model` also save the iterator state.
-    3. If either RepeatedData datasets are not `PrefetchDataset`s a prefetch(AUTOTUNE)
-        transform is added.
+    Unlike `tf.keras.Model.fit` `_train_iter` is added as an attribute to model. If
+    using `tf.train.Checkpoint`s to manage training state, this may result in larger
+    files on disk.
 
-    See `Fit` for an experiment wrapper around this method.
+    Args:
+        model: keras model to train.
+        train_data: dataset with (inputs, labels) or (inputs, labels, sample_weights)
+        epochs: total number of epochs to train until.
+        steps_per_epoch: number of steps per epoch. Must be provided if train_data has
+            infinite cardinality.
+        validation_data: optional dataset to perform validation on.
+        validation_steps: number of steps of validation to perform per epoch.
+        callbacks: `tf.keras.callbacks.Callback` instances.
+        initial_epoch: starting epoch.
+        validation_freq: number of epochs between validation.
+        track_iterator: if True, `train_data`'s iterator is added as an attribute to
+            `model`, meaning it will be saved in checkpoint's saving `model`.
+        verbose: controls verbosity of printed output.
+
+    Returns:
+        `tf.keras.callbacks.History` object.
+
+    Raises:
+        `AttributeError` if `model` has an existing `_train_iter` attribute and
+        `track_iterator` is True.
     """
-    if use_iterators:
-        raise Exception("Iterator checkpointing currently not supported in TF.")
-    assert_compiled(model)
+    train_func = model.make_train_function()
+    train_iter, steps_per_epoch = as_infinite_iterator(train_data, steps_per_epoch)
+    if hasattr(model, "_train_iter"):
+        raise AttributeError("Cannot fit model with existing `_train_iter` attribute.")
+    if track_iterator:
+        model._train_iter = train_iter  # pylint: disable=protected-access
 
-    train_iter = maybe_prefetch(train_data.dataset)
-    if use_iterators:
-        train_iter = iter(train_iter)
-        assert not hasattr(model, "train_iter")
-        model.train_iter = train_iter
-
-    train_steps = train_data.steps_per_epoch
-    # We add `train_iter` as an attribute to model so it can be saved along with model
-
-    # possible memory leak when using validation dataset rather than iterator??
-    if validation_data is None:
-        validation_iter = None
-        validation_steps = None
-    else:
-        validation_iter = maybe_prefetch(validation_data.dataset)
-        if use_iterators:
-            validation_iter = iter(validation_iter)
-        validation_steps = validation_data.steps_per_epoch
-
-    history = model.fit(
-        train_iter,
-        steps_per_epoch=train_steps,
-        epochs=epochs,
-        validation_data=validation_iter,
-        validation_steps=validation_steps,
-        callbacks=callbacks,
-        initial_epoch=initial_epoch,
-        validation_freq=validation_freq,
-        verbose=verbose,
+    cb = tf.keras.callbacks.CallbackList(
+        callbacks=callbacks, add_history=True, add_progbar=verbose, model=model
     )
-    if use_iterators:
-        del model.train_iter
-    return history
+    cb.set_params(dict(epochs=epochs, verbose=int(verbose), steps=steps_per_epoch))
+
+    cb.on_train_begin()
+    initial_epoch = (
+        model._maybe_load_initial_epoch_from_ckpt(  # pylint: disable=protected-access
+            initial_epoch
+        )
+    )
+
+    model.stop_training = False
+    for epoch in range(initial_epoch, epochs):
+        model.reset_metrics()
+        cb.on_epoch_begin(epoch)
+
+        logs = None
+        for step in range(steps_per_epoch):
+            cb.on_train_batch_begin(step)
+            logs = train_func(train_iter)
+            cb.on_train_batch_end(step, logs)
+            if model.stop_training:
+                break
+        assert logs is not None
+        epoch_logs = logs
+        if (
+            validation_data is not None
+            and model._should_eval(  # pylint: disable=protected-access
+                epoch, validation_freq
+            )
+        ):
+            logs = model.evaluate(
+                validation_data,
+                steps=validation_steps,
+                callbacks=cb,
+                return_dict=True,
+            )
+            epoch_logs.update({"val_" + name: val for name, val in logs.items()})
+        cb.on_epoch_end(epoch, epoch_logs)
+        training_logs = epoch_logs
+        if model.stop_training:
+            break
+    cb.on_train_end(logs=training_logs)
+    if track_iterator:
+        del model._train_iter
+    return model.history
 
 
 def get(identifier) -> tf.keras.Model:

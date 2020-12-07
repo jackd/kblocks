@@ -1,5 +1,3 @@
-include '$KB_CONFIG/utils/tfds.gin'
-
 tfds_name = 'cifar100'
 num_classes = 100
 

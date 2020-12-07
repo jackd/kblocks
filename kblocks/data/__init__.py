@@ -23,7 +23,7 @@ from .core import (
     unbatch,
     with_options,
 )
-from .repeated import RepeatedData, repeated_data
+from .repeated import RepeatedData, dataset_and_steps, repeated_data
 
 __all__ = [
     "save_load_cache",
@@ -52,4 +52,5 @@ __all__ = [
     "with_options",
     "RepeatedData",
     "repeated_data",
+    "dataset_and_steps",
 ]
