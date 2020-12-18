@@ -132,6 +132,7 @@ def linear_interp(grid_vals, coords, name="linear_interp"):
             or (batch_size, n_x, n_y, ...).
         coords: coordinate values to be interpolated at, (n_points, n_dims) or
             (batch_size, n_points, n_dims).
+        name: Name of operation
 
     Returns:
         (batch_size, n_points) or (n_points,) tensor of interpolated grid

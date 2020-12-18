@@ -98,11 +98,11 @@ def register_file_reader(*args, highest_priority: bool = False):
           provide a file-like object, similar to Python's built-in `open`.
         - is_readable_fn: A function taking the file path and returning a boolean
           indicating whether the file can be read by `file_reader_fn`.
-        - highest_priority: if True, this reader is tried before readers already
-            registered. Note if other readers are subsequently registered with
-            `highest_priority=True`, they will supersede earlier ones. Calling this
-            with an already registered reader and highest_priority=True will move
-            it to highest priority.
+      highest_priority: if True, this reader is tried before readers already
+        registered. Note if other readers are subsequently registered with
+        `highest_priority=True`, they will supersede earlier ones. Calling this
+        with an already registered reader and highest_priority=True will move
+        it to highest priority.
 
     Returns:
       `None`, or when used as a decorator, a function that will perform the

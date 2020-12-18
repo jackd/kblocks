@@ -81,7 +81,7 @@ class LearningRateLogger(tf.keras.callbacks.Callback):
             return
         logs["learning_rate"] = tf.keras.backend.get_value(self.model.optimizer.lr)
 
-    def get_config(self):
+    def get_config(self):  # pylint: disable=no-self-use
         return {}
 
     @classmethod

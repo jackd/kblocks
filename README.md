@@ -31,10 +31,10 @@ pip install tensorboard_plugin_profile
 This will also require `libcupti` on your `$LD_LIBRARY_PATH`. Ensure you version consistent with your tensorflow installation can be found
 
 ```bash
-/sbin/ldconfig -N -v $(sed 's/:/ /g' <<< $LD_LIBRARY_PATH) | grep libcupti
+/sbin/ldconfig -N -v $(sed 's/:/ /g' <<< $LD_LIBRARY_PATH) | grep -F libcupti
 ```
 
-This repository depends on the following packages not available on github:
+This repository depends on the following packages not available on pypi:
 
 - [meta-model](https://github.com/jackd/meta-model)
 - [tfrng](https://github.com/jackd/tfrng)

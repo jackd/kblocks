@@ -8,14 +8,14 @@ def get_inner_products(builder, order, n_divs=1e6):
     n_divs = int(n_divs)
     a, b = builder.get_domain()
 
-    def transform_bounds(a):
-        if a == -np.inf:
-            a = -100.0
-        elif a == np.inf:
-            a = 100.0
-        elif isinstance(a, int):
-            a = float(a)
-        return a
+    def transform_bounds(k):
+        if k == -np.inf:
+            k = -100.0
+        elif k == np.inf:
+            k = 100.0
+        elif isinstance(k, int):
+            k = float(k)
+        return k
 
     a = transform_bounds(a)
     b = transform_bounds(b)

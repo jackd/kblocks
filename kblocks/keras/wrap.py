@@ -1,4 +1,3 @@
-import imp
 from types import ModuleType
 from typing import Any, Iterable, Tuple
 
@@ -15,7 +14,7 @@ def wrapped_items(
     for k in dir(src_module):
         v = getattr(src_module, k)
         if k not in blacklist and callable(v):
-            yield (k, gin.external_configurable(v, name=k, module=gin_module))
+            yield k, gin.external_configurable(v, name=k, module=gin_module)
 
 
 def wrapped_module(
@@ -24,7 +23,7 @@ def wrapped_module(
     gin_module: str,
     blacklist: Iterable[str] = BLACKLIST,
 ) -> ModuleType:
-    mod = imp.new_module(dst_name)
+    mod = ModuleType(dst_name)
     for k, v in wrapped_items(src_module, gin_module, blacklist):
         setattr(mod, k, v)
     return mod

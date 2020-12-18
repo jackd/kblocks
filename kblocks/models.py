@@ -165,6 +165,7 @@ def fit(
         )
     )
 
+    training_logs = None
     model.stop_training = False
     for epoch in range(initial_epoch, epochs):
         model.reset_metrics()

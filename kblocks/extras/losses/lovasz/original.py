@@ -87,10 +87,10 @@ def lovasz_hinge_flat(logits, labels):
         )
         gt_sorted = tf.gather(labelsf, perm)
         grad = lovasz_grad(gt_sorted)
-        loss = tf.tensordot(
+        _loss = tf.tensordot(
             tf.nn.relu(errors_sorted), tf.stop_gradient(grad), 1, name="loss_non_void"
         )
-        return loss
+        return _loss
 
     # deal with the void prediction case (only void pixels)
     loss = tf.cond(

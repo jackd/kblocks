@@ -92,7 +92,7 @@ class LegendrePolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
         return 2 / (2 * order + 1)
 
     def get_domain(self) -> Tuple[Num, Num]:
-        return (-1, 1)
+        return -1, 1
 
     def __repr__(self):
         return "LegendrePolyBuilder"
@@ -105,7 +105,7 @@ class ChebyshevPolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
         return 2 * x * pn1 - pn2
 
     def get_domain(self) -> Tuple[Num, Num]:
-        return (-1, 1)
+        return -1, 1
 
     @staticmethod
     def from_kind(kind="first"):
@@ -158,7 +158,7 @@ class HermitePolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
         return 2 * x * pn1 - 2 * (n - 1) * pn2
 
     def get_domain(self) -> Tuple[float, float]:
-        return (-np.inf, np.inf)
+        return -np.inf, np.inf
 
     def get_weighting_fn(self, x: tf.Tensor) -> tf.Tensor:
         return tf.exp(-tf.square(x))
@@ -187,7 +187,7 @@ class GaussianHermitePolynomialBuilder(OrthogonalPolynomialBuilder):
         return hermites
 
     def get_domain(self) -> Tuple[float, float]:
-        return (-np.inf, np.inf)
+        return -np.inf, np.inf
 
     def get_normalization_factor(self, order: int) -> int:
         return 1
@@ -217,7 +217,7 @@ class GegenbauerPolynomialBuilder(RecursiveOrthogonalPolynomialBuilder):
             return rhs / n
 
     def get_domain(self) -> Tuple[int, int]:
-        return (-1, 1)
+        return -1, 1
 
     def get_weighting_fn(self, x: tf.Tensor) -> tf.Tensor:
         return (1 - x ** 2) ** (self.lam - 0.5)

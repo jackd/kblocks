@@ -54,7 +54,6 @@ def get_gin_summary(argv):
 
     Args:
         argv: clargs that weren't passed by absl. Interpretted as config files
-        finalize_config: if True, config is finalized after parsing.
 
     Returns:
         GinSummary object

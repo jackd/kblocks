@@ -55,7 +55,7 @@ def tfrecords_cache(path: str, compression: Optional[str] = None):
 def _repeated_paths(path: str, num_repeats: int) -> Tuple[str, ...]:
     if num_repeats > 10000:
         raise ValueError("Can only handle up to 1e4 repeats")
-    return [os.path.join(path, f"repeat-{i:04d}") for i in range(num_repeats)]
+    return tuple(os.path.join(path, f"repeat-{i:04d}") for i in range(num_repeats))
 
 
 @gin.configurable(module="kb.data")
@@ -81,7 +81,7 @@ def repeated_cache(
             cache_factory(p)(dataset)
 
         return tf.data.Dataset.from_tensor_slices(paths).flat_map(
-            lambda p: transform(cache_factory(p)(dataset))
+            lambda _p: transform(cache_factory(_p)(dataset))
         )
 
     return ret_transform
@@ -116,7 +116,7 @@ def random_repeated_cache(
             reshuffle_each_iteration=reshuffle_each_iteration,
         )
         return transform(
-            path_dataset.take(1).flat_map(lambda p: cache_factory(p)(dataset))
+            path_dataset.take(1).flat_map(lambda _p: cache_factory(_p)(dataset))
         )
 
     return ret_transform

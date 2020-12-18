@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, Optional, Union
 
 import gin
 import tensorflow as tf
@@ -36,7 +36,7 @@ class Trainable:
     steps_per_epoch: Optional[int] = None
     validation_data: Optional[tf.data.Dataset] = None
     validation_steps: Optional[int] = None
-    callbacks: Tuple[tf.keras.callbacks.Callback, ...] = ()
+    callbacks: Iterable[tf.keras.callbacks.Callback] = ()
 
     def __post_init__(self):
         assert isinstance(self.model, tf.keras.Model)
