@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, TypeVar, Union
+from typing import Any, Callable, List, Optional, TypeVar
 
 from gin.config import (
     REQUIRED,

@@ -27,7 +27,7 @@ class Scale(tf.keras.layers.Layer):
 
     def _scale_shape(self, input_shape):
         del self
-        return input_shape[-1],
+        return (input_shape[-1],)
 
     def build(self, input_shape):
         if self.built:

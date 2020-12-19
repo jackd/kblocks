@@ -1,5 +1,5 @@
 import os
-from typing import Iterable, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import gin
 import tensorflow as tf
@@ -147,7 +147,7 @@ class Fit(Experiment):
         epochs: int = 1,
         validation_data: Optional[Union[tf.data.Dataset, RepeatedData]] = None,
         validation_steps: Optional[int] = None,
-        callbacks: Iterable[tf.keras.callbacks.Callback] = (),
+        callbacks: Tuple[tf.keras.callbacks.Callback, ...] = (),
         validation_freq: int = 1,
         verbose: bool = True,
         track_iterator: bool = False,

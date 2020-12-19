@@ -81,7 +81,7 @@ def repeated_cache(
             cache_factory(p)(dataset)
 
         return tf.data.Dataset.from_tensor_slices(paths).flat_map(
-            lambda _p: transform(cache_factory(_p)(dataset))
+            lambda p_: transform(cache_factory(p_)(dataset))
         )
 
     return ret_transform
@@ -116,7 +116,7 @@ def random_repeated_cache(
             reshuffle_each_iteration=reshuffle_each_iteration,
         )
         return transform(
-            path_dataset.take(1).flat_map(lambda _p: cache_factory(_p)(dataset))
+            path_dataset.take(1).flat_map(lambda p_: cache_factory(p_)(dataset))
         )
 
     return ret_transform

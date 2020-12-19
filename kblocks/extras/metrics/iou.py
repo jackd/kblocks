@@ -2,14 +2,18 @@ from typing import Optional
 
 import gin
 import tensorflow as tf
-from tensorflow.python.keras.metrics import (  # pylint: disable=no-name-in-module,import-error
-    squeeze_or_expand_dimensions,
-)
+from tensorflow.python.keras.utils.losses_utils import squeeze_or_expand_dimensions
 
 
 @gin.configurable(module="kb.extras.metrics")
 class IntersectionOverUnion(tf.keras.metrics.Metric):
-    def __init__(self, threshold: Optional[float]=0.0, ignore_weights=False, name="iou", dtype=None):
+    def __init__(
+        self,
+        threshold: Optional[float] = 0.0,
+        ignore_weights=False,
+        name="iou",
+        dtype=None,
+    ):
         super(IntersectionOverUnion, self).__init__(name=name, dtype=dtype)
         self.ignore_weights = ignore_weights
         self.threshold = threshold

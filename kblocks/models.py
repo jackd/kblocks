@@ -1,5 +1,5 @@
 """gin wrappers around `tf.keras.Model` methods with tweaks for best-practices."""
-from typing import Iterable, Optional, Tuple
+from typing import Optional, Tuple
 
 import gin
 import tensorflow as tf
@@ -109,7 +109,7 @@ def fit(
     steps_per_epoch: Optional[int] = None,
     validation_data: tf.data.Dataset = None,
     validation_steps: Optional[int] = None,
-    callbacks: Iterable[tf.keras.callbacks.Callback] = (),
+    callbacks: Tuple[tf.keras.callbacks.Callback, ...] = (),
     initial_epoch: int = 0,
     validation_freq: int = 1,
     track_iterator: bool = False,

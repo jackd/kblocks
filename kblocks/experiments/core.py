@@ -1,14 +1,13 @@
 import abc
 import json
 import os
-from typing import Union
 
 import gin
 import psutil
 import tensorflow as tf
 from absl import logging
 
-from kblocks.experiments import callbacks as cb, Status
+from kblocks.experiments import callbacks as cb
 from kblocks.experiments import status as status_lib
 from kblocks.path import expand
 
@@ -87,13 +86,11 @@ class Experiment(abc.ABC):
         return _operative_config_path(self._experiment_dir)
 
     @property
-    def status(self) -> Union[str, Status]:
-        path = self.status_path
-        if not os.path.isfile(path):
+    def status(self) -> status_lib.Status:
+        if not os.path.isfile(self.status_path):
             return status_lib.NotStarted()
         with open(self.status_path, "r") as fp:
-            status = status_lib.get(json.load(fp))
-        return status
+            return status_lib.get(json.load(fp))
 
     def _set_status(
         self,

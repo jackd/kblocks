@@ -1,5 +1,5 @@
 import os
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 import gin
 import tensorflow as tf
@@ -47,7 +47,7 @@ def build_meta_model_trainable(
     cache_repeats: Optional[int] = None,
     train_augment_func: Optional[Callable] = None,
     validation_augment_func: Optional[Callable] = None,
-    callbacks: Iterable[tf.keras.callbacks.Callback] = (),
+    callbacks: Tuple[tf.keras.callbacks.Callback, ...] = (),
     seed: Optional[int] = None,
 ):
     # this version DOES bleed examples from 1 train epoch to the next
@@ -203,7 +203,7 @@ def build_meta_model_trainable(
 #     cache_repeats: Optional[int] = None,
 #     train_augment_func: Optional[Callable] = None,
 #     validation_augment_func: Optional[Callable] = None,
-#     callbacks: Iterable[tf.keras.callbacks.Callback] = (),
+#     callbacks: Tuple[tf.keras.callbacks.Callback, ...] = (),
 #     seed: Optional[int] = None,
 # ):
 #     # this version does NOT bleed exampels from 1 training epoch to the next

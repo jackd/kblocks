@@ -14,8 +14,12 @@
 # ==============================================================================
 """Keras Applications are canned architectures with pre-trained weights."""
 
-import keras_applications
 import tensorflow as tf
+
+try:
+    import keras_applications
+except ImportError:
+    keras_applications = tf.keras.applications
 
 from kblocks.keras import layers
 

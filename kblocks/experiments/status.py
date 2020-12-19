@@ -53,7 +53,7 @@ del _module_objects["Union"]
 del _module_objects["tf"]
 
 
-def get(identifier):
+def get(identifier: Union[str, Status]) -> Status:
     if isinstance(identifier, Status):
         return identifier
     status = tf.keras.utils.deserialize_keras_object(

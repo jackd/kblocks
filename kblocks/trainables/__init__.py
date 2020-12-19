@@ -1,4 +1,4 @@
-from .mains import (
+from .mains import (  # pylint:disable=unused-import
     benchmark_trainable_data,
     benchmark_trainable_model,
     check_weight_updates,
