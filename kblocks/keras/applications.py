@@ -18,8 +18,8 @@ import tensorflow as tf
 
 try:
     import keras_applications
-except ImportError:
-    keras_applications = tf.keras.applications
+except ImportError as e:
+    raise ImportError("kblocks.keras.applications depends on keras_applications") from e
 
 from kblocks.keras import layers
 

@@ -153,10 +153,10 @@ def with_options(options: tf.data.Options) -> Transform:
 
 @gin.configurable(module="kb.data")
 def options(**kwargs):
-    _options = tf.data.Options()
+    options_ = tf.data.Options()
     for k, v in kwargs.items():
-        setattr(_options, k, v)
-    return _options
+        setattr(options_, k, v)
+    return options_
 
 
 # experimental

@@ -2,7 +2,9 @@ from typing import Optional
 
 import gin
 import tensorflow as tf
-from tensorflow.python.keras.utils.losses_utils import squeeze_or_expand_dimensions
+from tensorflow.python.keras.utils.losses_utils import (  # pylint: disable=no-name-in-module
+    squeeze_or_expand_dimensions,
+)
 
 
 @gin.configurable(module="kb.extras.metrics")

@@ -55,7 +55,7 @@ def build_trainable(
     steps_per_epoch: Optional[int] = None,
     validation_data: Optional[Union[tf.data.Dataset, RepeatedData]] = None,
     validation_steps: Optional[int] = None,
-    callbacks: Tuple[tf.keras.callbacks.Callback, ...] = (),
+    callbacks: Iterable[tf.keras.callbacks.Callback] = (),
     compiler: Optional[Callable[[tf.keras.Model], Any]] = None,
 ) -> Trainable:
 
@@ -75,5 +75,5 @@ def build_trainable(
         steps_per_epoch=steps_per_epoch,
         validation_data=validation_data,
         validation_steps=validation_steps,
-        callbacks=callbacks,
+        callbacks=tuple(callbacks),
     )
