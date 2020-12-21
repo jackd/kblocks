@@ -1,4 +1,5 @@
-[Injectable tf.keras Blocks](https://github.com/jackd/kblocks)
+# [Injectable tf.keras Blocks](https://github.com/jackd/kblocks)
+
 ===
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -79,9 +80,17 @@ Go check out the [gin user guide](https://github.com/google/gin-config/blob/mast
   - [Point Cloud Network](https://github.com/jackd/pcn.git)
   - [Event Convolution Network](https://github.com/jackd/ecn.git)
 
+## Contributors
+
+Special thanks to external contributors:
+
+- [Samuel Marks](https://github.com/SamuelMarks)
+
 ## TODO
 
 - refactor [polynomials](kblocks/ops/polynomials) into separate repo?
 - configure `%start_time` macro?
 - make default experiment dir based on `system_time`?
 - does `tfrecords_cache` produce datasets with checkpoint-able datasets?
+- replace relative path / variable expansion in gin config with `gin.config.add_config_file_search_path`
+- bump tf required version to 2.4 and remove wtftf usages / dependency (layer wrappers not required with tf >= 2.4)
