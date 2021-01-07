@@ -23,7 +23,7 @@ BackupAndRestore = gin.external_configurable(
 del loc, wrap
 
 # add _supports_tf_logs = True
-# TODO: make github issue
+# Github issue: https://github.com/tensorflow/tensorflow/issues/45895
 
 
 @gin.configurable(module="tf.keras.callbacks")

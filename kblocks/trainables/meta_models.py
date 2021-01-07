@@ -170,7 +170,7 @@ def build_meta_model_trainable(
             # .apply(tf.data.experimental.assert_cardinality(
             #     tf.data.INFINITE_CARDINALITY))
         )
-        # TODO: create github issue about assert_cardinality(INFINITE_CARDINALITY)
+        # https://github.com/tensorflow/tensorflow/issues/45894
 
     # assert specs the same
     train_spec = train_dataset.element_spec
